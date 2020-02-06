@@ -77,7 +77,7 @@ sudo make install
 
 ### Start PGSpider
 PGSpider binary name is same as PostgreSQL. 
-Default install direcotry is changed. 
+Default install directory is changed. 
 <pre>
 /usr/local/pgspider
 </pre>

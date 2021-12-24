@@ -1,0 +1,418 @@
+CREATE EXTENSION postgres_fdw;
+CREATE SERVER postgres_srv FOREIGN DATA WRAPPER postgres_fdw
+            OPTIONS (host '127.0.0.1',
+                     port '15432',
+                     dbname 'postdb');
+CREATE USER MAPPING FOR public SERVER postgres_srv
+        OPTIONS (user 'postgres', password 'postgres');
+
+-- ===================================================================
+
+-- create objects used through FDW loopback server
+
+-- ===================================================================
+
+CREATE TYPE user_enum AS ENUM ('foo', 'bar', 'buz');
+
+CREATE SCHEMA "S 1";
+
+CREATE TABLE "S 1"."T 1" (
+
+	"C 1" int NOT NULL,
+
+	c2 int NOT NULL,
+
+	c3 text,
+
+	c4 timestamptz,
+
+	c5 timestamp,
+
+	c6 varchar(10),
+
+	c7 char(10),
+
+	c8 user_enum,
+
+	CONSTRAINT t1_pkey PRIMARY KEY ("C 1")
+
+);
+
+CREATE TABLE "S 1"."T 2" (
+
+	c1 int NOT NULL,
+
+	c2 text,
+
+	CONSTRAINT t2_pkey PRIMARY KEY (c1)
+
+);
+
+CREATE TABLE "S 1"."T 3" (
+
+	c1 int NOT NULL,
+
+	c2 int NOT NULL,
+
+	c3 text,
+
+	CONSTRAINT t3_pkey PRIMARY KEY (c1)
+
+);
+
+CREATE TABLE "S 1"."T 4" (
+
+	c1 int NOT NULL,
+
+	c2 int NOT NULL,
+
+	c3 text,
+
+	CONSTRAINT t4_pkey PRIMARY KEY (c1)
+
+);
+
+
+-- Disable autovacuum for these tables to avoid unexpected effects of that
+
+ALTER TABLE "S 1"."T 1" SET (autovacuum_enabled = 'false');
+
+ALTER TABLE "S 1"."T 2" SET (autovacuum_enabled = 'false');
+
+ALTER TABLE "S 1"."T 3" SET (autovacuum_enabled = 'false');
+
+ALTER TABLE "S 1"."T 4" SET (autovacuum_enabled = 'false');
+
+
+-- ===================================================================
+-- simple queries
+-- ===================================================================
+
+CREATE TABLE ft_empty (c1 int NOT NULL, c2 text);
+
+-- ==================================================================
+
+-- create triggers
+
+-- ==================================================================
+-- Test various RETURN statements in BEFORE triggers.
+CREATE FUNCTION trig_row_before_insupdate() RETURNS TRIGGER AS $$
+  BEGIN
+    NEW.f2 := NEW.f2 || ' triggered !';
+    RETURN NEW;
+  END
+$$ language plpgsql;
+
+-- Test insert tuple routing
+create function br_insert_trigfunc() returns trigger as $$
+begin
+        new.b := new.b || ' triggered !';
+        return new;
+end
+$$ language plpgsql;
+
+-- Test with a trigger returning NULL
+CREATE FUNCTION trig_null() RETURNS TRIGGER AS $$
+  BEGIN
+    RETURN NULL;
+  END
+$$ language plpgsql;
+
+-- Test that trigger on remote table works as expected
+CREATE OR REPLACE FUNCTION "S 1".F_BRTRIG() RETURNS trigger AS $$
+BEGIN
+    NEW.c3 = NEW.c3 || '_trig_update';
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE FUNCTION row_before_insupd_trigfunc() RETURNS trigger AS $$
+BEGIN 
+    NEW.a := NEW.a + 10; 
+    RETURN NEW; 
+END
+$$ LANGUAGE plpgsql;
+
+-- ===================================================================
+
+-- test handling of collations
+
+-- ===================================================================
+
+create table loct3 (f1 text collate "C" unique, f2 text, f3 varchar(10) unique);
+
+-- ===================================================================
+
+-- test WITH CHECK OPTION constraints
+
+-- ===================================================================
+
+CREATE TABLE base_tbl (a int, b int);
+ALTER TABLE base_tbl SET (autovacuum_enabled = 'false');
+
+CREATE TABLE child_tbl (a int, b int);
+ALTER TABLE child_tbl SET (autovacuum_enabled = 'false');
+
+-- ===================================================================
+-- JOIN queries
+-- ===================================================================
+-- multi-way join involving multiple merge joins
+-- (this case used to have EPQ-related planning problems)
+CREATE TABLE local_tbl (c1 int NOT NULL, c2 int NOT NULL, c3 text, CONSTRAINT local_tbl_pkey PRIMARY KEY (c1));
+--INSERT INTO local_tbl SELECT id, id % 10, to_char(id, 'FM0000') FROM generate_series(1, 1000) id;
+
+-- ===================================================================
+
+-- test serial columns (ie, sequence-based defaults)
+
+-- ===================================================================
+
+create table loc1_1 (f1 serial, f2 text);
+alter table loc1_1 set (autovacuum_enabled = 'false');
+
+-- ===================================================================
+-- test generated columns
+-- ===================================================================
+create table gloc1 (
+  a int,
+  b int generated always as (a * 2) stored);
+alter table gloc1 set (autovacuum_enabled = 'false');
+
+-- ===================================================================
+
+-- test inheritance features
+
+-- ===================================================================
+
+
+
+CREATE TABLE a (aa TEXT);
+
+CREATE TABLE loct_1 (aa TEXT, bb TEXT);
+
+ALTER TABLE a SET (autovacuum_enabled = 'false');
+
+ALTER TABLE loct_1 SET (autovacuum_enabled = 'false');
+
+
+
+-- Check SELECT FOR UPDATE/SHARE with an inherited source table
+
+create table loct1_1 (f1 int, f2 int, f3 int);
+
+create index i_loct1_f1 on loct1_1(f1);
+
+create table loct2_1 (f1 int, f2 int, f3 int);
+
+alter table loct1_1 set (autovacuum_enabled = 'false');
+
+alter table loct2_1 set (autovacuum_enabled = 'false');
+
+
+
+create table foo (f1 int, f2 int);
+
+alter table foo set (autovacuum_enabled = 'false');
+
+create table bar (f1 int, f2 int);
+
+alter table bar set (autovacuum_enabled = 'false');
+
+-- Now check SELECT FOR UPDATE/SHARE with an inherited source table,
+-- where the parent is itself a foreign table
+
+create table loct4 (f1 int, f2 int, f3 int);
+
+
+-- Test pushing down UPDATE/DELETE joins to the remote server
+
+create table parent (a int, b text);
+create table loct1_2 (a int, b text);
+create table loct2_2 (a int, b text);
+
+--insert into loct1_2 values (1, 'foo');
+--insert into loct1_2 values (2, 'bar');
+--insert into loct2_2 values (1, 'foo');
+--insert into loct2_2 values (2, 'bar');
+
+
+
+-- ===================================================================
+
+-- test tuple routing for foreign-table partitions
+
+-- ===================================================================
+
+
+
+-- Test insert tuple routing
+
+create table itrtest (a int, b text) partition by list (a);
+
+create table loct1_3 (a int check (a in (1)), b text);
+
+create table loct2_3 (a int check (a in (2)), b text);
+
+
+-- Test update tuple routing
+
+create table utrtest (a int, b text) partition by list (a);
+
+create table loct_2 (a int check (a in (1)), b text);
+
+create table locp_2 (a int check (a in (2)), b text);
+
+
+-- Test copy tuple routing
+
+create table ctrtest (a int, b text) partition by list (a);
+create table loct1_4 (a int check (a in (1)), b text);
+
+create table loct2_4 (a int check (a in (2)), b text);
+
+alter table ctrtest attach partition loct1_4 for values in (1);
+alter table ctrtest attach partition loct2_4 for values in (2);
+
+
+-- ===================================================================
+
+-- test COPY FROM
+
+-- ===================================================================
+
+
+
+create table loc2_1 (f1 int, f2 text);
+
+alter table loc2_1 set (autovacuum_enabled = 'false');
+
+alter table loc2_1 add constraint loc2_1_f1positive check (f1 >= 0);
+
+-- test COPY FROM with foreign table created in the same transaction
+
+create table loc3_1 (f1 int, f2 text);
+
+-- test IMPORT FOREIGN SCHEMA
+
+CREATE SCHEMA import_source;
+
+CREATE TABLE import_source.t1 (c1 int, c2 varchar NOT NULL);
+
+CREATE TABLE import_source.t2 (c1 int default 42, c2 varchar NULL, c3 text collate "POSIX");
+
+CREATE TYPE typ1 AS (m1 int, m2 varchar);
+
+CREATE TABLE import_source.t3 (c1 timestamptz default now(), c2 typ1);
+
+CREATE TABLE import_source."x 4" (c1 float8, "C 2" text, c3 varchar(42));
+
+CREATE TABLE import_source."x 5" (c1 float8);
+
+ALTER TABLE import_source."x 5" DROP COLUMN c1;
+
+CREATE TABLE import_source."x 6" (c1 int, c2 int generated always as (c1 * 2) stored);
+
+CREATE TABLE import_source.t4 (c1 int) PARTITION BY RANGE (c1);
+
+CREATE TABLE import_source.t4_part PARTITION OF import_source.t4
+
+  FOR VALUES FROM (1) TO (100);
+
+
+
+-- Check case of a type present only on the remote server.
+
+-- We can fake this by dropping the type locally in our transaction.
+
+CREATE TYPE "Colors" AS ENUM ('red', 'green', 'blue');
+
+
+-- ===================================================================
+-- test for TRUNCATE
+-- ===================================================================
+
+CREATE TABLE tru_rtable0 (id int primary key);
+
+CREATE TABLE tru_ptable__p0 (id int);
+CREATE TABLE tru_rtable1 (id int primary key);
+
+CREATE TABLE tru_pk_table(id int primary key);
+CREATE TABLE tru_fk_table(fkey int references tru_pk_table(id));
+
+CREATE TABLE tru_rtable_parent (id int);
+CREATE TABLE tru_rtable_child (id int);
+
+CREATE TABLE tru_rtable0_child () INHERITS (tru_rtable0);
+
+-- ===================================================================
+
+-- test partitionwise joins
+
+-- ===================================================================
+
+SET enable_partitionwise_join=on;
+
+CREATE TABLE fprt1 (a int, b int, c varchar) PARTITION BY RANGE(a);
+
+CREATE TABLE fprt1_p1 (LIKE fprt1);
+
+CREATE TABLE fprt1_p2 (LIKE fprt1);
+
+ALTER TABLE fprt1_p1 SET (autovacuum_enabled = 'false');
+
+ALTER TABLE fprt1_p2 SET (autovacuum_enabled = 'false');
+
+INSERT INTO fprt1_p1 SELECT i, i, to_char(i/50, 'FM0000') FROM generate_series(0, 249, 2) i;
+
+INSERT INTO fprt1_p2 SELECT i, i, to_char(i/50, 'FM0000') FROM generate_series(250, 499, 2) i;
+
+CREATE TABLE fprt2 (a int, b int, c varchar) PARTITION BY RANGE(b);
+
+CREATE TABLE fprt2_p1 (LIKE fprt2);
+
+CREATE TABLE fprt2_p2 (LIKE fprt2);
+
+ALTER TABLE fprt2_p1 SET (autovacuum_enabled = 'false');
+
+ALTER TABLE fprt2_p2 SET (autovacuum_enabled = 'false');
+
+INSERT INTO fprt2_p1 SELECT i, i, to_char(i/50, 'FM0000') FROM generate_series(0, 249, 3) i;
+
+INSERT INTO fprt2_p2 SELECT i, i, to_char(i/50, 'FM0000') FROM generate_series(250, 499, 3) i;
+
+-- ===================================================================
+
+-- test partitionwise aggregates
+
+-- ===================================================================
+
+CREATE TABLE pagg_tab (a int, b int, c text) PARTITION BY RANGE(a);
+
+CREATE TABLE pagg_tab_p1 (LIKE pagg_tab);
+
+CREATE TABLE pagg_tab_p2 (LIKE pagg_tab);
+
+CREATE TABLE pagg_tab_p3 (LIKE pagg_tab);
+
+
+INSERT INTO pagg_tab_p1 SELECT i % 30, i % 50, to_char(i/30, 'FM0000') FROM generate_series(1, 3000) i WHERE (i % 30) < 10;
+
+INSERT INTO pagg_tab_p2 SELECT i % 30, i % 50, to_char(i/30, 'FM0000') FROM generate_series(1, 3000) i WHERE (i % 30) < 20 and (i % 30) >= 10;
+
+INSERT INTO pagg_tab_p3 SELECT i % 30, i % 50, to_char(i/30, 'FM0000') FROM generate_series(1, 3000) i WHERE (i % 30) < 30 and (i % 30) >= 20;
+
+-- ===================================================================
+-- batch insert
+-- ===================================================================
+
+CREATE TABLE batch_table ( x int );
+
+CREATE TABLE batch_table_p0 ( x int );
+CREATE TABLE batch_table_p1 ( x int );
+
+CREATE TABLE batch_cp_upd_test1 (a int);
+
+CREATE TABLE batch_table_p2 ( x int, field1 text, field2 text);
+CREATE TABLE batch_table_p3 ( x int, field1 text, field2 text);
+
+\q

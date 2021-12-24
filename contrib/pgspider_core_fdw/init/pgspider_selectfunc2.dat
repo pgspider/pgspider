@@ -1,0 +1,181 @@
+DROP EXTENSION IF EXISTS pgspider_core_fdw CASCADE;
+DROP EXTENSION IF EXISTS pgspider_fdw CASCADE;
+DROP EXTENSION IF EXISTS influxdb_fdw CASCADE;
+DROP EXTENSION IF EXISTS tinybrace_fdw CASCADE;
+DROP EXTENSION IF EXISTS postgres_fdw CASCADE;
+DROP EXTENSION IF EXISTS griddb_fdw CASCADE;
+DROP EXTENSION IF EXISTS mysql_fdw CASCADE;
+DROP EXTENSION IF EXISTS sqlite_fdw CASCADE;
+CREATE EXTENSION pgspider_core_fdw;
+CREATE EXTENSION sqlite_fdw;
+CREATE EXTENSION influxdb_fdw;
+CREATE EXTENSION mysql_fdw;
+CREATE EXTENSION griddb_fdw;
+
+-- pgspider_core_fdw
+CREATE SERVER pgspider_core_svr FOREIGN DATA WRAPPER pgspider_core_fdw OPTIONS (host '127.0.0.1');
+CREATE USER MAPPING FOR CURRENT_USER SERVER pgspider_core_svr;
+CREATE FOREIGN TABLE s3influx (time timestamp with time zone, tag1 text, value1 float8, value2 bigint, value3 float8, value4 bigint, __spd_url text) SERVER pgspider_core_svr;
+CREATE FOREIGN TABLE s32influx (time timestamp with time zone, tag1 text, value1 float8, value2 bigint, value3 float8, value4 bigint, __spd_url text) SERVER pgspider_core_svr;
+CREATE FOREIGN TABLE s3sqlite (id text, time timestamp with time zone, tag1 text, value1 float8, value2 bigint, value3 float8, value4 bigint, str1 text, str2 text, __spd_url text) SERVER pgspider_core_svr;
+CREATE FOREIGN TABLE s32sqlite (id text, time timestamp with time zone, tag1 text, value1 float8, value2 bigint, value3 float8, value4 bigint, str1 text, str2 text, __spd_url text) SERVER pgspider_core_svr;
+CREATE FOREIGN TABLE s3mysql (id int, tag1 text, value1 float8, value2 bigint, value3 float8, value4 bigint, str1 text, str2 text, __spd_url text) SERVER pgspider_core_svr;
+CREATE FOREIGN TABLE s32mysql (id int, tag1 text, value1 float8, value2 bigint, value3 float8, value4 bigint, str1 text, str2 text, __spd_url text) SERVER pgspider_core_svr;
+CREATE FOREIGN TABLE time_tblmysql (id int, c1 time without time zone, c2 date, c3 timestamp, __spd_url text) SERVER pgspider_core_svr;
+CREATE FOREIGN TABLE time_tbl2mysql (id int, c1 time without time zone, c2 date, c3 timestamp, __spd_url text) SERVER pgspider_core_svr;
+
+CREATE FOREIGN TABLE s7amysql (id int, tag1 text, value1 float, value2 int, value3 float, value4 int, value5 bit, str1 text, str2 text, __spd_url text) SERVER pgspider_core_svr;
+CREATE FOREIGN TABLE s7a2mysql (id int, tag1 text, value1 float, value2 int, value3 float, value4 int, value5 bit, str1 text, str2 text, __spd_url text) SERVER pgspider_core_svr;
+CREATE FOREIGN TABLE ftextsearch2 (id int, content text, __spd_url text) SERVER pgspider_core_svr;
+CREATE FOREIGN TABLE s8mysql (id int, c1 json, c2 int, c3 text, __spd_url text) SERVER pgspider_core_svr;
+CREATE FOREIGN TABLE s9mysql (id int, c1 json, __spd_url text) SERVER pgspider_core_svr;
+CREATE FOREIGN TABLE s82mysql (id int, c1 json, c2 int, c3 text, __spd_url text) SERVER pgspider_core_svr;
+CREATE FOREIGN TABLE s92mysql (id int, c1 json, __spd_url text) SERVER pgspider_core_svr;
+
+CREATE FOREIGN TABLE s3griddb (
+       date timestamp without time zone,
+       value1 integer,
+       value2 double precision,
+       name text,
+       age integer,
+       location text,
+       gpa double precision,
+       date1 timestamp without time zone,
+       date2 timestamp without time zone,
+       strcol text,
+       booleancol boolean,
+       bytecol smallint,
+       shortcol smallint,
+       intcol integer,
+       longcol bigint,
+       floatcol real,
+       doublecol double precision,
+       blobcol bytea,
+       stringarray text[],
+       boolarray boolean[],
+       bytearray smallint[],
+       shortarray smallint[],
+       integerarray integer[],
+       longarray bigint[],
+       floatarray real[],
+       doublearray double precision[],
+       timestamparray timestamp without time zone[],
+       __spd_url text
+) SERVER pgspider_core_svr;
+CREATE FOREIGN TABLE s32griddb (
+       date timestamp without time zone,
+       value1 integer,
+       value2 double precision,
+       name text,
+       age integer,
+       location text,
+       gpa double precision,
+       date1 timestamp without time zone,
+       date2 timestamp without time zone,
+       strcol text,
+       booleancol boolean,
+       bytecol smallint,
+       shortcol smallint,
+       intcol integer,
+       longcol bigint,
+       floatcol real,
+       doublecol double precision,
+       blobcol bytea,
+       stringarray text[],
+       boolarray boolean[],
+       bytearray smallint[],
+       shortarray smallint[],
+       integerarray integer[],
+       longarray bigint[],
+       floatarray real[],
+       doublearray double precision[],
+       timestamparray timestamp without time zone[],
+       __spd_url text
+) SERVER pgspider_core_svr;
+
+-- influxdb_fdw
+CREATE SERVER influxdb_svr FOREIGN DATA WRAPPER influxdb_fdw OPTIONS (dbname 'selectfunc_db', host 'http://localhost', port '8086');
+CREATE USER MAPPING FOR CURRENT_USER SERVER influxdb_svr OPTIONS (user 'user', password 'pass');
+CREATE FOREIGN TABLE s3influx__influxdb_svr__0 (time timestamp with time zone, tag1 text, value1 float8, value2 bigint, value3 float8, value4 bigint) SERVER influxdb_svr OPTIONS (table 's3', tags 'tag1');
+CREATE FOREIGN TABLE s32influx__influxdb_svr__0 (time timestamp with time zone, tag1 text, value1 float8, value2 bigint, value3 float8, value4 bigint) SERVER influxdb_svr OPTIONS (table 's32', tags 'tag1');
+
+-- sqlite_fdw
+CREATE SERVER sqlite_svr FOREIGN DATA WRAPPER sqlite_fdw OPTIONS (database '/tmp/pgtest.db');
+CREATE FOREIGN TABLE s3sqlite__sqlite_svr__0 (id text OPTIONS (key 'true'), time timestamp, tag1 text, value1 float, value2 int, value3 float, value4 int, str1 text, str2 text) SERVER sqlite_svr OPTIONS (table 's3');
+CREATE FOREIGN TABLE s32sqlite__sqlite_svr__0 (id text OPTIONS (key 'true'), time timestamp, tag1 text, value1 float, value2 int, value3 float, value4 int, str1 text, str2 text) SERVER sqlite_svr OPTIONS (table 's32');
+
+-- mysql_fdw
+CREATE SERVER mysql_svr FOREIGN DATA WRAPPER mysql_fdw OPTIONS (host '127.0.0.1',port '3306');
+CREATE USER MAPPING FOR CURRENT_USER SERVER mysql_svr OPTIONS(username 'root',password 'Mysql_1234');
+CREATE FOREIGN TABLE s7amysql__mysql_svr__0 (id int, tag1 text, value1 float, value2 int, value3 float, value4 int, value5 bit, str1 text, str2 text) SERVER mysql_svr OPTIONS(dbname 'test', table_name 's7a');
+CREATE FOREIGN TABLE s7a2mysql__mysql_svr__0 (id int, tag1 text, value1 float, value2 int, value3 float, value4 int, value5 bit, str1 text, str2 text) SERVER mysql_svr OPTIONS(dbname 'test', table_name 's7a2');
+CREATE FOREIGN TABLE s32mysql__mysql_svr__0 (id int, tag1 text, value1 float, value2 int, value3 float, value4 int, str1 text, str2 text) SERVER mysql_svr OPTIONS(dbname 'test', table_name 's32');
+CREATE FOREIGN TABLE ftextsearch2__mysql_svr__0 (id int, content text) SERVER mysql_svr OPTIONS(dbname 'test', table_name 'ftextsearch2');
+CREATE FOREIGN TABLE time_tblmysql__mysql_svr__0 (id int, c1 time without time zone, c2 date, c3 timestamp) SERVER mysql_svr OPTIONS(dbname 'test', table_name 'time_tbl');
+CREATE FOREIGN TABLE time_tbl2mysql__mysql_svr__0 (id int, c1 time without time zone, c2 date, c3 timestamp) SERVER mysql_svr OPTIONS(dbname 'test', table_name 'time_tbl2');
+CREATE FOREIGN TABLE s8mysql__mysql_svr__0 (id int, c1 json, c2 int, c3 text) SERVER mysql_svr OPTIONS(dbname 'test', table_name 's8');
+CREATE FOREIGN TABLE s9mysql__mysql_svr__0 (id int, c1 json) SERVER mysql_svr OPTIONS(dbname 'test', table_name 's9');
+CREATE FOREIGN TABLE s82mysql__mysql_svr__0 (id int, c1 json, c2 int, c3 text) SERVER mysql_svr OPTIONS(dbname 'test', table_name 's82');
+CREATE FOREIGN TABLE s92mysql__mysql_svr__0 (id int, c1 json) SERVER mysql_svr OPTIONS(dbname 'test', table_name 's92');
+
+-- griddb_fdw
+CREATE SERVER griddb_svr FOREIGN DATA WRAPPER griddb_fdw  OPTIONS (host '239.0.0.1', port '31999', clustername 'griddbfdwTestCluster');
+CREATE USER MAPPING FOR public SERVER griddb_svr OPTIONS (username 'admin', password 'testadmin');
+CREATE FOREIGN TABLE s3griddb__griddb_svr__0 (
+       date timestamp without time zone,
+       value1 integer,
+       value2 double precision,
+       name text,
+       age integer,
+       location text,
+       gpa double precision,
+       date1 timestamp without time zone,
+       date2 timestamp without time zone,
+       strcol text,
+       booleancol boolean,
+       bytecol smallint,
+       shortcol smallint,
+       intcol integer,
+       longcol bigint,
+       floatcol real,
+       doublecol double precision,
+       blobcol bytea,
+       stringarray text[],
+       boolarray boolean[],
+       bytearray smallint[],
+       shortarray smallint[],
+       integerarray integer[],
+       longarray bigint[],
+       floatarray real[],
+       doublearray double precision[],
+       timestamparray timestamp without time zone[]
+) SERVER griddb_svr OPTIONS(table_name 's3');
+CREATE FOREIGN TABLE s32griddb__griddb_svr__0 (
+       date timestamp without time zone,
+       value1 integer,
+       value2 double precision,
+       name text,
+       age integer,
+       location text,
+       gpa double precision,
+       date1 timestamp without time zone,
+       date2 timestamp without time zone,
+       strcol text,
+       booleancol boolean,
+       bytecol smallint,
+       shortcol smallint,
+       intcol integer,
+       longcol bigint,
+       floatcol real,
+       doublecol double precision,
+       blobcol bytea,
+       stringarray text[],
+       boolarray boolean[],
+       bytearray smallint[],
+       shortarray smallint[],
+       integerarray integer[],
+       longarray bigint[],
+       floatarray real[],
+       doublearray double precision[],
+       timestamparray timestamp without time zone[]
+) SERVER griddb_svr OPTIONS(table_name 's32');

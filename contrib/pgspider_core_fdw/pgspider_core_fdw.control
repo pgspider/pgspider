@@ -1,0 +1,5 @@
+# pgspider_core_fdw extension
+comment = 'foreign-data wrapper for remote PGSpider servers'
+default_version = '1.0'
+module_pathname = '$libdir/pgspider_core_fdw'
+relocatable = true

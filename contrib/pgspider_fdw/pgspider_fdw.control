@@ -1,5 +1,0 @@
-# pgspider_fdw extension
-comment = 'foreign-data wrapper for remote PostgreSQL servers'
-default_version = '1.3'
-module_pathname = '$libdir/pgspider_fdw'
-relocatable = true

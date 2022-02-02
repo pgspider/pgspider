@@ -1,0 +1,5 @@
+# worker_spi extension
+comment = 'pspider_keepalive'
+default_version = '1.0'
+module_pathname = '$libdir/pspider_keepalive'
+relocatable = true

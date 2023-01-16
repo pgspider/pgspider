@@ -4,7 +4,7 @@
  *	  exported definitions for utils/hash/dynahash.c; see notes therein
  *
  *
- * Portions Copyright (c) 1996-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  * src/include/utils/hsearch.h
@@ -151,6 +151,8 @@ extern void AtEOXact_HashTables(bool isCommit);
 extern void AtEOSubXact_HashTables(bool isCommit, int nestDepth);
 #ifdef PGSPIDER
 extern void hash_register_reset_callback(MemoryContext query_context);
+extern void update_normalized_id(int new_val);
+extern int get_normalized_id(void);
 #endif
 
 #endif							/* HSEARCH_H */

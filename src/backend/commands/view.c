@@ -3,7 +3,7 @@
  * view.c
  *	  use rewrite rules to construct views
  *
- * Portions Copyright (c) 1996-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
@@ -190,7 +190,7 @@ DefineVirtualRelation(RangeVar *relation, List *tlist, bool replace,
 		CommandCounterIncrement();
 
 		/*
-		 * Finally update the view options.
+		 * Update the view's options.
 		 *
 		 * The new options list replaces the existing options list, even if
 		 * it's empty.
@@ -203,7 +203,21 @@ DefineVirtualRelation(RangeVar *relation, List *tlist, bool replace,
 		/* EventTriggerAlterTableStart called by ProcessUtilitySlow */
 		AlterTableInternal(viewOid, atcmds, true);
 
+		/*
+		 * There is very little to do here to update the view's dependencies.
+		 * Most view-level dependency relationships, such as those on the
+		 * owner, schema, and associated composite type, aren't changing.
+		 * Because we don't allow changing type or collation of an existing
+		 * view column, those dependencies of the existing columns don't
+		 * change either, while the AT_AddColumnToView machinery took care of
+		 * adding such dependencies for new view columns.  The dependencies of
+		 * the view's query could have changed arbitrarily, but that was dealt
+		 * with inside StoreViewQuery.  What remains is only to check that
+		 * view replacement is allowed when we're creating an extension.
+		 */
 		ObjectAddressSet(address, RelationRelationId, viewOid);
+
+		recordDependencyOnCurrentExtension(&address, true);
 
 		/*
 		 * Seems okay, so return the OID of the pre-existing view.
@@ -282,7 +296,12 @@ checkViewTupleDesc(TupleDesc newdesc, TupleDesc olddesc)
 							NameStr(oldattr->attname),
 							NameStr(newattr->attname)),
 					 errhint("Use ALTER VIEW ... RENAME COLUMN ... to change name of view column instead.")));
-		/* XXX would it be safe to allow atttypmod to change?  Not sure */
+
+		/*
+		 * We cannot allow type, typmod, or collation to change, since these
+		 * properties may be embedded in Vars of other views/rules referencing
+		 * this one.  Other column attributes can be ignored.
+		 */
 		if (newattr->atttypid != oldattr->atttypid ||
 			newattr->atttypmod != oldattr->atttypmod)
 			ereport(ERROR,
@@ -293,7 +312,18 @@ checkViewTupleDesc(TupleDesc newdesc, TupleDesc olddesc)
 													 oldattr->atttypmod),
 							format_type_with_typemod(newattr->atttypid,
 													 newattr->atttypmod))));
-		/* We can ignore the remaining attributes of an attribute... */
+
+		/*
+		 * At this point, attcollations should be both valid or both invalid,
+		 * so applying get_collation_name unconditionally should be fine.
+		 */
+		if (newattr->attcollation != oldattr->attcollation)
+			ereport(ERROR,
+					(errcode(ERRCODE_INVALID_TABLE_DEFINITION),
+					 errmsg("cannot change collation of view column \"%s\" from \"%s\" to \"%s\"",
+							NameStr(oldattr->attname),
+							get_collation_name(oldattr->attcollation),
+							get_collation_name(newattr->attcollation))));
 	}
 
 	/*
@@ -423,7 +453,7 @@ DefineView(ViewStmt *stmt, const char *queryString,
 	rawstmt->stmt_location = stmt_location;
 	rawstmt->stmt_len = stmt_len;
 
-	viewParse = parse_analyze(rawstmt, queryString, NULL, 0, NULL);
+	viewParse = parse_analyze_fixedparams(rawstmt, queryString, NULL, 0, NULL);
 
 	/*
 	 * The grammar should ensure that the result is a single SELECT Query.

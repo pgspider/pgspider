@@ -3,7 +3,7 @@
  * matview.c
  *	  materialized view support
  *
- * Portions Copyright (c) 1996-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
@@ -167,6 +167,17 @@ ExecRefreshMatView(RefreshMatViewStmt *stmt, const char *queryString,
 										  lockmode, 0,
 										  RangeVarCallbackOwnsTable, NULL);
 	matviewRel = table_open(matviewOid, NoLock);
+	relowner = matviewRel->rd_rel->relowner;
+
+	/*
+	 * Switch to the owner's userid, so that any functions are run as that
+	 * user.  Also lock down security-restricted operations and arrange to
+	 * make GUC variable changes local to this command.
+	 */
+	GetUserIdAndSecContext(&save_userid, &save_sec_context);
+	SetUserIdAndSecContext(relowner,
+						   save_sec_context | SECURITY_RESTRICTED_OPERATION);
+	save_nestlevel = NewGUCNestLevel();
 
 	/* Make sure it is a materialized view. */
 	if (matviewRel->rd_rel->relkind != RELKIND_MATVIEW)
@@ -185,7 +196,8 @@ ExecRefreshMatView(RefreshMatViewStmt *stmt, const char *queryString,
 	if (concurrent && stmt->skipData)
 		ereport(ERROR,
 				(errcode(ERRCODE_SYNTAX_ERROR),
-				 errmsg("CONCURRENTLY and WITH NO DATA options cannot be used together")));
+				 errmsg("%s and %s options cannot be used together",
+						"CONCURRENTLY", "WITH NO DATA")));
 
 	/*
 	 * Check that everything is correct for a refresh. Problems at this point
@@ -268,19 +280,6 @@ ExecRefreshMatView(RefreshMatViewStmt *stmt, const char *queryString,
 	 */
 	SetMatViewPopulatedState(matviewRel, !stmt->skipData);
 
-	relowner = matviewRel->rd_rel->relowner;
-
-	/*
-	 * Switch to the owner's userid, so that any functions are run as that
-	 * user.  Also arrange to make GUC variable changes local to this command.
-	 * Don't lock it down too tight to create a temporary table just yet.  We
-	 * will switch modes when we are about to execute user code.
-	 */
-	GetUserIdAndSecContext(&save_userid, &save_sec_context);
-	SetUserIdAndSecContext(relowner,
-						   save_sec_context | SECURITY_LOCAL_USERID_CHANGE);
-	save_nestlevel = NewGUCNestLevel();
-
 	/* Concurrent refresh builds new data in temp tablespace, and does diff. */
 	if (concurrent)
 	{
@@ -298,16 +297,11 @@ ExecRefreshMatView(RefreshMatViewStmt *stmt, const char *queryString,
 	 * it against access by any other process until commit (by which time it
 	 * will be gone).
 	 */
-	OIDNewHeap = make_new_heap(matviewOid, tableSpace, relpersistence,
-							   ExclusiveLock);
+	OIDNewHeap = make_new_heap(matviewOid, tableSpace,
+							   matviewRel->rd_rel->relam,
+							   relpersistence, ExclusiveLock);
 	LockRelationOid(OIDNewHeap, AccessExclusiveLock);
 	dest = CreateTransientRelDestReceiver(OIDNewHeap);
-
-	/*
-	 * Now lock down security-restricted operations.
-	 */
-	SetUserIdAndSecContext(relowner,
-						   save_sec_context | SECURITY_RESTRICTED_OPERATION);
 
 	/* Generate the data, if wanted. */
 	if (!stmt->skipData)
@@ -336,10 +330,10 @@ ExecRefreshMatView(RefreshMatViewStmt *stmt, const char *queryString,
 		refresh_by_heap_swap(matviewOid, OIDNewHeap, relpersistence);
 
 		/*
-		 * Inform stats collector about our activity: basically, we truncated
-		 * the matview and inserted some new data.  (The concurrent code path
-		 * above doesn't need to worry about this because the inserts and
-		 * deletes it issues get counted by lower-level code.)
+		 * Inform cumulative stats system about our activity: basically, we
+		 * truncated the matview and inserted some new data.  (The concurrent
+		 * code path above doesn't need to worry about this because the
+		 * inserts and deletes it issues get counted by lower-level code.)
 		 */
 		pgstat_count_truncate(matviewRel);
 		if (!stmt->skipData)

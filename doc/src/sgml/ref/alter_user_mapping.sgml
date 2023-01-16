@@ -22,7 +22,7 @@ PostgreSQL documentation
  <refsynopsisdiv>
 <synopsis>
 ALTER USER MAPPING FOR { <replaceable class="parameter">user_name</replaceable> | USER | CURRENT_ROLE | CURRENT_USER | SESSION_USER | PUBLIC }
-    SERVER <replaceable class="parameter">server_name</replaceable>
+    ( [ SERVER | MULTI TENANT ] <replaceable class="parameter">server_name</replaceable> )
     OPTIONS ( [ ADD | SET | DROP ] <replaceable class="parameter">option</replaceable> ['<replaceable class="parameter">value</replaceable>'] [, ... ] )
 </synopsis>
  </refsynopsisdiv>

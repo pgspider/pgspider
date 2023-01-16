@@ -3,7 +3,7 @@
  * schemacmds.c
  *	  schema creation/manipulation commands
  *
- * Portions Copyright (c) 1996-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
@@ -112,14 +112,25 @@ CreateSchemaCommand(CreateSchemaStmt *stmt, const char *queryString,
 	 * the permissions checks, but since CREATE TABLE IF NOT EXISTS makes its
 	 * creation-permission check first, we do likewise.
 	 */
-	if (stmt->if_not_exists &&
-		SearchSysCacheExists1(NAMESPACENAME, PointerGetDatum(schemaName)))
+	if (stmt->if_not_exists)
 	{
-		ereport(NOTICE,
-				(errcode(ERRCODE_DUPLICATE_SCHEMA),
-				 errmsg("schema \"%s\" already exists, skipping",
-						schemaName)));
-		return InvalidOid;
+		namespaceId = get_namespace_oid(schemaName, true);
+		if (OidIsValid(namespaceId))
+		{
+			/*
+			 * If we are in an extension script, insist that the pre-existing
+			 * object be a member of the extension, to avoid security risks.
+			 */
+			ObjectAddressSet(address, NamespaceRelationId, namespaceId);
+			checkMembershipInCurrentExtension(&address);
+
+			/* OK to skip */
+			ereport(NOTICE,
+					(errcode(ERRCODE_DUPLICATE_SCHEMA),
+					 errmsg("schema \"%s\" already exists, skipping",
+							schemaName)));
+			return InvalidOid;
+		}
 	}
 
 	/*
@@ -172,7 +183,7 @@ CreateSchemaCommand(CreateSchemaStmt *stmt, const char *queryString,
 	/*
 	 * Execute each command contained in the CREATE SCHEMA.  Since the grammar
 	 * allows only utility commands in CREATE SCHEMA, there is no need to pass
-	 * them through parse_analyze() or the rewriter; we can just hand them
+	 * them through parse_analyze_*() or the rewriter; we can just hand them
 	 * straight to ProcessUtility.
 	 */
 	foreach(parsetree_item, parsetree_list)

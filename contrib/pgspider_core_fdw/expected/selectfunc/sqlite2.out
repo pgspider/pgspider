@@ -136,7 +136,7 @@ EXPLAIN VERBOSE
 SELECT sum(value3),abs(sum(value3)) FROM s3;
                                 QUERY PLAN                                 
 ---------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=16)
+ Foreign Scan  (cost=100.00..144.16 rows=1 width=16)
    Output: (sum(value3)), (abs(sum(value3)))
    Node: pgspider_svr / Status: Alive
      Agg push-down: yes
@@ -183,16 +183,14 @@ SELECT abs(value3), pi(), 4.1 FROM s3
 --Testcase 23:
 EXPLAIN VERBOSE
 SELECT value1, abs(1-value1) FROM s3 ORDER BY abs(1-value1);
-                                          QUERY PLAN                                           
------------------------------------------------------------------------------------------------
- Sort  (cost=429.74..438.28 rows=3413 width=16)
+                                                                     QUERY PLAN                                                                      
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+ Foreign Scan on public.s3  (cost=0.00..0.01 rows=1 width=16)
    Output: value1, (abs(('1'::double precision - value1)))
-   Sort Key: (abs(('1'::double precision - s3.value1)))
-   ->  Foreign Scan on public.s3  (cost=100.00..229.45 rows=3413 width=16)
-         Output: value1, (abs(('1'::double precision - value1)))
-         Node: pgspider_svr / Status: Alive
-           Remote SQL: SELECT value1, abs((1::double precision - value1)) FROM public.s3sqlite
-(7 rows)
+   Node: pgspider_svr / Status: Alive
+     Sort push-down: yes
+     Remote SQL: SELECT value1, abs((1::double precision - value1)) FROM public.s3sqlite ORDER BY abs((1::double precision - value1)) ASC NULLS LAST
+(5 rows)
 
 -- select abs with order by (result)
 --Testcase 24:
@@ -279,18 +277,15 @@ SELECT abs(value1) + 1, value2, tag1, sqrt(value2) FROM s3
 --Testcase 30:
 EXPLAIN VERBOSE
 SELECT abs(value1), abs(value3), sqrt(value2) FROM s3 ORDER BY abs(value3) LIMIT 1;
-                                           QUERY PLAN                                           
-------------------------------------------------------------------------------------------------
- Limit  (cost=263.58..263.59 rows=1 width=24)
+                                                               QUERY PLAN                                                               
+----------------------------------------------------------------------------------------------------------------------------------------
+ Foreign Scan on public.s3  (cost=100.00..100.04 rows=0 width=24)
    Output: (abs(value1)), (abs(value3)), (sqrt((value2)::double precision))
-   ->  Sort  (cost=263.58..272.12 rows=3413 width=24)
-         Output: (abs(value1)), (abs(value3)), (sqrt((value2)::double precision))
-         Sort Key: (abs(s3.value3))
-         ->  Foreign Scan on public.s3  (cost=100.00..246.52 rows=3413 width=24)
-               Output: (abs(value1)), (abs(value3)), (sqrt((value2)::double precision))
-               Node: pgspider_svr / Status: Alive
-                 Remote SQL: SELECT abs(value1), abs(value3), sqrt(value2) FROM public.s3sqlite
-(9 rows)
+   Node: pgspider_svr / Status: Alive
+     Limit push-down: yes
+     Sort push-down: yes
+     Remote SQL: SELECT abs(value1), abs(value3), sqrt(value2) FROM public.s3sqlite ORDER BY abs(value3) ASC NULLS LAST LIMIT 1::bigint
+(6 rows)
 
 -- select with order by limit (explain)
 --Testcase 31:

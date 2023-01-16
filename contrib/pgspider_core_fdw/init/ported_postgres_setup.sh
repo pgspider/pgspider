@@ -1,5 +1,4 @@
-POSTGRES_HOME=/home/jenkins/postgres/postgresql-14.0/pgbuild
-HOME_DIR=$(pwd)
+source $(pwd)/environment_variable.config
 
 # Install postgres_fdw extension
 cd $POSTGRES_HOME/../contrib/postgres_fdw
@@ -23,12 +22,15 @@ then
     sleep 2
   fi
 fi
+
+cd $CURR_PATH
+
 # Prepare data for ported test from postgres_fdw test
-command cd ${POSTGRES_HOME}/bin/
-command ./dropdb -p 15432 postdb
-command ./createdb -p 15432 postdb
-command ./psql -p 15432 postdb -c "create user postgres with encrypted password 'postgres';"
-command ./psql -p 15432 postdb -c "grant all privileges on database postgres to postgres;"
-command ./psql -p 15432 postdb -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO postgres;"
-command ./psql -p 15432 postdb -c "ALTER USER postgres WITH SUPERUSER;"
-command ./psql -p 15432 postdb -U postgres < ${HOME_DIR}/ported_postgres.dat
+$POSTGRES_HOME/bin/dropdb -p 15432 postdb
+$POSTGRES_HOME/bin/createdb -p 15432 postdb
+$POSTGRES_HOME/bin/psql -p 15432 postdb -c "create user postgres with encrypted password 'postgres';"
+$POSTGRES_HOME/bin/psql -p 15432 postdb -c "grant all privileges on database postgres to postgres;"
+$POSTGRES_HOME/bin/psql -p 15432 postdb -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO postgres;"
+$POSTGRES_HOME/bin/psql -p 15432 postdb -c "GRANT ALL PRIVILEGES ON SCHEMA public TO postgres;"
+$POSTGRES_HOME/bin/psql -p 15432 postdb -c "ALTER USER postgres WITH SUPERUSER;"
+$POSTGRES_HOME/bin/psql postdb -p 15432  -U postgres < ported_postgres.dat

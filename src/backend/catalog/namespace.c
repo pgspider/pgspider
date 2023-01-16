@@ -9,7 +9,7 @@
  * and implementing search-path-controlled searches.
  *
  *
- * Portions Copyright (c) 1996-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  * IDENTIFICATION
@@ -55,6 +55,7 @@
 #include "utils/inval.h"
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
+#include "utils/snapmgr.h"
 #include "utils/syscache.h"
 #include "utils/varlena.h"
 
@@ -135,7 +136,11 @@
 
 /* These variables define the actually active state: */
 
+#ifdef PGSPIDER
+static __thread List *activeSearchPath = NIL;
+#else
 static List *activeSearchPath = NIL;
+#endif
 
 /* default place to create stuff; if InvalidOid, no default */
 static Oid	activeCreationNamespace = InvalidOid;
@@ -148,16 +153,36 @@ static uint64 activePathGeneration = 1;
 
 /* These variables are the values last derived from namespace_search_path: */
 
+#ifdef PGSPIDER
+static __thread List *baseSearchPath = NIL;
+#else
 static List *baseSearchPath = NIL;
+#endif
 
+#ifdef PGSPIDER
+static __thread Oid	baseCreationNamespace = InvalidOid;
+#else
 static Oid	baseCreationNamespace = InvalidOid;
+#endif
 
+#ifdef PGSPIDER
+static __thread bool baseTempCreationPending = false;
+#else
 static bool baseTempCreationPending = false;
+#endif
 
+#ifdef PGSPIDER
+static __thread Oid	namespaceUser = InvalidOid;
+#else
 static Oid	namespaceUser = InvalidOid;
+#endif
 
 /* The above four values are valid only if baseSearchPathValid */
+#ifdef PGSPIDER
+static __thread bool baseSearchPathValid = true;
+#else
 static bool baseSearchPathValid = true;
+#endif
 
 /* Override requests are remembered in a stack of OverrideStackEntry structs */
 
@@ -195,8 +220,11 @@ static SubTransactionId myTempNamespaceSubID = InvalidSubTransactionId;
  * This is the user's textual search path specification --- it's the value
  * of the GUC variable 'search_path'.
  */
+#ifdef PGSPIDER
+__thread char   *namespace_search_path = NULL;
+#else
 char	   *namespace_search_path = NULL;
-
+#endif
 
 /* Local functions */
 static void recomputeNamespacePath(void);
@@ -3026,7 +3054,7 @@ CheckSetNamespace(Oid oldNspOid, Oid nspOid)
 
 /*
  * QualifiedNameGetCreationNamespace
- *		Given a possibly-qualified name for an object (in List-of-Values
+ *		Given a possibly-qualified name for an object (in List-of-Strings
  *		format), determine what namespace the object should be created in.
  *		Also extract and return the object name (last component of list).
  *
@@ -3140,7 +3168,7 @@ makeRangeVarFromNameList(List *names)
  * This is used primarily to form error messages, and so we do not quote
  * the list elements, for the sake of legibility.
  *
- * In most scenarios the list elements should always be Value strings,
+ * In most scenarios the list elements should always be String values,
  * but we also allow A_Star for the convenience of ColumnRef processing.
  */
 char *
@@ -4292,9 +4320,11 @@ RemoveTempRelationsCallback(int code, Datum arg)
 		/* Need to ensure we have a usable transaction. */
 		AbortOutOfAnyTransaction();
 		StartTransactionCommand();
+		PushActiveSnapshot(GetTransactionSnapshot());
 
 		RemoveTempRelations(myTempNamespace);
 
+		PopActiveSnapshot();
 		CommitTransactionCommand();
 	}
 }

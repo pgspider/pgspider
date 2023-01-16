@@ -3,7 +3,7 @@
  * tlist.c
  *	  Target list manipulation routines
  *
- * Portions Copyright (c) 1996-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
@@ -20,6 +20,17 @@
 #include "optimizer/optimizer.h"
 #include "optimizer/tlist.h"
 
+
+/*
+ * Test if an expression node represents a SRF call.  Beware multiple eval!
+ *
+ * Please note that this is only meant for use in split_pathtarget_at_srfs();
+ * if you use it anywhere else, your code is almost certainly wrong for SRFs
+ * nested within expressions.  Use expression_returns_set() instead.
+ */
+#define IS_SRF_CALL(node) \
+	((IsA(node, FuncExpr) && ((FuncExpr *) (node))->funcretset) || \
+	 (IsA(node, OpExpr) && ((OpExpr *) (node))->opretset))
 
 /*
  * Data structures for split_pathtarget_at_srfs().  To preserve the identity

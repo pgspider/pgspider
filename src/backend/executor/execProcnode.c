@@ -7,7 +7,7 @@
  *	 ExecProcNode, or ExecEndNode on its subnodes and do the appropriate
  *	 processing.
  *
- * Portions Copyright (c) 1996-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
@@ -121,6 +121,7 @@
 
 static TupleTableSlot *ExecProcNodeFirst(PlanState *node);
 static TupleTableSlot *ExecProcNodeInstr(PlanState *node);
+static bool ExecShutdownNode_walker(PlanState *node, void *context);
 
 #ifdef GETPROGRESS_ENABLED
 /* Global isForeignScan flag to identify whether */
@@ -778,6 +779,12 @@ ExecEndNode(PlanState *node)
 bool
 ExecShutdownNode(PlanState *node)
 {
+	return ExecShutdownNode_walker(node, NULL);
+}
+
+static bool
+ExecShutdownNode_walker(PlanState *node, void *context)
+{
 	if (node == NULL)
 		return false;
 
@@ -796,7 +803,7 @@ ExecShutdownNode(PlanState *node)
 	if (node->instrument && node->instrument->running)
 		InstrStartNode(node->instrument);
 
-	planstate_tree_walker(node, ExecShutdownNode, NULL);
+	planstate_tree_walker(node, ExecShutdownNode_walker, context);
 
 	switch (nodeTag(node))
 	{

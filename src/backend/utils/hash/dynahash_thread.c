@@ -6,7 +6,7 @@
  * This file is for using FDW safely in multithread by appending normalized thread id
  * to connection cache hashtable key in FDW without changes to FDW.
  *
- * Portions Copyright (c) 2018-2021, TOSHIBA CORPORATION
+ * Portions Copyright (c) 2018, TOSHIBA CORPORATION
  *
  *-------------------------------------------------------------------------
  */
@@ -56,6 +56,7 @@ static const char tabname_array[][HASH_TABLE_NAME_LEN] = {
 	"Analyzed lexemes table",
 	"Array distinct element count table",
 	"Attopt cache",
+	"autovacuum db hash",
 	"Btree proof lookup cache",
 	"bucket ctids",
 	"CFuncHash",
@@ -64,11 +65,8 @@ static const char tabname_array[][HASH_TABLE_NAME_LEN] = {
 	"Combo CIDs",
 	"CompactCheckpointerRequestQueue",
 	"crosstab hash",
-	"Databases hash",
-	"db hash",
 	"Event Trigger Cache",
 	"find_all_inheritors temporary table",
-	"Function stat entries",
 	"gistbuild parent map",
 	"gistbuildbuffers",
 	"JoinRelHashTable",
@@ -91,9 +89,6 @@ static const char tabname_array[][HASH_TABLE_NAME_LEN] = {
 	"Pending Notifies",
 	"Pending Ops Table",
 	"pending sync hash",
-	"Per-database function",
-	"Per-database table",
-	"pgstat TabStatusArray lookup hash table",
 	"pg_stat_statements hash",
 	"PL/Perl interpreters",
 	"PL/Perl procedures",
@@ -120,7 +115,6 @@ static const char tabname_array[][HASH_TABLE_NAME_LEN] = {
 	"ReorderBufferByXid",
 	"ReorderBufferToastHash",
 	"ReorderBufferTupleCid",
-	"Replication slots hash",
 	"Rewrite / Old to new tid map",
 	"Rewrite / Unresolved ctids",
 	"RI compare cache",
@@ -132,9 +126,7 @@ static const char tabname_array[][HASH_TABLE_NAME_LEN] = {
 	"Shared Buffer Lookup Table",
 	"ShmemIndex",
 	"smgr relation table",
-	"StreamXidHash",
 	"TableSpace cache",
-	"Temporary table of OIDs",
 	"Timezones",
 	"tmp relfilenodes",
 	"TOAST to main relid map",
@@ -147,6 +139,7 @@ static const char tabname_array[][HASH_TABLE_NAME_LEN] = {
 	"Uncommitted enums",
 	"unlogged relation OIDs",
 	"XLOG invalid-page table",
+	"XLogPrefetcherFilterTable",
 	"pgspider hash fdw tabname table",
 	"pgspider hash fdw tabname allow dupplicate table",
 	"pgspider hash table name",
@@ -155,7 +148,7 @@ static const char tabname_array[][HASH_TABLE_NAME_LEN] = {
 };
 
 /* normalized thread id of the current thread */
-static __thread normalized_id_t normalized_id = 0;
+static __thread normalized_id_t normalized_id = DEFAULT_CHILD_THREAD_NORMALIZED_ID;
 
  /*
   * List of normalized tables. Every time hash_create is called, we create
@@ -683,17 +676,11 @@ hash_reset_id(void *arg)
 		{
 			normalized_id_t *id = GET_ID_FROM_ENTRY(entry, htab);
 
-			*id = 0;
+			*id = DEFAULT_CHILD_THREAD_NORMALIZED_ID;
 		}
 	}
 
 	registered_callback = false;
-
-	/*
-	 * Reset normalized_id of main thread. No need to reset normalized_id of
-	 * child thread because it is destroyed at the end of query
-	 */
-	normalized_id = 0;
 }
 
 /**
@@ -731,14 +718,14 @@ get_key_with_id(HTAB *hashp, const void *keyPtr)
 {
 	int8	   *key = NULL;
 
-	if (normalized_id == 0)
+	if (normalized_id == DEFAULT_CHILD_THREAD_NORMALIZED_ID)
 	{
 		bool		found;
 		void	   *entry = hash_search_orig(hashp->nomralized_id_htab, keyPtr, HASH_ENTER, &found);
 		normalized_id_t *maxid = GET_ID_FROM_ENTRY(entry, hashp->nomralized_id_htab);
 
 		if (!found)
-			*maxid = 0;
+			*maxid = DEFAULT_CHILD_THREAD_NORMALIZED_ID;
 		++*maxid;
 		normalized_id = *maxid;
 		elog(DEBUG3, "id assigned: %d", (int) normalized_id);
@@ -748,4 +735,24 @@ get_key_with_id(HTAB *hashp, const void *keyPtr)
 	memcpy(key, &normalized_id, NORMALIZED_ID_SIZE);
 	memcpy(key + NORMALIZED_ID_SIZE, keyPtr, hashp->keysize - NORMALIZED_ID_SIZE);
 	return key;
+}
+
+/*
+ * Get normalized thread id of the current thread
+ */
+int
+get_normalized_id(void)
+{
+	return normalized_id;
+}
+
+/*
+ * Update normalized thread id of the current thread
+ */
+void
+update_normalized_id(int new_val)
+{
+	if (normalized_id == DEFAULT_MAIN_THREAD_NORMALIZED_ID)
+		elog(ERROR, "normalized_id of main thread can not be updated!!!");
+	normalized_id = new_val;
 }

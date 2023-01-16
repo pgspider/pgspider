@@ -3,7 +3,7 @@
  * pgspider_core_option.c
  *		  FDW option handling for pgspider_core_fdw
  *
- * Portions Copyright (c) 2018-2021, TOSHIBA CORPORATION
+ * Portions Copyright (c) 2018, TOSHIBA CORPORATION
  *
  * IDENTIFICATION
  *		  contrib/pgspider_core_fdw/pgspider_core_option.c
@@ -22,6 +22,7 @@
 #include "executor/spi.h"
 #include "fmgr.h"
 #include "utils/hsearch.h"
+#include "pgspider_core_timemeasure.h"
 
 #include "libpq-fe.h"
 
@@ -146,7 +147,8 @@ pgspider_core_fdw_validator(PG_FUNCTION_ARGS)
 		 * Validate option value, when we can do so without any context.
 		 */
 		if (strcmp(def->defname, "use_remote_estimate") == 0 ||
-			strcmp(def->defname, "updatable") == 0)
+			strcmp(def->defname, "updatable") == 0 ||
+			strcmp(def->defname, "disable_transaction_feature_check") == 0)
 		{
 			/* these accept only boolean values */
 			(void) defGetBoolean(def);
@@ -165,6 +167,23 @@ pgspider_core_fdw_validator(PG_FUNCTION_ARGS)
 						 errmsg("%s requires a non-negative numeric value",
 								def->defname)));
 		}
+		else if (strcmp(def->defname, SPD_TM_OPTION_TITLE) == 0)
+		{
+			const char *val = NULL;
+
+			val = defGetString(def);
+			if (strcmp(val, SPD_TM_OPTION_NORMAL) != 0 &&
+				strcmp(val, SPD_TM_OPTION_VERBOSE) != 0 &&
+				strcmp(val, SPD_TM_OPTION_QUIET) != 0)
+				ereport(ERROR,
+						(errcode(ERRCODE_SYNTAX_ERROR),
+						 errmsg("%s [ %s|%s|%s]",
+								SPD_TM_OPTION_NORMAL,
+								SPD_TM_OPTION_VERBOSE,
+								SPD_TM_OPTION_QUIET,
+								def->defname)));
+		}
+
 	}
 
 	PG_RETURN_VOID();
@@ -186,6 +205,7 @@ InitSpdFdwOptions(void)
 		{"dbname", ForeignTableRelationId, false},
 		{"table_name", ForeignTableRelationId, false},
 		{"column_name", AttributeRelationId, false},
+		{"disable_transaction_feature_check", ForeignTableRelationId, false},
 		/* use_remote_estimate is available on both server and table */
 		{"use_remote_estimate", ForeignServerRelationId, false},
 		{"use_remote_estimate", ForeignTableRelationId, false},
@@ -197,6 +217,9 @@ InitSpdFdwOptions(void)
 		{"updatable", ForeignTableRelationId, false},
 		{"config_file", ForeignServerRelationId, false},
 		{"config_file", ForeignTableRelationId, false},
+		/* time_measure_mode is available on both server and table */
+		{SPD_TM_OPTION_TITLE, ForeignServerRelationId, false},
+		{SPD_TM_OPTION_TITLE, ForeignTableRelationId, false},
 		{NULL, InvalidOid, false}
 	};
 

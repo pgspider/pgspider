@@ -4,7 +4,7 @@
  *	  POSTGRES memory context node definitions.
  *
  *
- * Portions Copyright (c) 1996-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  * src/include/nodes/memnodes.h
@@ -93,6 +93,9 @@ typedef struct MemoryContextData
 	const char *name;			/* context name (just for debugging) */
 	const char *ident;			/* context ID if any (just for debugging) */
 	MemoryContextCallback *reset_cbs;	/* list of reset/delete callbacks */
+#ifdef PGSPIDER
+	pthread_t	creator_thread_id;		/* ID of the thread that created this MemoryContext */
+#endif
 } MemoryContextData;
 
 /* utils/palloc.h contains typedef struct MemoryContextData *MemoryContext */

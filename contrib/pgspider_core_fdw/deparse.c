@@ -3,7 +3,7 @@
  * deparse.c
  *		  FDW deparsing module for pgspider_core_fdw
  *
- * Portions Copyright (c) 2018-2021, TOSHIBA CORPORATION
+ * Portions Copyright (c) 2018, TOSHIBA CORPORATION
  *
  * IDENTIFICATION
  *		  contrib/pgspider_core_fdw/deparse.c
@@ -182,8 +182,6 @@ typedef struct foreign_loc_cxt
 /* Local function forward declarations */
 static bool having_clause_tree_walker(Node *node, void *param);
 
-static bool exist_in_function_list(char *funcname, const char **funclist);
-
 /*
  * Prevent push down of T_Param(Subquery Expressions) which PGSpider cannot bind
  */
@@ -270,6 +268,10 @@ foreign_expr_walker(Node *node,
 				char	   *colname;
 				RangeTblEntry *rte;
 
+				/* The case of whole row. */
+				if (var->varattno == 0)
+					return false;
+
 				rte = planner_rt_fetch(var->varno, glob_cxt->root);
 				colname = get_attname(rte->relid, var->varattno, false);
 
@@ -293,11 +295,11 @@ foreign_expr_walker(Node *node,
 				 */
 				if (aggref->aggdistinct != NIL)
 				{
-					if (glob_cxt->node_num > 1)
+					if (IS_SPD_MULTI_NODES(glob_cxt->node_num))
 					{
 						return false;
 					}
-					else if (strcmp(funcname, "count") && !exist_in_function_list(funcname, MysqlAggregateStubFunction))
+					else if (strcmp(funcname, "count") && !exist_in_string_list(funcname, MysqlAggregateStubFunction))
 					{
 						return false;
 					}
@@ -347,7 +349,7 @@ foreign_expr_walker(Node *node,
 					strcmp(funcname, "json_object_agg") == 0 ||
 					strcmp(funcname, "jsonb_object_agg") == 0)
 				{
-					if (glob_cxt->node_num > 1)
+					if (IS_SPD_MULTI_NODES(glob_cxt->node_num))
 						return false;
 				}
 				if (strcmp(funcname, "string_agg") == 0 ||
@@ -373,13 +375,13 @@ foreign_expr_walker(Node *node,
 							return false;
 					}
 				}
-				if (glob_cxt->node_num > 1)
+				if (IS_SPD_MULTI_NODES(glob_cxt->node_num))
 				{
 					/*
 					 * Do not push down specific stub aggregate function for
 					 * mysql remote
 					 */
-					if (exist_in_function_list(funcname, MysqlAggregateStubFunction))
+					if (exist_in_string_list(funcname, MysqlAggregateStubFunction))
 						return false;
 
 					/*
@@ -416,7 +418,7 @@ foreign_expr_walker(Node *node,
 				 * InfluxDB, pushdown function expression. Otherwise not
 				 * pushdown.
 				 */
-				if ((func->funcformat == COERCE_EXPLICIT_CALL) && (glob_cxt->node_num > 1))
+				if ((func->funcformat == COERCE_EXPLICIT_CALL) && IS_SPD_MULTI_NODES(glob_cxt->node_num))
 				{
 					if (!spd_is_stub_star_regex_function((Expr *) node))
 						return false;
@@ -462,7 +464,7 @@ foreign_expr_walker(Node *node,
 				/*
 				 * Do not allow to push down when there are multiple nodes
 				 */
-				if (glob_cxt->node_num > 1)
+				if (IS_SPD_MULTI_NODES(glob_cxt->node_num))
 					return false;
 				break;
 			}
@@ -782,16 +784,16 @@ spd_deparse_operator_name(StringInfo buf, Form_pg_operator opform)
 }
 
 /*
- * Return true if function name existed in list of function
+ * Return true if string existed in list of string
  */
-static bool
-exist_in_function_list(char *funcname, const char **funclist)
+bool
+exist_in_string_list(char *str, const char **strlist)
 {
 	int			i;
 
-	for (i = 0; funclist[i]; i++)
+	for (i = 0; strlist[i]; i++)
 	{
-		if (strcmp(funcname, funclist[i]) == 0)
+		if (strcmp(str, strlist[i]) == 0)
 			return true;
 	}
 	return false;
@@ -825,7 +827,7 @@ spd_is_stub_star_regex_function(Expr *expr)
 					(strcmp(opername + strlen(opername) - 4, "_all") == 0))
 				{
 					/* Check stable function with star argument of InfluxDB */
-					if (exist_in_function_list(opername, InfluxDBStableStarFunction))
+					if (exist_in_string_list(opername, InfluxDBStableStarFunction))
 						return true;
 				}
 
@@ -845,7 +847,7 @@ spd_is_stub_star_regex_function(Expr *expr)
 							Const	   *arg = (Const *) n;
 
 							if (arg->consttype == TEXTOID && spd_is_regex_argument(arg))
-								return exist_in_function_list(opername, InfluxDBStableRegexAgg);
+								return exist_in_string_list(opername, InfluxDBStableRegexAgg);
 						}
 					}
 				}
@@ -862,12 +864,12 @@ spd_is_stub_star_regex_function(Expr *expr)
 					(strcmp(opername + strlen(opername) - 4, "_all") == 0))
 				{
 					/* Check stable function with star argument of InfluxDB */
-					if (exist_in_function_list(opername, InfluxDBStableStarFunction))
+					if (exist_in_string_list(opername, InfluxDBStableStarFunction))
 						return true;
 				}
 
 				/* Check stable function with constant argument of GridDB */
-				if (exist_in_function_list(opername, GridDBStableConstArgFunction))
+				if (exist_in_string_list(opername, GridDBStableConstArgFunction))
 					return true;
 
 				if (list_length(fe->args) > 0)
@@ -883,7 +885,7 @@ spd_is_stub_star_regex_function(Expr *expr)
 						Const	   *arg = (Const *) firstArg;
 
 						if (arg->consttype == TEXTOID && spd_is_regex_argument(arg))
-							return exist_in_function_list(opername, InfluxDBStableRegexFunction);
+							return exist_in_string_list(opername, InfluxDBStableRegexFunction);
 					}
 				}
 				break;
@@ -926,7 +928,7 @@ spd_is_record_func(List *tlist)
 		else
 			return false;
 
-		if ((funcid >= FirstBootstrapObjectId && returntype == TEXTOID))
+		if ((funcid >= FirstGenbkiObjectId && returntype == TEXTOID))
 		{
 			ListCell   *funclc;
 			Node	   *firstArg;
@@ -934,11 +936,11 @@ spd_is_record_func(List *tlist)
 			opername = get_func_name(funcid);
 
 			/* Check stable function return record of GridDB */
-			if (exist_in_function_list(opername, GridDBReturnRecordFunctions))
+			if (exist_in_string_list(opername, GridDBReturnRecordFunctions))
 				return true;
 
 			/* check stable agg with regex argument of InfluxDB */
-			if (exist_in_function_list(opername, InfluxDBStableRegexAgg))
+			if (exist_in_string_list(opername, InfluxDBStableRegexAgg))
 				return true;
 
 			if (list_length(args) > 0)
@@ -951,7 +953,7 @@ spd_is_record_func(List *tlist)
 					Const	   *arg = (Const *) firstArg;
 
 					if (spd_is_regex_argument(arg))
-						return exist_in_function_list(opername, InfluxDBStableRegexFunction);
+						return exist_in_string_list(opername, InfluxDBStableRegexFunction);
 				}
 			}
 
@@ -959,11 +961,76 @@ spd_is_record_func(List *tlist)
 				(strcmp(opername + strlen(opername) - 4, "_all") == 0))
 			{
 				/* Check stable function with star argument of InfluxDB */
-				if (exist_in_function_list(opername, InfluxDBStableStarFunction))
+				if (exist_in_string_list(opername, InfluxDBStableStarFunction))
 					return true;
 			}
 		}
 	}
 
 	return false;
+}
+
+/* Examine each qual clause in input_conds, and classify them into two groups,
+ * which are returned as two lists:
+ *	- remote_conds contains expressions that can be evaluated remotely
+ *	- local_conds contains expressions that can't be evaluated remotely
+ */
+void
+spd_classifyConditions(PlannerInfo *root,
+						RelOptInfo *baserel,
+						List *input_conds,
+						List **remote_conds,
+						List **local_conds)
+{
+	ListCell   *lc;
+
+	*remote_conds = NIL;
+	*local_conds = NIL;
+
+	foreach(lc, input_conds)
+	{
+		RestrictInfo *clause = (RestrictInfo *) lfirst(lc);
+		Expr	   *expr = (Expr *) clause->clause;
+
+		if (spd_expr_has_spdurl(root, (Node *) expr, NULL))
+		{
+			/*
+			 * If it contains SPDURL, we append it to local_conds list.
+			 * upper relation uses local_conds will be used to check whether it is safe or not.
+			 */
+			*local_conds = lappend(*local_conds, clause);
+		}
+		else
+		{
+			/* If it does not contain SPDURL, we append it to remote_conds list. */
+			*remote_conds = lappend(*remote_conds, clause);
+		}
+	}
+}
+
+/* Output join name for given join type */
+const char *
+spd_get_jointype_name(JoinType jointype)
+{
+	switch (jointype)
+	{
+		case JOIN_INNER:
+			return "INNER";
+
+		case JOIN_LEFT:
+			return "LEFT";
+
+		case JOIN_RIGHT:
+			return "RIGHT";
+
+		case JOIN_FULL:
+			return "FULL";
+
+		default:
+			/* Shouldn't come here, but protect from buggy code. */
+			elog(ERROR, "unsupported join type %d", jointype);
+	}
+
+	/* Keep compiler happy */
+	return NULL;
 }

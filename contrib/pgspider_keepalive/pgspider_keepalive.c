@@ -12,7 +12,7 @@
 
 #include "postgres.h"
 #include "pgspider_keepalive.h"
-
+#include "utils/timeout.h"
 
 /* These are always necessary for a bgworker */
 #include "miscadmin.h"
@@ -75,6 +75,7 @@ static HTAB *keepshNodeHash;
 /* shared child and parent flag */
 static bool join_flag;
 static pthread_mutex_t hash_mutex = PTHREAD_MUTEX_INITIALIZER;
+static shmem_request_hook_type prev_shmem_request_hook = NULL;
 
 static void create_alive_list(StringInfoData *buf, NODEINFO * *nodeInfo, char ***fdwname, int *svrnum);
 static void create_child_info(NODEINFO * nodeInfo, pthread_t **threads, int svrnum);
@@ -134,7 +135,14 @@ pgspider_check_childnnode(void *arg)
 	int			ret;
 	int			i;
 	nodeinfotag key = {{0}};
+	Latch	LocalLatchData;
 
+	/*
+	 * MyLatch is the thread local variable, when creating child thread
+	 * we need to init it for use in child thread.
+	 */
+	MyLatch = &LocalLatchData;
+	InitLatch(MyLatch);
 	ErrorContext = AllocSetContextCreate(TopMemoryContext,
 										 "Pgspider keep alive ErrorContext",
 										 ALLOCSET_DEFAULT_SIZES);
@@ -527,6 +535,22 @@ worker_pgspider_keepalive(Datum main_arg)
 	pqsignal(SIGHUP, pgspider_keepalive_sighup);
 	pqsignal(SIGTERM, pgspider_keepalive_sigterm);
 
+	/* Initialize process-local latch support */
+	InitializeLatchSupport();
+
+	/* Re initialize timeout module to clean installed hanlder from main process for safety only */
+	InitializeTimeouts();
+
+	/*
+	 * Reset some signals that are accepted by postmaster but not here
+	 */
+	pqsignal(SIGALRM, SIG_IGN);	/* Alarm clock (POSIX).  */
+	pqsignal(SIGUSR2, SIG_IGN);	/* User-defined signal 2 (POSIX).  */
+	pqsignal(SIGINT, SIG_IGN);	/* Interrupt (ANSI).  */
+	pqsignal(SIGFPE, SIG_IGN);	/* Floating-point exception (ANSI).  */
+	pqsignal(SIGPIPE, SIG_IGN);	/* Broken pipe (POSIX).  */
+	pqsignal(SIGCHLD, SIG_DFL);	/* Child status has changed (POSIX).  */
+
 	/* We're now ready to receive signals */
 	BackgroundWorkerUnblockSignals();
 
@@ -600,6 +624,9 @@ InitSharedMemoryKeepalives()
 {
 	Size		size = hash_estimate_size(max_child_nodes, sizeof(NODEINFO));
 
+	if (prev_shmem_request_hook)
+		prev_shmem_request_hook();
+
 	RequestAddinShmemSpace(size);
 }
 
@@ -669,7 +696,10 @@ _PG_init(void)
 							NULL,
 							NULL);
 	/* Alloc shared memory */
-	InitSharedMemoryKeepalives();
+	prev_shmem_request_hook = shmem_request_hook;
+	shmem_request_hook = InitSharedMemoryKeepalives;
+	shmem_startup_prev = shmem_startup_hook;
+	shmem_startup_hook = InitKeepaliveShm;
 	/* set up common data for all our workers */
 	memset(&worker, 0, sizeof(worker));
 	worker.bgw_flags = BGWORKER_SHMEM_ACCESS |
@@ -684,8 +714,5 @@ _PG_init(void)
 	/*
 	 * Now fill in worker-specific data, and do the actual registrations.
 	 */
-	shmem_startup_prev = shmem_startup_hook;
-	shmem_startup_hook = InitKeepaliveShm;
-
 	RegisterBackgroundWorker(&worker);
 }

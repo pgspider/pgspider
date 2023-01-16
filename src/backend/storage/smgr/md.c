@@ -10,7 +10,7 @@
  * It doesn't matter whether the bits are on spinning rust or some other
  * storage technology.
  *
- * Portions Copyright (c) 1996-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
@@ -116,6 +116,8 @@ static MemoryContext MdCxt;		/* context for all MdfdVec objects */
  * mdnblocks().
  */
 #define EXTENSION_DONT_CHECK_SIZE	(1 << 4)
+/* don't try to open a segment, if not already open */
+#define EXTENSION_DONT_OPEN			(1 << 5)
 
 
 /* local routines */
@@ -162,9 +164,11 @@ mdexists(SMgrRelation reln, ForkNumber forkNum)
 {
 	/*
 	 * Close it first, to ensure that we notice if the fork has been unlinked
-	 * since we opened it.
+	 * since we opened it.  As an optimization, we can skip that in recovery,
+	 * which already closes relations when dropping them.
 	 */
-	mdclose(reln, forkNum);
+	if (!InRecovery)
+		mdclose(reln, forkNum);
 
 	return (mdopenfork(reln, forkNum, EXTENSION_RETURN_NULL) != NULL);
 }
@@ -315,6 +319,7 @@ mdunlinkfork(RelFileNodeBackend rnode, ForkNumber forkNum, bool isRedo)
 {
 	char	   *path;
 	int			ret;
+	BlockNumber segno = 0;
 
 	path = relpath(rnode, forkNum);
 
@@ -349,8 +354,22 @@ mdunlinkfork(RelFileNodeBackend rnode, ForkNumber forkNum, bool isRedo)
 		/* Prevent other backends' fds from holding on to the disk space */
 		ret = do_truncate(path);
 
-		/* Register request to unlink first segment later */
-		register_unlink_segment(rnode, forkNum, 0 /* first seg */ );
+		/*
+		 * Except during a binary upgrade, register request to unlink first
+		 * segment later, rather than now.
+		 *
+		 * If we're performing a binary upgrade, the dangers described in the
+		 * header comments for mdunlink() do not exist, since after a crash or
+		 * even a simple ERROR, the upgrade fails and the whole new cluster
+		 * must be recreated from scratch. And, on the other hand, it is
+		 * important to remove the files from disk immediately, because we may
+		 * be about to reuse the same relfilenode.
+		 */
+		if (!IsBinaryUpgrade)
+		{
+			register_unlink_segment(rnode, forkNum, 0 /* first seg */ );
+			++segno;
+		}
 	}
 
 	/*
@@ -359,15 +378,17 @@ mdunlinkfork(RelFileNodeBackend rnode, ForkNumber forkNum, bool isRedo)
 	if (ret >= 0)
 	{
 		char	   *segpath = (char *) palloc(strlen(path) + 12);
-		BlockNumber segno;
 
 		/*
 		 * Note that because we loop until getting ENOENT, we will correctly
 		 * remove all inactive segments as well as active ones.
 		 */
-		for (segno = 1;; segno++)
+		for (;; segno++)
 		{
-			sprintf(segpath, "%s.%u", path, segno);
+			if (segno == 0)
+				strcpy(segpath, path);
+			else
+				sprintf(segpath, "%s.%u", path, segno);
 
 			if (!RelFileNodeBackendIsTemp(rnode))
 			{
@@ -597,11 +618,14 @@ mdwriteback(SMgrRelation reln, ForkNumber forknum,
 					segnum_end;
 
 		v = _mdfd_getseg(reln, forknum, blocknum, true /* not used */ ,
-						 EXTENSION_RETURN_NULL);
+						 EXTENSION_DONT_OPEN);
 
 		/*
 		 * We might be flushing buffers of already removed relations, that's
-		 * ok, just ignore that case.
+		 * ok, just ignore that case.  If the segment file wasn't open already
+		 * (ie from a recent mdwrite()), then we don't want to re-open it, to
+		 * avoid a race with PROCSIGNAL_BARRIER_SMGRRELEASE that might leave
+		 * us with a descriptor to a file that is about to be unlinked.
 		 */
 		if (!v)
 			return;
@@ -1194,7 +1218,8 @@ _mdfd_getseg(SMgrRelation reln, ForkNumber forknum, BlockNumber blkno,
 
 	/* some way to handle non-existent segments needs to be specified */
 	Assert(behavior &
-		   (EXTENSION_FAIL | EXTENSION_CREATE | EXTENSION_RETURN_NULL));
+		   (EXTENSION_FAIL | EXTENSION_CREATE | EXTENSION_RETURN_NULL |
+			EXTENSION_DONT_OPEN));
 
 	targetseg = blkno / ((BlockNumber) RELSEG_SIZE);
 
@@ -1204,6 +1229,10 @@ _mdfd_getseg(SMgrRelation reln, ForkNumber forknum, BlockNumber blkno,
 		v = &reln->md_seg_fds[forknum][targetseg];
 		return v;
 	}
+
+	/* The caller only wants the segment if we already had it open. */
+	if (behavior & EXTENSION_DONT_OPEN)
+		return NULL;
 
 	/*
 	 * The target segment is not yet open. Iterate over all the segments

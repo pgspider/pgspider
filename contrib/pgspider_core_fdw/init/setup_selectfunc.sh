@@ -1,19 +1,15 @@
-PGS1_DIR=/home/jenkins/PGSpider/PGS
 PGS1_PORT=5433
 PGS1_DB=pg1db
-PGS2_DIR=/home/jenkins/PGSpider/PGS
 PGS2_PORT=5434
 PGS2_DB=pg2db
 DB_NAME=postgres
-GRIDDB_CLIENT=/home/jenkins/src/griddb
-GRIDDB_HOME=/home/jenkins/src/griddb-4.6.1
 
-CURR_PATH=$(pwd)
+source $(pwd)/environment_variable.config
 
 if [[ "--start" == $1 ]]
 then
+  cd ${PGSPIDER_HOME}/bin/
   #Start PGS1
-  cd ${PGS1_DIR}/bin/
   if ! [ -d "../${PGS1_DB}" ];
   then
     ./initdb ../${PGS1_DB}
@@ -87,6 +83,7 @@ cp -a griddb_selectfunc.dat /tmp/
 cp -a griddb_selectfunc1.dat /tmp/
 cp -a griddb_selectfunc2.dat /tmp/
 gcc griddb_init.c -o griddb_init -I${GRIDDB_CLIENT}/client/c/include -L${GRIDDB_CLIENT}/bin -lgridstore
+# use 0 for multi test, use 1 for selectfunc test
 ./griddb_init 239.0.0.1 31999 griddbfdwTestCluster admin testadmin 1
 
 # Setup SQLite
@@ -101,7 +98,7 @@ mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -uroot -pMysql_1234 mysql
 influx -import -path=./influx_selectfunc.data -precision=ns
 
 # Setup PGSpider1
-$PGS1_DIR/bin/psql -p $PGS1_PORT $DB_NAME < pgspider_selectfunc1.dat
+$PGSPIDER_HOME/bin/psql -p $PGS1_PORT $DB_NAME < pgspider_selectfunc1.dat
 
 # Setup PGSpider2
-$PGS2_DIR/bin/psql -p $PGS2_PORT $DB_NAME < pgspider_selectfunc2.dat
+$PGSPIDER_HOME/bin/psql -p $PGS2_PORT $DB_NAME < pgspider_selectfunc2.dat

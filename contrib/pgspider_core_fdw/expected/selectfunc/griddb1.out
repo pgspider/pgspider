@@ -2588,16 +2588,14 @@ SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) > 0 OR timestam
 --Testcase 157:
 EXPLAIN VERBOSE
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 ASC;
-                                                                                                                                           QUERY PLAN                                                                                                                                           
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=1939.69..1942.53 rows=1138 width=525)
+                                                                                                                                        QUERY PLAN                                                                                                                                        
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Foreign Scan on public.s3  (cost=0.00..0.00 rows=1 width=525)
    Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
-   Sort Key: s3.date
-   ->  Foreign Scan on public.s3  (cost=100.00..1881.92 rows=1138 width=525)
-         Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
-         Node: griddb_svr / Status: Alive
-           Remote SQL: SELECT  *  FROM s3 WHERE ((timestampdiff('YEAR', date, now()) < 0))
-(7 rows)
+   Node: griddb_svr / Status: Alive
+     Sort push-down: yes
+     Remote SQL: SELECT  *  FROM s3 WHERE ((timestampdiff('YEAR', date, now()) < 0)) ORDER BY date ASC
+(5 rows)
 
 --Testcase 158:
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 ASC;
@@ -2633,16 +2631,14 @@ SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 
 --Testcase 159:
 EXPLAIN VERBOSE
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 DESC;
-                                                                                                                                           QUERY PLAN                                                                                                                                           
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=1939.69..1942.53 rows=1138 width=525)
+                                                                                                                                        QUERY PLAN                                                                                                                                        
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Foreign Scan on public.s3  (cost=0.00..0.00 rows=1 width=525)
    Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
-   Sort Key: s3.date DESC
-   ->  Foreign Scan on public.s3  (cost=100.00..1881.92 rows=1138 width=525)
-         Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
-         Node: griddb_svr / Status: Alive
-           Remote SQL: SELECT  *  FROM s3 WHERE ((timestampdiff('YEAR', date, now()) < 0))
-(7 rows)
+   Node: griddb_svr / Status: Alive
+     Sort push-down: yes
+     Remote SQL: SELECT  *  FROM s3 WHERE ((timestampdiff('YEAR', date, now()) < 0)) ORDER BY date DESC
+(5 rows)
 
 --Testcase 160:
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 DESC;
@@ -2678,16 +2674,14 @@ SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 
 --Testcase 161:
 EXPLAIN VERBOSE
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 ASC;
-                                                                                                                                           QUERY PLAN                                                                                                                                           
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=1939.69..1942.53 rows=1138 width=525)
+                                                                                                                                        QUERY PLAN                                                                                                                                        
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Foreign Scan on public.s3  (cost=0.00..0.00 rows=1 width=525)
    Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
-   Sort Key: s3.date
-   ->  Foreign Scan on public.s3  (cost=100.00..1881.92 rows=1138 width=525)
-         Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
-         Node: griddb_svr / Status: Alive
-           Remote SQL: SELECT  *  FROM s3 WHERE ((timestampdiff('YEAR', date, now()) < 0))
-(7 rows)
+   Node: griddb_svr / Status: Alive
+     Sort push-down: yes
+     Remote SQL: SELECT  *  FROM s3 WHERE ((timestampdiff('YEAR', date, now()) < 0)) ORDER BY date ASC
+(5 rows)
 
 --Testcase 162:
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 ASC;
@@ -2723,16 +2717,14 @@ SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 
 --Testcase 163:
 EXPLAIN VERBOSE
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 DESC;
-                                                                                                                                           QUERY PLAN                                                                                                                                           
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=1939.69..1942.53 rows=1138 width=525)
+                                                                                                                                        QUERY PLAN                                                                                                                                        
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Foreign Scan on public.s3  (cost=0.00..0.00 rows=1 width=525)
    Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
-   Sort Key: s3.date DESC
-   ->  Foreign Scan on public.s3  (cost=100.00..1881.92 rows=1138 width=525)
-         Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
-         Node: griddb_svr / Status: Alive
-           Remote SQL: SELECT  *  FROM s3 WHERE ((timestampdiff('YEAR', date, now()) < 0))
-(7 rows)
+   Node: griddb_svr / Status: Alive
+     Sort push-down: yes
+     Remote SQL: SELECT  *  FROM s3 WHERE ((timestampdiff('YEAR', date, now()) < 0)) ORDER BY date DESC
+(5 rows)
 
 --Testcase 164:
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 DESC;
@@ -3234,11 +3226,11 @@ SELECT timestamparray FROM s3 WHERE element(2,timestamparray) > '2020-12-29 04:0
 
 --Testcase 190:
 SELECT timestamparray FROM s3 WHERE element(2,timestamparray) > '2020-12-29 04:00:00';
-ERROR:  GridDB-API is failed by 152009
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152009
   [152009:TQ_CONSTRAINT_ARRAY_OUT_OF_RANGE] Specified index is out of range. (address=127.0.0.1:10001, partition=92)
   [152009:TQ_CONSTRAINT_ARRAY_OUT_OF_RANGE] Specified index is out of range.
 
-ERROR:  PGSpider fail to iterate tuple from child thread
 --
 --if user selects non-unique functions which Griddb only supports in WHERE clause => do not push down
 --if user selects unique functions which Griddb only supports in WHERE clause => still push down, return error of Griddb
@@ -3388,11 +3380,11 @@ SELECT element(1, timestamparray) FROM s3;
 
 --Testcase 198:
 SELECT element(1, timestamparray) FROM s3;
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=92)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
 
-ERROR:  PGSpider fail to iterate tuple from child thread
 --Testcase 199:
 EXPLAIN VERBOSE
 SELECT upper(name) FROM s3;
@@ -3626,11 +3618,11 @@ SELECT griddb_timestamp(strcol) FROM s3;
 
 --Testcase 210:
 SELECT griddb_timestamp(strcol) FROM s3;
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=92)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
 
-ERROR:  PGSpider fail to iterate tuple from child thread
 --Testcase 211:
 EXPLAIN VERBOSE
 SELECT timestampadd('YEAR', date1, -1) FROM s3;
@@ -3644,11 +3636,11 @@ SELECT timestampadd('YEAR', date1, -1) FROM s3;
 
 --Testcase 212:
 SELECT timestampadd('YEAR', date1, -1) FROM s3;
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=92)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
 
-ERROR:  PGSpider fail to iterate tuple from child thread
 --Testcase 213:
 EXPLAIN VERBOSE
 SELECT timestampdiff('YEAR', date1, '2018-01-04 08:48:00') FROM s3;
@@ -3662,11 +3654,11 @@ SELECT timestampdiff('YEAR', date1, '2018-01-04 08:48:00') FROM s3;
 
 --Testcase 214:
 SELECT timestampdiff('YEAR', date1, '2018-01-04 08:48:00') FROM s3;
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=92)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
 
-ERROR:  PGSpider fail to iterate tuple from child thread
 --Testcase 215:
 EXPLAIN VERBOSE
 SELECT to_timestamp_ms(intcol) FROM s3;
@@ -3680,11 +3672,11 @@ SELECT to_timestamp_ms(intcol) FROM s3;
 
 --Testcase 216:
 SELECT to_timestamp_ms(intcol) FROM s3;
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=92)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
 
-ERROR:  PGSpider fail to iterate tuple from child thread
 --Testcase 217:
 EXPLAIN VERBOSE
 SELECT to_epoch_ms(date1) FROM s3;
@@ -3698,11 +3690,11 @@ SELECT to_epoch_ms(date1) FROM s3;
 
 --Testcase 218:
 SELECT to_epoch_ms(date1) FROM s3;
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=92)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
 
-ERROR:  PGSpider fail to iterate tuple from child thread
 --Testcase 219:
 EXPLAIN VERBOSE
 SELECT array_length(boolarray) FROM s3;
@@ -3716,11 +3708,11 @@ SELECT array_length(boolarray) FROM s3;
 
 --Testcase 220:
 SELECT array_length(boolarray) FROM s3;
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=92)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
 
-ERROR:  PGSpider fail to iterate tuple from child thread
 --Testcase 221:
 EXPLAIN VERBOSE
 SELECT element(1, stringarray) FROM s3;
@@ -3734,11 +3726,11 @@ SELECT element(1, stringarray) FROM s3;
 
 --Testcase 222:
 SELECT element(1, stringarray) FROM s3;
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=92)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
 
-ERROR:  PGSpider fail to iterate tuple from child thread
 --
 --Test for unique functions of GridDB in SELECT clause: time-series functions
 --
@@ -5258,11 +5250,11 @@ SELECT time_sampling(value1, '2018-12-07 10:00:00.100', '2018-12-07 10:00:00.140
 
 --Testcase 289:
 SELECT time_sampling(value1, '2018-12-07 10:00:00.100', '2018-12-07 10:00:00.140', 20, 'MILLISECOND') FROM s3;
-ERROR:  GridDB-API is failed by 152010
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152010
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.140ZZ (address=127.0.0.1:10001, partition=92)
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.140ZZ
 
-ERROR:  PGSpider fail to iterate tuple from child thread
 --rows for sampling does not exist => return rows that contains interpolated values.
 --The column which is specified as the 1st parameter will be calculated by linearly interpolating the value of the previous and next rows.
 --Other values will be equal to the values of rows previous to the specified time.
@@ -5300,11 +5292,11 @@ SELECT time_sampling(value1, '2018-12-07 10:00:00.100', '2018-12-07 10:00:00.150
 
 --Testcase 293:
 SELECT time_sampling(value1, '2018-12-07 10:00:00.100', '2018-12-07 10:00:00.150', 5, 'MILLISECOND') FROM s3;
-ERROR:  GridDB-API is failed by 152010
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152010
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.150ZZ (address=127.0.0.1:10001, partition=92)
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.150ZZ
 
-ERROR:  PGSpider fail to iterate tuple from child thread
 --In linearly interpolating the value of the previous and next rows, if one of the values does not exist => the sampling row will not be returned
 --Testcase 294:
 EXPLAIN VERBOSE
@@ -5319,11 +5311,11 @@ SELECT time_sampling(value1, '2018-12-07 10:00:00.002', '2018-12-07 10:00:00.500
 
 --Testcase 295:
 SELECT time_sampling(value1, '2018-12-07 10:00:00.002', '2018-12-07 10:00:00.500', 20, 'MILLISECOND') FROM s3;
-ERROR:  GridDB-API is failed by 152010
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152010
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.502ZZ (address=127.0.0.1:10001, partition=92)
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.502ZZ
 
-ERROR:  PGSpider fail to iterate tuple from child thread
 --if the first parameter is not set, * will be added as the first parameter.
 --When specified time does not exist, all columns (except timestamp key column) will be equal to the values of rows previous to the specified time.
 --DELETE FROM time_series__griddb_svr__0 WHERE value1 = 4;
@@ -5477,11 +5469,11 @@ SELECT * FROM s3 WHERE max_rows(date) = min_rows(value2);
 
 --Testcase 313:
 SELECT * FROM s3 WHERE max_rows(date) = min_rows(value2);
-ERROR:  GridDB-API is failed by 150014
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 150014
   [150014:TQ_FUNCTION_NOT_FOUND] No such function : MAX_ROWS (address=127.0.0.1:10001, partition=92)
   [150014:TQ_FUNCTION_NOT_FOUND] No such function : MAX_ROWS
 
-ERROR:  PGSpider fail to iterate tuple from child thread
 --
 -- Test syntax (xxx()::s3).*
 --
@@ -5553,7 +5545,7 @@ EXPLAIN VERBOSE
 SELECT time_avg(value1) FROM s3;
                    QUERY PLAN                    
 -------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (time_avg(value1))
    Node: griddb_svr / Status: Alive
      Agg push-down: yes
@@ -5572,7 +5564,7 @@ EXPLAIN VERBOSE
 SELECT time_avg(value2) FROM s3;
                    QUERY PLAN                    
 -------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (time_avg(value2))
    Node: griddb_svr / Status: Alive
      Agg push-down: yes
@@ -5647,7 +5639,7 @@ EXPLAIN VERBOSE
 SELECT min(age) FROM s3;
                    QUERY PLAN                   
 ------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=4)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=4)
    Output: (min(age))
    Node: griddb_svr / Status: Alive
      Agg push-down: yes
@@ -5666,7 +5658,7 @@ EXPLAIN VERBOSE
 SELECT max(gpa) FROM s3;
                    QUERY PLAN                   
 ------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (max(gpa))
    Node: griddb_svr / Status: Alive
      Agg push-down: yes
@@ -5685,7 +5677,7 @@ EXPLAIN VERBOSE
 SELECT count(*) FROM s3;
                    QUERY PLAN                   
 ------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (count(*))
    Node: griddb_svr / Status: Alive
      Agg push-down: yes
@@ -5704,7 +5696,7 @@ EXPLAIN VERBOSE
 SELECT count(*) FROM s3 WHERE gpa < 3.5 OR age < 42;
                                  QUERY PLAN                                  
 -----------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (count(*))
    Node: griddb_svr / Status: Alive
      Agg push-down: yes
@@ -5723,7 +5715,7 @@ EXPLAIN VERBOSE
 SELECT sum(age) FROM s3;
                    QUERY PLAN                   
 ------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (sum(age))
    Node: griddb_svr / Status: Alive
      Agg push-down: yes
@@ -5742,7 +5734,7 @@ EXPLAIN VERBOSE
 SELECT sum(age) FROM s3 WHERE round(gpa) > 3.5;
                              QUERY PLAN                             
 --------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (sum(age))
    Node: griddb_svr / Status: Alive
      Agg push-down: yes
@@ -5761,7 +5753,7 @@ EXPLAIN VERBOSE
 SELECT avg(gpa) FROM s3;
                    QUERY PLAN                   
 ------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (avg(gpa))
    Node: griddb_svr / Status: Alive
      Agg push-down: yes
@@ -5780,7 +5772,7 @@ EXPLAIN VERBOSE
 SELECT avg(gpa) FROM s3 WHERE lower(name) = 'george';
                                 QUERY PLAN                                
 --------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (avg(gpa))
    Node: griddb_svr / Status: Alive
      Agg push-down: yes
@@ -5799,7 +5791,7 @@ EXPLAIN VERBOSE
 SELECT variance(gpa) FROM s3;
                    QUERY PLAN                   
 ------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (variance(gpa))
    Node: griddb_svr / Status: Alive
      Agg push-down: yes
@@ -5818,7 +5810,7 @@ EXPLAIN VERBOSE
 SELECT variance(gpa) FROM s3 WHERE gpa > 3.5;
                             QUERY PLAN                            
 ------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (variance(gpa))
    Node: griddb_svr / Status: Alive
      Agg push-down: yes
@@ -5837,7 +5829,7 @@ EXPLAIN VERBOSE
 SELECT stddev(age) FROM s3;
                    QUERY PLAN                    
 -------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (stddev(age))
    Node: griddb_svr / Status: Alive
      Agg push-down: yes
@@ -5856,7 +5848,7 @@ EXPLAIN VERBOSE
 SELECT stddev(age) FROM s3 WHERE char_length(name) > 4;
                                  QUERY PLAN                                 
 ----------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (stddev(age))
    Node: griddb_svr / Status: Alive
      Agg push-down: yes
@@ -5873,15 +5865,29 @@ SELECT stddev(age) FROM s3 WHERE char_length(name) > 4;
 --Testcase 354:
 EXPLAIN VERBOSE
 SELECT max(gpa), min(age) FROM s3;
-                                QUERY PLAN                                 
----------------------------------------------------------------------------
- Aggregate  (cost=229.45..229.46 rows=1 width=12)
-   Output: max(gpa), min(age)
-   ->  Foreign Scan on public.s3  (cost=100.00..212.39 rows=3413 width=12)
-         Output: gpa, age
-         Node: griddb_svr / Status: Alive
-           Remote SQL: SELECT  *  FROM s3
-(6 rows)
+                                          QUERY PLAN                                          
+----------------------------------------------------------------------------------------------
+ Result  (cost=0.00..0.01 rows=1 width=12)
+   Output: $0, $1
+   InitPlan 1 (returns $0)
+     ->  Limit  (cost=0.00..0.00 rows=1 width=8)
+           Output: s3.gpa
+           ->  Foreign Scan on public.s3  (cost=0.00..0.00 rows=1 width=8)
+                 Output: s3.gpa
+                 Node: griddb_svr / Status: Alive
+                   Limit push-down: no
+                   Sort push-down: yes
+                   Remote SQL: SELECT  *  FROM s3 WHERE ((gpa IS NOT NULL)) ORDER BY gpa DESC
+   InitPlan 2 (returns $1)
+     ->  Limit  (cost=0.00..0.00 rows=1 width=4)
+           Output: s3_1.age
+           ->  Foreign Scan on public.s3 s3_1  (cost=0.00..0.00 rows=1 width=4)
+                 Output: s3_1.age
+                 Node: griddb_svr / Status: Alive
+                   Limit push-down: no
+                   Sort push-down: yes
+                   Remote SQL: SELECT  *  FROM s3 WHERE ((age IS NOT NULL)) ORDER BY age ASC
+(20 rows)
 
 --Testcase 355:
 SELECT max(gpa), min(age) FROM s3;

@@ -24,8 +24,8 @@ CREATE FOREIGN TABLE s32mysql (id int, tag1 text, value1 float8, value2 bigint, 
 CREATE FOREIGN TABLE time_tblmysql (id int, c1 time without time zone, c2 date, c3 timestamp, __spd_url text) SERVER pgspider_core_svr;
 CREATE FOREIGN TABLE time_tbl2mysql (id int, c1 time without time zone, c2 date, c3 timestamp, __spd_url text) SERVER pgspider_core_svr;
 
-CREATE FOREIGN TABLE s7amysql (id int, tag1 text, value1 float, value2 int, value3 float, value4 int, value5 bit, str1 text, str2 text, __spd_url text) SERVER pgspider_core_svr;
-CREATE FOREIGN TABLE s7a2mysql (id int, tag1 text, value1 float, value2 int, value3 float, value4 int, value5 bit, str1 text, str2 text, __spd_url text) SERVER pgspider_core_svr;
+CREATE FOREIGN TABLE s7amysql (id int, tag1 text, value1 float, value2 int, value3 float, value4 int, value5 bit(16), str1 text, str2 text, __spd_url text) SERVER pgspider_core_svr;
+CREATE FOREIGN TABLE s7a2mysql (id int, tag1 text, value1 float, value2 int, value3 float, value4 int, value5 bit(16), str1 text, str2 text, __spd_url text) SERVER pgspider_core_svr;
 CREATE FOREIGN TABLE ftextsearch2 (id int, content text, __spd_url text) SERVER pgspider_core_svr;
 CREATE FOREIGN TABLE s8mysql (id int, c1 json, c2 int, c3 text, __spd_url text) SERVER pgspider_core_svr;
 CREATE FOREIGN TABLE s9mysql (id int, c1 json, __spd_url text) SERVER pgspider_core_svr;

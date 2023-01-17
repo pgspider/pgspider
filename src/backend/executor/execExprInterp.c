@@ -46,7 +46,7 @@
  * exported rather than being "static" in this file.)
  *
  *
- * Portions Copyright (c) 1996-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  * IDENTIFICATION
@@ -208,6 +208,8 @@ typedef struct ScalarArrayOpExprHashTable
 {
 	saophash_hash *hashtab;		/* underlying hash table */
 	struct ExprEvalStep *op;
+	FmgrInfo	hash_finfo;		/* function's lookup data */
+	FunctionCallInfoBaseData hash_fcinfo_data;	/* arguments etc */
 } ScalarArrayOpExprHashTable;
 
 /* Define parameters for ScalarArrayOpExpr hash table code generation. */
@@ -3456,13 +3458,13 @@ static uint32
 saop_element_hash(struct saophash_hash *tb, Datum key)
 {
 	ScalarArrayOpExprHashTable *elements_tab = (ScalarArrayOpExprHashTable *) tb->private_data;
-	FunctionCallInfo fcinfo = elements_tab->op->d.hashedscalararrayop.hash_fcinfo_data;
+	FunctionCallInfo fcinfo = &elements_tab->hash_fcinfo_data;
 	Datum		hash;
 
 	fcinfo->args[0].value = key;
 	fcinfo->args[0].isnull = false;
 
-	hash = elements_tab->op->d.hashedscalararrayop.hash_fn_addr(fcinfo);
+	hash = elements_tab->hash_finfo.fn_addr(fcinfo);
 
 	return DatumGetUInt32(hash);
 }
@@ -3484,7 +3486,7 @@ saop_hash_element_match(struct saophash_hash *tb, Datum key1, Datum key2)
 	fcinfo->args[1].value = key2;
 	fcinfo->args[1].isnull = false;
 
-	result = elements_tab->op->d.hashedscalararrayop.fn_addr(fcinfo);
+	result = elements_tab->op->d.hashedscalararrayop.finfo->fn_addr(fcinfo);
 
 	return DatumGetBool(result);
 }
@@ -3507,6 +3509,7 @@ ExecEvalHashedScalarArrayOp(ExprState *state, ExprEvalStep *op, ExprContext *eco
 {
 	ScalarArrayOpExprHashTable *elements_tab = op->d.hashedscalararrayop.elements_tab;
 	FunctionCallInfo fcinfo = op->d.hashedscalararrayop.fcinfo_data;
+	bool		inclause = op->d.hashedscalararrayop.inclause;
 	bool		strictfunc = op->d.hashedscalararrayop.finfo->fn_strict;
 	Datum		scalar = fcinfo->args[0].value;
 	bool		scalar_isnull = fcinfo->args[0].isnull;
@@ -3530,6 +3533,7 @@ ExecEvalHashedScalarArrayOp(ExprState *state, ExprEvalStep *op, ExprContext *eco
 	/* Build the hash table on first evaluation */
 	if (elements_tab == NULL)
 	{
+		ScalarArrayOpExpr *saop;
 		int16		typlen;
 		bool		typbyval;
 		char		typalign;
@@ -3540,6 +3544,8 @@ ExecEvalHashedScalarArrayOp(ExprState *state, ExprEvalStep *op, ExprContext *eco
 		int			bitmask;
 		MemoryContext oldcontext;
 		ArrayType  *arr;
+
+		saop = op->d.hashedscalararrayop.saop;
 
 		arr = DatumGetArrayTypeP(*op->resvalue);
 		nitems = ArrayGetNItems(ARR_NDIM(arr), ARR_DIMS(arr));
@@ -3552,9 +3558,20 @@ ExecEvalHashedScalarArrayOp(ExprState *state, ExprEvalStep *op, ExprContext *eco
 		oldcontext = MemoryContextSwitchTo(econtext->ecxt_per_query_memory);
 
 		elements_tab = (ScalarArrayOpExprHashTable *)
-			palloc(sizeof(ScalarArrayOpExprHashTable));
+			palloc0(offsetof(ScalarArrayOpExprHashTable, hash_fcinfo_data) +
+					SizeForFunctionCallInfo(1));
 		op->d.hashedscalararrayop.elements_tab = elements_tab;
 		elements_tab->op = op;
+
+		fmgr_info(saop->hashfuncid, &elements_tab->hash_finfo);
+		fmgr_info_set_expr((Node *) saop, &elements_tab->hash_finfo);
+
+		InitFunctionCallInfoData(elements_tab->hash_fcinfo_data,
+								 &elements_tab->hash_finfo,
+								 1,
+								 saop->inputcollid,
+								 NULL,
+								 NULL);
 
 		/*
 		 * Create the hash table sizing it according to the number of elements
@@ -3610,7 +3627,12 @@ ExecEvalHashedScalarArrayOp(ExprState *state, ExprEvalStep *op, ExprContext *eco
 	/* Check the hash to see if we have a match. */
 	hashfound = NULL != saophash_lookup(elements_tab->hashtab, scalar);
 
-	result = BoolGetDatum(hashfound);
+	/* the result depends on if the clause is an IN or NOT IN clause */
+	if (inclause)
+		result = BoolGetDatum(hashfound);	/* IN */
+	else
+		result = BoolGetDatum(!hashfound);	/* NOT IN */
+
 	resultnull = false;
 
 	/*
@@ -3619,7 +3641,7 @@ ExecEvalHashedScalarArrayOp(ExprState *state, ExprEvalStep *op, ExprContext *eco
 	 * hashtable, but instead marked if we found any when building the table
 	 * in has_nulls.
 	 */
-	if (!DatumGetBool(result) && op->d.hashedscalararrayop.has_nulls)
+	if (!hashfound && op->d.hashedscalararrayop.has_nulls)
 	{
 		if (strictfunc)
 		{
@@ -3645,8 +3667,15 @@ ExecEvalHashedScalarArrayOp(ExprState *state, ExprEvalStep *op, ExprContext *eco
 			fcinfo->args[1].value = (Datum) 0;
 			fcinfo->args[1].isnull = true;
 
-			result = op->d.hashedscalararrayop.fn_addr(fcinfo);
+			result = op->d.hashedscalararrayop.finfo->fn_addr(fcinfo);
 			resultnull = fcinfo->isnull;
+
+			/*
+			 * Reverse the result for NOT IN clauses since the above function
+			 * is the equality function and we need not-equals.
+			 */
+			if (!inclause)
+				result = !result;
 		}
 	}
 
@@ -4064,9 +4093,8 @@ ExecEvalWholeRowVar(ExprState *state, ExprEvalStep *op, ExprContext *econtext)
 
 			/*
 			 * Use the variable's declared rowtype as the descriptor for the
-			 * output values, modulo possibly assigning new column names
-			 * below. In particular, we *must* absorb any attisdropped
-			 * markings.
+			 * output values.  In particular, we *must* absorb any
+			 * attisdropped markings.
 			 */
 			oldcontext = MemoryContextSwitchTo(econtext->ecxt_per_query_memory);
 			output_tupdesc = CreateTupleDescCopy(var_tupdesc);
@@ -4084,39 +4112,38 @@ ExecEvalWholeRowVar(ExprState *state, ExprEvalStep *op, ExprContext *econtext)
 			oldcontext = MemoryContextSwitchTo(econtext->ecxt_per_query_memory);
 			output_tupdesc = CreateTupleDescCopy(slot->tts_tupleDescriptor);
 			MemoryContextSwitchTo(oldcontext);
-		}
 
-		/*
-		 * Construct a tuple descriptor for the composite values we'll
-		 * produce, and make sure its record type is "blessed".  The main
-		 * reason to do this is to be sure that operations such as
-		 * row_to_json() will see the desired column names when they look up
-		 * the descriptor from the type information embedded in the composite
-		 * values.
-		 *
-		 * We already got the correct physical datatype info above, but now we
-		 * should try to find the source RTE and adopt its column aliases, in
-		 * case they are different from the original rowtype's names.  For
-		 * example, in "SELECT foo(t) FROM tab t(x,y)", the first two columns
-		 * in the composite output should be named "x" and "y" regardless of
-		 * tab's column names.
-		 *
-		 * If we can't locate the RTE, assume the column names we've got are
-		 * OK.  (As of this writing, the only cases where we can't locate the
-		 * RTE are in execution of trigger WHEN clauses, and then the Var will
-		 * have the trigger's relation's rowtype, so its names are fine.)
-		 * Also, if the creator of the RTE didn't bother to fill in an eref
-		 * field, assume our column names are OK.  (This happens in COPY, and
-		 * perhaps other places.)
-		 */
-		if (econtext->ecxt_estate &&
-			variable->varno <= econtext->ecxt_estate->es_range_table_size)
-		{
-			RangeTblEntry *rte = exec_rt_fetch(variable->varno,
-											   econtext->ecxt_estate);
+			/*
+			 * It's possible that the input slot is a relation scan slot and
+			 * so is marked with that relation's rowtype.  But we're supposed
+			 * to be returning RECORD, so reset to that.
+			 */
+			output_tupdesc->tdtypeid = RECORDOID;
+			output_tupdesc->tdtypmod = -1;
 
-			if (rte->eref)
-				ExecTypeSetColNames(output_tupdesc, rte->eref->colnames);
+			/*
+			 * We already got the correct physical datatype info above, but
+			 * now we should try to find the source RTE and adopt its column
+			 * aliases, since it's unlikely that the input slot has the
+			 * desired names.
+			 *
+			 * If we can't locate the RTE, assume the column names we've got
+			 * are OK.  (As of this writing, the only cases where we can't
+			 * locate the RTE are in execution of trigger WHEN clauses, and
+			 * then the Var will have the trigger's relation's rowtype, so its
+			 * names are fine.)  Also, if the creator of the RTE didn't bother
+			 * to fill in an eref field, assume our column names are OK. (This
+			 * happens in COPY, and perhaps other places.)
+			 */
+			if (econtext->ecxt_estate &&
+				variable->varno <= econtext->ecxt_estate->es_range_table_size)
+			{
+				RangeTblEntry *rte = exec_rt_fetch(variable->varno,
+												   econtext->ecxt_estate);
+
+				if (rte->eref)
+					ExecTypeSetColNames(output_tupdesc, rte->eref->colnames);
+			}
 		}
 
 		/* Bless the tupdesc if needed, and save it in the execution state */

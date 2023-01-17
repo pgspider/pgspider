@@ -1,4 +1,3 @@
-
 PostgreSQL Installation from Source Code
 
 ------------------------------------------------------------------------
@@ -12,7 +11,6 @@ with Microsoft's Visual C++, see the main documentation instead.
 
 ------------------------------------------------------------------------
 
-
 Short Version
 
     ./configure
@@ -20,18 +18,17 @@ Short Version
     su
     make install
     adduser postgres
-    mkdir /usr/local/pgspider/data
+    mkdir -p /usr/local/pgspider/data
     chown postgres /usr/local/pgspider/data
     su - postgres
     /usr/local/pgspider/bin/initdb -D /usr/local/pgspider/data
     /usr/local/pgspider/bin/pg_ctl -D /usr/local/pgspider/data -l logfile start
     /usr/local/pgspider/bin/createdb test
-    /usr/local/pgspider/bin/pgsql test
+    /usr/local/pgspider/bin/psql test
 
 The long version is the rest of this document.
 
 ------------------------------------------------------------------------
-
 
 Requirements
 
@@ -42,7 +39,7 @@ below.
 
 The following software packages are required for building PostgreSQL:
 
--   GNU make version 3.80 or newer is required; other make programs or
+-   GNU make version 3.81 or newer is required; other make programs or
     older GNU make versions will *not* work. (GNU make is sometimes
     installed under the name "gmake".) To test for GNU make enter:
 
@@ -55,7 +52,7 @@ The following software packages are required for building PostgreSQL:
 -   tar is required to unpack the source distribution, in addition to
     either gzip or bzip2.
 
--   The GNU Readline library is used by default. It allows pgsql (the
+-   The GNU Readline library is used by default. It allows psql (the
     PostgreSQL command line SQL interpreter) to remember each command
     you type, and allows you to use arrow keys to recall and edit
     previous commands. This is very helpful and is strongly recommended.
@@ -96,10 +93,8 @@ are enabled, as explained below:
     the case).
 
 -   To build the PL/Python server programming language, you need a
-    Python installation with the header files and the distutils module.
-    The minimum required version is Python 2.6. Python 3 is supported if
-    it's version 3.1 or later; but see the PL/Python documentation when
-    using Python 3.
+    Python installation with the header files and the sysconfig module.
+    The minimum required version is Python 3.2.
 
     Since PL/Python will be a shared library, the "libpython" library
     must be a shared library also on most platforms. This is not the
@@ -127,13 +122,18 @@ are enabled, as explained below:
 -   You need OpenSSL, if you want to support encrypted client
     connections. OpenSSL is also required for random number generation
     on platforms that do not have "/dev/urandom" (except Windows). The
-    minimum version required is 1.0.1.
+    minimum required version is 1.0.1.
 
 -   You need Kerberos, OpenLDAP, and/or PAM, if you want to support
     authentication using those services.
 
--   You need LZ4, if you want to support compression of data with this
-    method; see the configuration parameter default_toast_compression.
+-   You need LZ4, if you want to support compression of data with that
+    method; see the configuration parameter default_toast_compression
+    and the configuration parameter wal_compression.
+
+-   You need Zstandard, if you want to support compression of data with
+    that method; see the configuration parameter wal_compression. The
+    minimum required version is 1.4.0.
 
 -   To build the PostgreSQL documentation, there is a separate set of
     requirements; see the main documentation's appendix on
@@ -167,10 +167,9 @@ the "df" command to check free disk space.
 
 ------------------------------------------------------------------------
 
-
 Installation Procedure
 
-1.  CONFIGURATION
+1.  Configuration
 
     The first step of the installation procedure is to configure the
     source tree for your system and choose the options you would like.
@@ -209,7 +208,7 @@ Installation Procedure
     described in the section called "configure Environment Variables".
     These provide additional ways to customize the configuration.
 
-2.  BUILD
+2.  Build
 
     To start the build, type either of:
 
@@ -241,7 +240,7 @@ Installation Procedure
     Failure to do that can lead to strange error messages, typically
     about missing header files.
 
-3.  REGRESSION TESTS
+3.  Regression Tests
 
     If you want to test the newly built server before you install it,
     you can run the regression tests at this point. The regression tests
@@ -255,9 +254,9 @@ Installation Procedure
     information about interpreting the test results. You can repeat this
     test at any later time by issuing the same command.
 
-4.  INSTALLING THE FILES
+4.  Installing the Files
 
-    NOTE:
+    Note:
 
     If you are upgrading an existing system be sure to read the
     documentation, which has instructions about upgrading a cluster.
@@ -301,7 +300,7 @@ Installation Procedure
     client application development as well as for server-side program
     development, such as custom functions or data types written in C.
 
-    CLIENT-ONLY INSTALLATION:  If you want to install only the client
+    Client-only installation:  If you want to install only the client
     applications and interface libraries, then you can use these
     commands:
 
@@ -313,10 +312,10 @@ Installation Procedure
     "src/bin" has a few binaries for server-only use, but they are
     small.
 
-UNINSTALLATION:  To undo the installation use the command "make
+Uninstallation:  To undo the installation use the command "make
 uninstall". However, this will not remove any created directories.
 
-CLEANING:  After the installation you can free disk space by removing
+Cleaning:  After the installation you can free disk space by removing
 the built files from the source tree with the command "make clean". This
 will preserve the files made by the "configure" program, so that you can
 rebuild everything with "make" later on. To reset the source tree to the
@@ -426,7 +425,7 @@ restriction.) For relocatable installs, you might want to use the
     The HTML-formatted documentation for PostgreSQL will be installed
     under this directory. The default is "DATAROOTDIR".
 
-NOTE:
+Note:
 
 Care has been taken to make it possible to install PostgreSQL into
 shared installation locations (such as "/usr/local/include") without
@@ -525,8 +524,11 @@ in the section called "Requirements".
 
 --with-lz4
 
-    Build with LZ4 compression support. This allows the use of LZ4 for
-    compression of table data.
+    Build with LZ4 compression support.
+
+--with-zstd
+
+    Build with Zstandard compression support.
 
 --with-ssl=LIBRARY 
 
@@ -588,8 +590,8 @@ in the section called "Requirements".
     Build the uuid-ossp module (which provides functions to generate
     UUIDs), using the specified UUID library. "LIBRARY" must be one of:
 
-    -   "bsd" to use the UUID functions found in FreeBSD, NetBSD, and
-        some other BSD-derived systems
+    -   "bsd" to use the UUID functions found in FreeBSD and some other
+        BSD-derived systems
 
     -   "e2fs" to use the UUID library created by the e2fsprogs project;
         this library is present in most Linux systems and in macOS, and
@@ -996,11 +998,8 @@ PERL
 PYTHON
 
     Python interpreter program. This will be used to determine the
-    dependencies for building PL/Python. Also, whether Python 2 or 3 is
-    specified here (or otherwise implicitly chosen) determines which
-    variant of the PL/Python language becomes available. See the
-    PL/Python documentation for more information. If this is not set,
-    the following are probed in this order: python python3 python2.
+    dependencies for building PL/Python. If this is not set, the
+    following are probed in this order: python3 python.
 
 TCLSH
 
@@ -1028,7 +1027,7 @@ or
     export COPT='-Werror'
     make
 
-NOTE:
+Note:
 
 If using GCC, it is best to build with an optimization level of at least
 "-O1", because using no optimization ("-O0") disables some important
@@ -1045,7 +1044,6 @@ preference, but a common habit among developers is to use PROFILE for
 one-time flag adjustments, while COPT might be kept set all the time.
 
 ------------------------------------------------------------------------
-
 
 Post-Installation Setup
 
@@ -1140,7 +1138,6 @@ communicated via command line options to most client programs.
 
 ------------------------------------------------------------------------
 
-
 Getting Started
 
 The following is a quick summary of how to get PostgreSQL up and running
@@ -1196,7 +1193,6 @@ once installed. The main documentation contains more information.
 
 ------------------------------------------------------------------------
 
-
 What Now?
 
 -   The PostgreSQL distribution contains a comprehensive documentation
@@ -1230,7 +1226,6 @@ What Now?
     documentation also affect performance.
 
 ------------------------------------------------------------------------
-
 
 Supported Platforms
 
@@ -1270,7 +1265,6 @@ the appropriate place to discuss that.
 
 ------------------------------------------------------------------------
 
-
 Platform-Specific Notes
 
 This section documents additional platform-specific issues regarding the
@@ -1286,9 +1280,11 @@ installation issues.
 
 AIX
 
-PostgreSQL works on AIX, but AIX versions before about 6.1 have various
-issues and are not recommended. You can use GCC or the native IBM
-compiler "xlc".
+You can use GCC or the native IBM compiler "xlc" to build PostgreSQL on
+AIX.
+
+AIX versions before 7.1 are no longer tested nor supported by the
+PostgreSQL community.
 
 ------------------------------------------------------------------------
 
@@ -1486,7 +1482,7 @@ To build 64 bit binaries using MinGW, install the 64 bit tool set from
 https://mingw-w64.org/, put its bin directory in the PATH, and run
 "configure" with the "--host=x86_64-w64-mingw32" option.
 
-After you have everything installed, it is suggested that you run pgsql
+After you have everything installed, it is suggested that you run psql
 under "CMD.EXE", as the MSYS console has buffering issues.
 
 ------------------------------------------------------------------------

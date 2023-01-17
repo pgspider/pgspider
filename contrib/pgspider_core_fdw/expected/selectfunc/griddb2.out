@@ -2055,12 +2055,12 @@ LINE 2: SELECT date1, date2 FROM s3 WHERE timestampdiff('NANOSECOND'...
 --Testcase 127:
 EXPLAIN VERBOSE
 SELECT date1 FROM s3 WHERE to_timestamp_ms(intcol) > '1970-01-01 1:00:00';
-                                                                       QUERY PLAN                                                                        
----------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                   QUERY PLAN                                                                    
+-------------------------------------------------------------------------------------------------------------------------------------------------
  Foreign Scan on public.s3  (cost=100.00..1037.21 rows=1138 width=8)
    Output: date1
    Node: pgspider_svr / Status: Alive
-     Remote SQL: SELECT date1, intcol FROM public.s3griddb WHERE ((public.to_timestamp_ms(intcol) > '1970-01-01 01:00:00'::timestamp without time zone))
+     Remote SQL: SELECT date1 FROM public.s3griddb WHERE ((public.to_timestamp_ms(intcol) > '1970-01-01 01:00:00'::timestamp without time zone))
 (4 rows)
 
 --Testcase 128:
@@ -2084,12 +2084,12 @@ SELECT date1 FROM s3 WHERE to_timestamp_ms(intcol) > '1970-01-01 1:00:00';
 --Testcase 130:
 EXPLAIN VERBOSE
 SELECT date1 FROM s3 WHERE intcol < to_epoch_ms(date1);
-                                               QUERY PLAN                                               
---------------------------------------------------------------------------------------------------------
+                                           QUERY PLAN                                           
+------------------------------------------------------------------------------------------------
  Foreign Scan on public.s3  (cost=100.00..1028.67 rows=1138 width=8)
    Output: date1
    Node: pgspider_svr / Status: Alive
-     Remote SQL: SELECT date1, intcol FROM public.s3griddb WHERE ((intcol < public.to_epoch_ms(date1)))
+     Remote SQL: SELECT date1 FROM public.s3griddb WHERE ((intcol < public.to_epoch_ms(date1)))
 (4 rows)
 
 --Testcase 131:
@@ -2590,16 +2590,14 @@ SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) > 0 OR timestam
 --Testcase 157:
 EXPLAIN VERBOSE
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 ASC;
-                                                                                                                                                                                                                 QUERY PLAN                                                                                                                                                                                                                 
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=1939.69..1942.53 rows=1138 width=525)
+                                                                                                                                                                                                                            QUERY PLAN                                                                                                                                                                                                                             
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Foreign Scan on public.s3  (cost=0.00..0.00 rows=1 width=525)
    Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
-   Sort Key: s3.date
-   ->  Foreign Scan on public.s3  (cost=100.00..1881.92 rows=1138 width=525)
-         Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
-         Node: pgspider_svr / Status: Alive
-           Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s3griddb WHERE ((public.timestampdiff('YEAR'::public.time_unit, date, public.griddb_now()) < 0::double precision))
-(7 rows)
+   Node: pgspider_svr / Status: Alive
+     Sort push-down: yes
+     Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s3griddb WHERE ((public.timestampdiff('YEAR'::public.time_unit, date, public.griddb_now()) < 0::double precision)) ORDER BY date ASC NULLS LAST
+(5 rows)
 
 --Testcase 158:
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 ASC;
@@ -2635,16 +2633,14 @@ SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 
 --Testcase 159:
 EXPLAIN VERBOSE
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 DESC;
-                                                                                                                                                                                                                 QUERY PLAN                                                                                                                                                                                                                 
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=1939.69..1942.53 rows=1138 width=525)
+                                                                                                                                                                                                                             QUERY PLAN                                                                                                                                                                                                                              
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Foreign Scan on public.s3  (cost=0.00..0.00 rows=1 width=525)
    Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
-   Sort Key: s3.date DESC
-   ->  Foreign Scan on public.s3  (cost=100.00..1881.92 rows=1138 width=525)
-         Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
-         Node: pgspider_svr / Status: Alive
-           Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s3griddb WHERE ((public.timestampdiff('YEAR'::public.time_unit, date, public.griddb_now()) < 0::double precision))
-(7 rows)
+   Node: pgspider_svr / Status: Alive
+     Sort push-down: yes
+     Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s3griddb WHERE ((public.timestampdiff('YEAR'::public.time_unit, date, public.griddb_now()) < 0::double precision)) ORDER BY date DESC NULLS FIRST
+(5 rows)
 
 --Testcase 160:
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 DESC;
@@ -2680,16 +2676,14 @@ SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 
 --Testcase 161:
 EXPLAIN VERBOSE
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 ASC;
-                                                                                                                                                                                                                 QUERY PLAN                                                                                                                                                                                                                 
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=1939.69..1942.53 rows=1138 width=525)
+                                                                                                                                                                                                                            QUERY PLAN                                                                                                                                                                                                                             
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Foreign Scan on public.s3  (cost=0.00..0.00 rows=1 width=525)
    Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
-   Sort Key: s3.date
-   ->  Foreign Scan on public.s3  (cost=100.00..1881.92 rows=1138 width=525)
-         Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
-         Node: pgspider_svr / Status: Alive
-           Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s3griddb WHERE ((public.timestampdiff('YEAR'::public.time_unit, date, public.griddb_now()) < 0::double precision))
-(7 rows)
+   Node: pgspider_svr / Status: Alive
+     Sort push-down: yes
+     Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s3griddb WHERE ((public.timestampdiff('YEAR'::public.time_unit, date, public.griddb_now()) < 0::double precision)) ORDER BY date ASC NULLS LAST
+(5 rows)
 
 --Testcase 162:
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 ASC;
@@ -2725,16 +2719,14 @@ SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 
 --Testcase 163:
 EXPLAIN VERBOSE
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 DESC;
-                                                                                                                                                                                                                 QUERY PLAN                                                                                                                                                                                                                 
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=1939.69..1942.53 rows=1138 width=525)
+                                                                                                                                                                                                                             QUERY PLAN                                                                                                                                                                                                                              
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Foreign Scan on public.s3  (cost=0.00..0.00 rows=1 width=525)
    Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
-   Sort Key: s3.date DESC
-   ->  Foreign Scan on public.s3  (cost=100.00..1881.92 rows=1138 width=525)
-         Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
-         Node: pgspider_svr / Status: Alive
-           Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s3griddb WHERE ((public.timestampdiff('YEAR'::public.time_unit, date, public.griddb_now()) < 0::double precision))
-(7 rows)
+   Node: pgspider_svr / Status: Alive
+     Sort push-down: yes
+     Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s3griddb WHERE ((public.timestampdiff('YEAR'::public.time_unit, date, public.griddb_now()) < 0::double precision)) ORDER BY date DESC NULLS FIRST
+(5 rows)
 
 --Testcase 164:
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 DESC;
@@ -3236,17 +3228,14 @@ SELECT timestamparray FROM s3 WHERE element(2,timestamparray) > '2020-12-29 04:0
 
 --Testcase 190:
 SELECT timestamparray FROM s3 WHERE element(2,timestamparray) > '2020-12-29 04:00:00';
-ERROR:  pgspider_fdw fail to get tuples from child process
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:pgspider_fdw fail to get tuples from child process
 {
-ERROR:  GridDB-API is failed by 152009
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152009
   [152009:TQ_CONSTRAINT_ARRAY_OUT_OF_RANGE] Specified index is out of range. (address=127.0.0.1:10001, partition=92)
   [152009:TQ_CONSTRAINT_ARRAY_OUT_OF_RANGE] Specified index is out of range.
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 }
-CONTEXT:  remote SQL command: SELECT timestamparray FROM public.s3griddb WHERE ((public.element(2, timestamparray) > '2020-12-29 04:00:00'::timestamp without time zone))
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 --
 --if user selects non-unique functions which Griddb only supports in WHERE clause => do not push down
 --if user selects unique functions which Griddb only supports in WHERE clause => still push down, return error of Griddb
@@ -3396,17 +3385,14 @@ SELECT element(1, timestamparray) FROM s3;
 
 --Testcase 198:
 SELECT element(1, timestamparray) FROM s3;
-ERROR:  pgspider_fdw fail to get tuples from child process
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:pgspider_fdw fail to get tuples from child process
 {
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=92)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 }
-CONTEXT:  remote SQL command: SELECT public.element(1, timestamparray) FROM public.s3griddb
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 --Testcase 199:
 EXPLAIN VERBOSE
 SELECT upper(name) FROM s3;
@@ -3640,17 +3626,14 @@ SELECT griddb_timestamp(strcol) FROM s3;
 
 --Testcase 210:
 SELECT griddb_timestamp(strcol) FROM s3;
-ERROR:  pgspider_fdw fail to get tuples from child process
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:pgspider_fdw fail to get tuples from child process
 {
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=92)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 }
-CONTEXT:  remote SQL command: SELECT public.griddb_timestamp(strcol) FROM public.s3griddb
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 --Testcase 211:
 EXPLAIN VERBOSE
 SELECT timestampadd('YEAR', date1, -1) FROM s3;
@@ -3664,17 +3647,14 @@ SELECT timestampadd('YEAR', date1, -1) FROM s3;
 
 --Testcase 212:
 SELECT timestampadd('YEAR', date1, -1) FROM s3;
-ERROR:  pgspider_fdw fail to get tuples from child process
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:pgspider_fdw fail to get tuples from child process
 {
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=92)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 }
-CONTEXT:  remote SQL command: SELECT public.timestampadd('YEAR'::public.time_unit, date1, (-1)) FROM public.s3griddb
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 --Testcase 213:
 EXPLAIN VERBOSE
 SELECT timestampdiff('YEAR', date1, '2018-01-04 08:48:00') FROM s3;
@@ -3688,17 +3668,14 @@ SELECT timestampdiff('YEAR', date1, '2018-01-04 08:48:00') FROM s3;
 
 --Testcase 214:
 SELECT timestampdiff('YEAR', date1, '2018-01-04 08:48:00') FROM s3;
-ERROR:  pgspider_fdw fail to get tuples from child process
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:pgspider_fdw fail to get tuples from child process
 {
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=92)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 }
-CONTEXT:  remote SQL command: SELECT public.timestampdiff('YEAR'::public.time_unit, date1, '2018-01-04 08:48:00'::timestamp without time zone) FROM public.s3griddb
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 --Testcase 215:
 EXPLAIN VERBOSE
 SELECT to_timestamp_ms(intcol) FROM s3;
@@ -3712,17 +3689,14 @@ SELECT to_timestamp_ms(intcol) FROM s3;
 
 --Testcase 216:
 SELECT to_timestamp_ms(intcol) FROM s3;
-ERROR:  pgspider_fdw fail to get tuples from child process
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:pgspider_fdw fail to get tuples from child process
 {
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=92)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 }
-CONTEXT:  remote SQL command: SELECT public.to_timestamp_ms(intcol) FROM public.s3griddb
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 --Testcase 217:
 EXPLAIN VERBOSE
 SELECT to_epoch_ms(date1) FROM s3;
@@ -3736,17 +3710,14 @@ SELECT to_epoch_ms(date1) FROM s3;
 
 --Testcase 218:
 SELECT to_epoch_ms(date1) FROM s3;
-ERROR:  pgspider_fdw fail to get tuples from child process
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:pgspider_fdw fail to get tuples from child process
 {
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=92)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 }
-CONTEXT:  remote SQL command: SELECT public.to_epoch_ms(date1) FROM public.s3griddb
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 --Testcase 219:
 EXPLAIN VERBOSE
 SELECT array_length(boolarray) FROM s3;
@@ -3760,17 +3731,14 @@ SELECT array_length(boolarray) FROM s3;
 
 --Testcase 220:
 SELECT array_length(boolarray) FROM s3;
-ERROR:  pgspider_fdw fail to get tuples from child process
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:pgspider_fdw fail to get tuples from child process
 {
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=92)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 }
-CONTEXT:  remote SQL command: SELECT public.array_length(boolarray) FROM public.s3griddb
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 --Testcase 221:
 EXPLAIN VERBOSE
 SELECT element(1, stringarray) FROM s3;
@@ -3784,17 +3752,14 @@ SELECT element(1, stringarray) FROM s3;
 
 --Testcase 222:
 SELECT element(1, stringarray) FROM s3;
-ERROR:  pgspider_fdw fail to get tuples from child process
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:pgspider_fdw fail to get tuples from child process
 {
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=92)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 }
-CONTEXT:  remote SQL command: SELECT public.element(1, stringarray) FROM public.s3griddb
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 --
 --Test for unique functions of GridDB in SELECT clause: time-series functions
 --
@@ -5308,17 +5273,14 @@ SELECT time_sampling(value1, '2018-12-07 10:00:00.100', '2018-12-07 10:00:00.140
 
 --Testcase 288:
 SELECT time_sampling(value1, '2018-12-07 10:00:00.100', '2018-12-07 10:00:00.140', 20, 'MILLISECOND') FROM s3;
-ERROR:  pgspider_fdw fail to get tuples from child process
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:pgspider_fdw fail to get tuples from child process
 {
-ERROR:  GridDB-API is failed by 152010
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152010
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.140ZZ (address=127.0.0.1:10001, partition=92)
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.140ZZ
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 }
-CONTEXT:  remote SQL command: SELECT public.time_sampling(value1, '2018-12-07 10:00:00.1'::timestamp without time zone, '2018-12-07 10:00:00.14'::timestamp without time zone, 20, 'MILLISECOND'::public.time_unit) FROM public.s3griddb
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 --rows for sampling does not exist => return rows that contains interpolated values.
 --The column which is specified as the 1st parameter will be calculated by linearly interpolating the value of the previous and next rows.
 --Other values will be equal to the values of rows previous to the specified time.
@@ -5356,17 +5318,14 @@ SELECT time_sampling(value1, '2018-12-07 10:00:00.100', '2018-12-07 10:00:00.150
 
 --Testcase 292:
 SELECT time_sampling(value1, '2018-12-07 10:00:00.100', '2018-12-07 10:00:00.150', 5, 'MILLISECOND') FROM s3;
-ERROR:  pgspider_fdw fail to get tuples from child process
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:pgspider_fdw fail to get tuples from child process
 {
-ERROR:  GridDB-API is failed by 152010
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152010
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.150ZZ (address=127.0.0.1:10001, partition=92)
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.150ZZ
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 }
-CONTEXT:  remote SQL command: SELECT public.time_sampling(value1, '2018-12-07 10:00:00.1'::timestamp without time zone, '2018-12-07 10:00:00.15'::timestamp without time zone, 5, 'MILLISECOND'::public.time_unit) FROM public.s3griddb
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 --In linearly interpolating the value of the previous and next rows, if one of the values does not exist => the sampling row will not be returned
 --Testcase 293:
 EXPLAIN VERBOSE
@@ -5381,17 +5340,14 @@ SELECT time_sampling(value1, '2018-12-07 10:00:00.002', '2018-12-07 10:00:00.500
 
 --Testcase 294:
 SELECT time_sampling(value1, '2018-12-07 10:00:00.002', '2018-12-07 10:00:00.500', 20, 'MILLISECOND') FROM s3;
-ERROR:  pgspider_fdw fail to get tuples from child process
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:pgspider_fdw fail to get tuples from child process
 {
-ERROR:  GridDB-API is failed by 152010
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152010
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.502ZZ (address=127.0.0.1:10001, partition=92)
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.502ZZ
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 }
-CONTEXT:  remote SQL command: SELECT public.time_sampling(value1, '2018-12-07 10:00:00.002'::timestamp without time zone, '2018-12-07 10:00:00.5'::timestamp without time zone, 20, 'MILLISECOND'::public.time_unit) FROM public.s3griddb
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 --if the first parameter is not set, * will be added as the first parameter.
 --When specified time does not exist, all columns (except timestamp key column) will be equal to the values of rows previous to the specified time.
 --DELETE FROM time_series__griddb_svr__0 WHERE value1 = 4;
@@ -5545,17 +5501,14 @@ SELECT * FROM s3 WHERE max_rows(date) = min_rows(value2);
 
 --Testcase 312:
 SELECT * FROM s3 WHERE max_rows(date) = min_rows(value2);
-ERROR:  pgspider_fdw fail to get tuples from child process
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:pgspider_fdw fail to get tuples from child process
 {
-ERROR:  GridDB-API is failed by 150014
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 150014
   [150014:TQ_FUNCTION_NOT_FOUND] No such function : MAX_ROWS (address=127.0.0.1:10001, partition=92)
   [150014:TQ_FUNCTION_NOT_FOUND] No such function : MAX_ROWS
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 }
-CONTEXT:  remote SQL command: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s3griddb WHERE ((public.max_rows(date) = public.min_rows(value2)))
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 --
 -- Test syntax (xxx()::s3).*
 --
@@ -5627,7 +5580,7 @@ EXPLAIN VERBOSE
 SELECT time_avg(value1) FROM s3;
                              QUERY PLAN                              
 ---------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=100.00..144.16 rows=1 width=8)
    Output: (time_avg(value1))
    Node: pgspider_svr / Status: Alive
      Agg push-down: yes
@@ -5647,7 +5600,7 @@ EXPLAIN VERBOSE
 SELECT time_avg(value2) FROM s3;
                              QUERY PLAN                              
 ---------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=100.00..144.16 rows=1 width=8)
    Output: (time_avg(value2))
    Node: pgspider_svr / Status: Alive
      Agg push-down: yes
@@ -5668,7 +5621,7 @@ EXPLAIN VERBOSE
 SELECT time_avg(value1), time_avg(value2) FROM s3;
                                           QUERY PLAN                                          
 ----------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=16)
+ Foreign Scan  (cost=100.00..144.16 rows=1 width=16)
    Output: (time_avg(value1)), (time_avg(value2))
    Node: pgspider_svr / Status: Alive
      Agg push-down: yes
@@ -5678,21 +5631,19 @@ SELECT time_avg(value1), time_avg(value2) FROM s3;
 
 --Testcase 324:
 SELECT time_avg(value1), time_avg(value2) FROM s3;
-ERROR:  pgspider_fdw fail to get tuples from child process
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub time_avg_sfunc(double precision, anyelement) is called
 CONTEXT:  PL/pgSQL function public.time_avg_sfunc(double precision,anyelement) line 3 at RAISE
 }
-CONTEXT:  remote SQL command: SELECT public.time_avg(value1), public.time_avg(value2) FROM public.s3griddb
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 -- Do not push down when expected type is not correct, raise stub function error
 --Testcase 325:
 EXPLAIN VERBOSE
 SELECT time_avg(date) FROM s3;
                             QUERY PLAN                             
 -------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=100.00..144.16 rows=1 width=8)
    Output: (time_avg(date))
    Node: pgspider_svr / Status: Alive
      Agg push-down: yes
@@ -5702,20 +5653,18 @@ SELECT time_avg(date) FROM s3;
 
 --Testcase 326:
 SELECT time_avg(date) FROM s3;
-ERROR:  pgspider_fdw fail to get tuples from child process
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub time_avg_sfunc(double precision, anyelement) is called
 CONTEXT:  PL/pgSQL function public.time_avg_sfunc(double precision,anyelement) line 3 at RAISE
 }
-CONTEXT:  remote SQL command: SELECT public.time_avg(date) FROM public.s3griddb
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 --Testcase 327:
 EXPLAIN VERBOSE
 SELECT time_avg(blobcol) FROM s3;
                               QUERY PLAN                              
 ----------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=100.00..144.16 rows=1 width=8)
    Output: (time_avg(blobcol))
    Node: pgspider_svr / Status: Alive
      Agg push-down: yes
@@ -5725,14 +5674,12 @@ SELECT time_avg(blobcol) FROM s3;
 
 --Testcase 328:
 SELECT time_avg(blobcol) FROM s3;
-ERROR:  pgspider_fdw fail to get tuples from child process
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub time_avg_sfunc(double precision, anyelement) is called
 CONTEXT:  PL/pgSQL function public.time_avg_sfunc(double precision,anyelement) line 3 at RAISE
 }
-CONTEXT:  remote SQL command: SELECT public.time_avg(blobcol) FROM public.s3griddb
-
-ERROR:  PGSpider fail to iterate tuple from child thread
 --
 -- Test aggregate function min, max, count, sum, avg, variance, stddev
 --
@@ -5741,7 +5688,7 @@ EXPLAIN VERBOSE
 SELECT min(age) FROM s3;
                       QUERY PLAN                      
 ------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=4)
+ Foreign Scan  (cost=100.00..144.16 rows=1 width=4)
    Output: (min(age))
    Node: pgspider_svr / Status: Alive
      Agg push-down: yes
@@ -5761,7 +5708,7 @@ EXPLAIN VERBOSE
 SELECT max(gpa) FROM s3;
                       QUERY PLAN                      
 ------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=100.00..144.16 rows=1 width=8)
    Output: (max(gpa))
    Node: pgspider_svr / Status: Alive
      Agg push-down: yes
@@ -5781,7 +5728,7 @@ EXPLAIN VERBOSE
 SELECT count(*) FROM s3;
                       QUERY PLAN                      
 ------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=100.00..144.16 rows=1 width=8)
    Output: (count(*))
    Node: pgspider_svr / Status: Alive
      Agg push-down: yes
@@ -5801,7 +5748,7 @@ EXPLAIN VERBOSE
 SELECT count(*) FROM s3 WHERE gpa < 3.5 OR age < 42;
                                                  QUERY PLAN                                                 
 ------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=100.00..161.22 rows=1 width=8)
    Output: (count(*))
    Node: pgspider_svr / Status: Alive
      Agg push-down: yes
@@ -5821,7 +5768,7 @@ EXPLAIN VERBOSE
 SELECT sum(age) FROM s3;
                       QUERY PLAN                      
 ------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=100.00..144.16 rows=1 width=8)
    Output: (sum(age))
    Node: pgspider_svr / Status: Alive
      Agg push-down: yes
@@ -5841,7 +5788,7 @@ EXPLAIN VERBOSE
 SELECT sum(age) FROM s3 WHERE round(gpa) > 3.5;
                                             QUERY PLAN                                             
 ---------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=100.00..161.22 rows=1 width=8)
    Output: (sum(age))
    Node: pgspider_svr / Status: Alive
      Agg push-down: yes
@@ -5861,7 +5808,7 @@ EXPLAIN VERBOSE
 SELECT avg(gpa) FROM s3;
                       QUERY PLAN                      
 ------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=100.00..144.16 rows=1 width=8)
    Output: (avg(gpa))
    Node: pgspider_svr / Status: Alive
      Agg push-down: yes
@@ -5881,7 +5828,7 @@ EXPLAIN VERBOSE
 SELECT avg(gpa) FROM s3 WHERE lower(name) = 'george';
                                          QUERY PLAN                                          
 ---------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=100.00..161.22 rows=1 width=8)
    Output: (avg(gpa))
    Node: pgspider_svr / Status: Alive
      Agg push-down: yes
@@ -5901,7 +5848,7 @@ EXPLAIN VERBOSE
 SELECT variance(gpa) FROM s3;
                         QUERY PLAN                         
 -----------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=100.00..144.16 rows=1 width=8)
    Output: (variance(gpa))
    Node: pgspider_svr / Status: Alive
      Agg push-down: yes
@@ -5921,7 +5868,7 @@ EXPLAIN VERBOSE
 SELECT variance(gpa) FROM s3 WHERE gpa > 3.5;
                                            QUERY PLAN                                            
 -------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=100.00..152.69 rows=1 width=8)
    Output: (variance(gpa))
    Node: pgspider_svr / Status: Alive
      Agg push-down: yes
@@ -5941,7 +5888,7 @@ EXPLAIN VERBOSE
 SELECT stddev(age) FROM s3;
                        QUERY PLAN                        
 ---------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=100.00..144.16 rows=1 width=32)
    Output: (stddev(age))
    Node: pgspider_svr / Status: Alive
      Agg push-down: yes
@@ -5961,7 +5908,7 @@ EXPLAIN VERBOSE
 SELECT stddev(age) FROM s3 WHERE char_length(name) > 4;
                                        QUERY PLAN                                        
 -----------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=100.00..161.22 rows=1 width=32)
    Output: (stddev(age))
    Node: pgspider_svr / Status: Alive
      Agg push-down: yes
@@ -5981,7 +5928,7 @@ EXPLAIN VERBOSE
 SELECT max(gpa), min(age) FROM s3;
                            QUERY PLAN                           
 ----------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=12)
+ Foreign Scan  (cost=100.00..144.16 rows=1 width=12)
    Output: (max(gpa)), (min(age))
    Node: pgspider_svr / Status: Alive
      Agg push-down: yes

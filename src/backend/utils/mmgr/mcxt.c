@@ -9,7 +9,7 @@
  * context's MemoryContextMethods struct.
  *
  *
- * Portions Copyright (c) 1996-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
@@ -75,7 +75,24 @@ static void MemoryContextStatsPrint(MemoryContext context, void *passthru,
 									bool print_to_stderr);
 
 #ifdef PGSPIDER
-extern bool is_child_thread_running;
+extern bool		is_child_thread_running;
+extern List	   *skipped_memory_checking_context;
+static const char *skip_memory_checking_list[] = {
+	"scan thread tuple context1",
+	"scan thread tuple context2",
+	"Scan Thread ErrorContext",
+	"scan thread top memory context",
+	"scan thread memory context",
+	"scan thread es_query_cxt",
+	"modify thread tuple context1",
+	"modify thread tuple context2",
+	"Modify Thread ErrorContext",
+	"modify thread top memory context",
+	"modify thread memory context",
+	"modify thread es_query_cxt",
+	"CacheMemoryContext",
+	NULL
+};
 #endif
 /*
  * You should not do memory allocations within a critical section, because
@@ -228,6 +245,22 @@ MemoryContextFreeContextList(void)
 	MemoryContext context = CurrentMemoryContext;
 
 	context->methods->free_context_list();
+}
+
+/*
+ * Return true if the string existed in list
+ */
+static bool
+string_exist_in_list(char *str, const char **strlist)
+{
+	int			i;
+
+	for (i = 0; strlist[i]; i++)
+	{
+		if (strcmp(str, strlist[i]) == 0)
+			return true;
+	}
+	return false;
 }
 #endif
 
@@ -554,7 +587,7 @@ MemoryContextStatsDetail(MemoryContext context, int max_children,
 
 	if (print_to_stderr)
 		fprintf(stderr,
-				"Grand total: %zu bytes in %zd blocks; %zu free (%zd chunks); %zu used\n",
+				"Grand total: %zu bytes in %zu blocks; %zu free (%zu chunks); %zu used\n",
 				grand_totals.totalspace, grand_totals.nblocks,
 				grand_totals.freespace, grand_totals.freechunks,
 				grand_totals.totalspace - grand_totals.freespace);
@@ -573,7 +606,7 @@ MemoryContextStatsDetail(MemoryContext context, int max_children,
 		ereport(LOG_SERVER_ONLY,
 				(errhidestmt(true),
 				 errhidecontext(true),
-				 errmsg_internal("Grand total: %zu bytes in %zd blocks; %zu free (%zd chunks); %zu used",
+				 errmsg_internal("Grand total: %zu bytes in %zu blocks; %zu free (%zu chunks); %zu used",
 								 grand_totals.totalspace, grand_totals.nblocks,
 								 grand_totals.freespace, grand_totals.freechunks,
 								 grand_totals.totalspace - grand_totals.freespace)));
@@ -638,7 +671,7 @@ MemoryContextStatsInternal(MemoryContext context, int level,
 				for (i = 0; i <= level; i++)
 					fprintf(stderr, "  ");
 				fprintf(stderr,
-						"%d more child contexts containing %zu total in %zd blocks; %zu free (%zd chunks); %zu used\n",
+						"%d more child contexts containing %zu total in %zu blocks; %zu free (%zu chunks); %zu used\n",
 						ichild - max_children,
 						local_totals.totalspace,
 						local_totals.nblocks,
@@ -650,7 +683,7 @@ MemoryContextStatsInternal(MemoryContext context, int level,
 				ereport(LOG_SERVER_ONLY,
 						(errhidestmt(true),
 						 errhidecontext(true),
-						 errmsg_internal("level: %d; %d more child contexts containing %zu total in %zd blocks; %zu free (%zd chunks); %zu used",
+						 errmsg_internal("level: %d; %d more child contexts containing %zu total in %zu blocks; %zu free (%zu chunks); %zu used",
 										 level,
 										 ichild - max_children,
 										 local_totals.totalspace,
@@ -767,16 +800,33 @@ MemoryContextCheck(MemoryContext context)
 
 	/*
 	 * Skip checking memory context when child thread is running and context
-	 * is created from pgspider_core_fdw
+	 * is created from pgspider_core_fdw (distinguish by name) or from child threads
+	 * (distinguish creator_thread_id).
 	 */
-	if (is_child_thread_running &&
-		(strcmp(context->name, "thread tuple contxt1") == 0 ||
-		 strcmp(context->name, "thread tuple contxt2") == 0 ||
-		 strcmp(context->name, "Thread ErrorContext") == 0 ||
-		 strcmp(context->name, "thread top memory context") == 0 ||
-		 strcmp(context->name, "thread memory context") == 0 ||
-		 strcmp(context->name, "thread es_query_cxt") == 0))
+	if ((is_child_thread_running) &&
+		((string_exist_in_list(context->name, skip_memory_checking_list)) ||
+		 context->creator_thread_id != pthread_self()))
+	{
+		/*
+		 * Append to skipped list if it does not exist in the list.
+		 * This list will be checked after child threads finished.
+		 */
+		ListCell   *lc;
+
+		foreach(lc, skipped_memory_checking_context)
+		{
+			MemoryContext ctx = (MemoryContext) lfirst(lc);
+
+			if (strcmp(ctx->name, context->name) == 0)
+				break;
+		}
+		if (lc == NULL)
+		{
+			/* Not in list, so add it */
+			skipped_memory_checking_context = lappend(skipped_memory_checking_context, context);
+		}
 		return;
+	}
 #endif
 
 	context->methods->check(context);
@@ -875,6 +925,9 @@ MemoryContextCreate(MemoryContext node,
 	node->name = name;
 	node->ident = NULL;
 	node->reset_cbs = NULL;
+#ifdef PGSPIDER
+	node->creator_thread_id = pthread_self();
+#endif
 
 	/* OK to link node into context tree */
 	if (parent)
@@ -1085,8 +1138,14 @@ ProcessLogMemoryContextInterrupt(void)
 {
 	LogMemoryContextPending = false;
 
-	ereport(LOG,
-			(errmsg("logging memory contexts of PID %d", MyProcPid)));
+	/*
+	 * Use LOG_SERVER_ONLY to prevent this message from being sent to the
+	 * connected client.
+	 */
+	ereport(LOG_SERVER_ONLY,
+			(errhidestmt(true),
+			 errhidecontext(true),
+			 errmsg("logging memory contexts of PID %d", MyProcPid)));
 
 	/*
 	 * When a backend process is consuming huge memory, logging all its memory

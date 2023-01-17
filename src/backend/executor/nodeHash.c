@@ -3,7 +3,7 @@
  * nodeHash.c
  *	  Routines to hash relations for hashjoin
  *
- * Portions Copyright (c) 1996-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
@@ -832,7 +832,10 @@ ExecChooseHashTableSize(double ntuples, int tupwidth, bool useskew,
 		 * overhead for the hash code, pointer to the next tuple, etc.
 		 */
 		bucket_size = (tupsize * NTUP_PER_BUCKET + sizeof(HashJoinTuple));
-		sbuckets = pg_nextpower2_size_t(hash_table_bytes / bucket_size);
+		if (hash_table_bytes <= bucket_size)
+			sbuckets = 1;		/* avoid pg_nextpower2_size_t(0) */
+		else
+			sbuckets = pg_nextpower2_size_t(hash_table_bytes / bucket_size);
 		sbuckets = Min(sbuckets, max_pointers);
 		nbuckets = (int) sbuckets;
 		nbuckets = pg_nextpower2_32(nbuckets);
@@ -1840,8 +1843,8 @@ ExecHashGetHashValue(HashJoinTable hashtable,
 		Datum		keyval;
 		bool		isNull;
 
-		/* rotate hashkey left 1 bit at each step */
-		hashkey = (hashkey << 1) | ((hashkey & 0x80000000) ? 1 : 0);
+		/* combine successive hashkeys by rotating */
+		hashkey = pg_rotate_left32(hashkey, 1);
 
 		/*
 		 * Get the join attribute value of the tuple
@@ -3409,26 +3412,4 @@ get_hash_memory_limit(void)
 	mem_limit = Min(mem_limit, (double) SIZE_MAX);
 
 	return (size_t) mem_limit;
-}
-
-/*
- * Convert the hash memory limit to an integer number of kilobytes,
- * that is something comparable to work_mem.  Like work_mem, we clamp
- * the result to ensure that multiplying it by 1024 fits in a long int.
- *
- * This is deprecated since it may understate the actual memory limit.
- * It is unused in core and will eventually be removed.
- */
-int
-get_hash_mem(void)
-{
-	size_t		mem_limit = get_hash_memory_limit();
-
-	/* Remove the kilobyte factor */
-	mem_limit /= 1024;
-
-	/* Clamp to MAX_KILOBYTES, like work_mem */
-	mem_limit = Min(mem_limit, (size_t) MAX_KILOBYTES);
-
-	return (int) mem_limit;
 }

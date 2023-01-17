@@ -3,7 +3,7 @@
  * pathnode.c
  *	  Routines to manipulate pathlists and create path nodes
  *
- * Portions Copyright (c) 1996-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
@@ -105,7 +105,7 @@ compare_path_costs(Path *path1, Path *path2, CostSelector criterion)
 }
 
 /*
- * compare_path_fractional_costs
+ * compare_fractional_path_costs
  *	  Return -1, 0, or +1 according as path1 is cheaper, the same cost,
  *	  or more expensive than path2 for fetching the specified fraction
  *	  of the total tuples.
@@ -936,7 +936,7 @@ create_seqscan_path(PlannerInfo *root, RelOptInfo *rel,
 	pathnode->pathtarget = rel->reltarget;
 	pathnode->param_info = get_baserel_parampathinfo(root, rel,
 													 required_outer);
-	pathnode->parallel_aware = parallel_workers > 0 ? true : false;
+	pathnode->parallel_aware = (parallel_workers > 0);
 	pathnode->parallel_safe = rel->consider_parallel;
 	pathnode->parallel_workers = parallel_workers;
 	pathnode->pathkeys = NIL;	/* seqscan has unordered result */
@@ -1057,7 +1057,7 @@ create_bitmap_heap_path(PlannerInfo *root,
 	pathnode->path.pathtarget = rel->reltarget;
 	pathnode->path.param_info = get_baserel_parampathinfo(root, rel,
 														  required_outer);
-	pathnode->path.parallel_aware = parallel_degree > 0 ? true : false;
+	pathnode->path.parallel_aware = (parallel_degree > 0);
 	pathnode->path.parallel_safe = rel->consider_parallel;
 	pathnode->path.parallel_workers = parallel_degree;
 	pathnode->path.pathkeys = NIL;	/* always unordered */
@@ -1583,7 +1583,7 @@ create_material_path(RelOptInfo *rel, Path *subpath)
 MemoizePath *
 create_memoize_path(PlannerInfo *root, RelOptInfo *rel, Path *subpath,
 					List *param_exprs, List *hash_operators,
-					bool singlerow, double calls)
+					bool singlerow, bool binary_mode, double calls)
 {
 	MemoizePath *pathnode = makeNode(MemoizePath);
 
@@ -1603,6 +1603,7 @@ create_memoize_path(PlannerInfo *root, RelOptInfo *rel, Path *subpath,
 	pathnode->hash_operators = hash_operators;
 	pathnode->param_exprs = param_exprs;
 	pathnode->singlerow = singlerow;
+	pathnode->binary_mode = binary_mode;
 	pathnode->calls = calls;
 
 	/*
@@ -2443,10 +2444,10 @@ create_nestloop_path(PlannerInfo *root,
 		restrict_clauses = jclauses;
 	}
 
-	pathnode->path.pathtype = T_NestLoop;
-	pathnode->path.parent = joinrel;
-	pathnode->path.pathtarget = joinrel->reltarget;
-	pathnode->path.param_info =
+	pathnode->jpath.path.pathtype = T_NestLoop;
+	pathnode->jpath.path.parent = joinrel;
+	pathnode->jpath.path.pathtarget = joinrel->reltarget;
+	pathnode->jpath.path.param_info =
 		get_joinrel_parampathinfo(root,
 								  joinrel,
 								  outer_path,
@@ -2454,17 +2455,17 @@ create_nestloop_path(PlannerInfo *root,
 								  extra->sjinfo,
 								  required_outer,
 								  &restrict_clauses);
-	pathnode->path.parallel_aware = false;
-	pathnode->path.parallel_safe = joinrel->consider_parallel &&
+	pathnode->jpath.path.parallel_aware = false;
+	pathnode->jpath.path.parallel_safe = joinrel->consider_parallel &&
 		outer_path->parallel_safe && inner_path->parallel_safe;
 	/* This is a foolish way to estimate parallel_workers, but for now... */
-	pathnode->path.parallel_workers = outer_path->parallel_workers;
-	pathnode->path.pathkeys = pathkeys;
-	pathnode->jointype = jointype;
-	pathnode->inner_unique = extra->inner_unique;
-	pathnode->outerjoinpath = outer_path;
-	pathnode->innerjoinpath = inner_path;
-	pathnode->joinrestrictinfo = restrict_clauses;
+	pathnode->jpath.path.parallel_workers = outer_path->parallel_workers;
+	pathnode->jpath.path.pathkeys = pathkeys;
+	pathnode->jpath.jointype = jointype;
+	pathnode->jpath.inner_unique = extra->inner_unique;
+	pathnode->jpath.outerjoinpath = outer_path;
+	pathnode->jpath.innerjoinpath = inner_path;
+	pathnode->jpath.joinrestrictinfo = restrict_clauses;
 
 	final_cost_nestloop(root, pathnode, workspace, extra);
 
@@ -3387,6 +3388,10 @@ create_minmaxagg_path(PlannerInfo *root,
  * 'target' is the PathTarget to be computed
  * 'windowFuncs' is a list of WindowFunc structs
  * 'winclause' is a WindowClause that is common to all the WindowFuncs
+ * 'qual' WindowClause.runconditions from lower-level WindowAggPaths.
+ *		Must always be NIL when topwindow == false
+ * 'topwindow' pass as true only for the top-level WindowAgg. False for all
+ *		intermediate WindowAggs.
  *
  * The input must be sorted according to the WindowClause's PARTITION keys
  * plus ORDER BY keys.
@@ -3397,9 +3402,14 @@ create_windowagg_path(PlannerInfo *root,
 					  Path *subpath,
 					  PathTarget *target,
 					  List *windowFuncs,
-					  WindowClause *winclause)
+					  WindowClause *winclause,
+					  List *qual,
+					  bool topwindow)
 {
 	WindowAggPath *pathnode = makeNode(WindowAggPath);
+
+	/* qual can only be set for the topwindow */
+	Assert(qual == NIL || topwindow);
 
 	pathnode->path.pathtype = T_WindowAgg;
 	pathnode->path.parent = rel;
@@ -3415,6 +3425,8 @@ create_windowagg_path(PlannerInfo *root,
 
 	pathnode->subpath = subpath;
 	pathnode->winclause = winclause;
+	pathnode->qual = qual;
+	pathnode->topwindow = topwindow;
 
 	/*
 	 * For costing purposes, assume that there are no redundant partitioning
@@ -3619,6 +3631,7 @@ create_lockrows_path(PlannerInfo *root, RelOptInfo *rel,
  * 'rowMarks' is a list of PlanRowMarks (non-locking only)
  * 'onconflict' is the ON CONFLICT clause, or NULL
  * 'epqParam' is the ID of Param for EvalPlanQual re-eval
+ * 'mergeActionLists' is a list of lists of MERGE actions (one per rel)
  */
 ModifyTablePath *
 create_modifytable_path(PlannerInfo *root, RelOptInfo *rel,
@@ -3630,13 +3643,14 @@ create_modifytable_path(PlannerInfo *root, RelOptInfo *rel,
 						List *updateColnosLists,
 						List *withCheckOptionLists, List *returningLists,
 						List *rowMarks, OnConflictExpr *onconflict,
-						int epqParam)
+						List *mergeActionLists, int epqParam)
 {
 	ModifyTablePath *pathnode = makeNode(ModifyTablePath);
 
-	Assert(operation == CMD_UPDATE ?
-		   list_length(resultRelations) == list_length(updateColnosLists) :
-		   updateColnosLists == NIL);
+	Assert(operation == CMD_MERGE ||
+		   (operation == CMD_UPDATE ?
+			list_length(resultRelations) == list_length(updateColnosLists) :
+			updateColnosLists == NIL));
 	Assert(withCheckOptionLists == NIL ||
 		   list_length(resultRelations) == list_length(withCheckOptionLists));
 	Assert(returningLists == NIL ||
@@ -3696,6 +3710,7 @@ create_modifytable_path(PlannerInfo *root, RelOptInfo *rel,
 	pathnode->rowMarks = rowMarks;
 	pathnode->onconflict = onconflict;
 	pathnode->epqParam = epqParam;
+	pathnode->mergeActionLists = mergeActionLists;
 
 	return pathnode;
 }
@@ -3942,6 +3957,7 @@ reparameterize_path(PlannerInfo *root, Path *path,
 													mpath->param_exprs,
 													mpath->hash_operators,
 													mpath->singlerow,
+													mpath->binary_mode,
 													mpath->calls);
 			}
 		default:
@@ -4110,13 +4126,15 @@ do { \
 		case T_NestPath:
 			{
 				JoinPath   *jpath;
+				NestPath   *npath;
 
-				FLAT_COPY_PATH(jpath, path, NestPath);
+				FLAT_COPY_PATH(npath, path, NestPath);
 
+				jpath = (JoinPath *) npath;
 				REPARAMETERIZE_CHILD_PATH(jpath->outerjoinpath);
 				REPARAMETERIZE_CHILD_PATH(jpath->innerjoinpath);
 				ADJUST_CHILD_ATTRS(jpath->joinrestrictinfo);
-				new_path = (Path *) jpath;
+				new_path = (Path *) npath;
 			}
 			break;
 

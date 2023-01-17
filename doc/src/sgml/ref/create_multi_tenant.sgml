@@ -1,0 +1,157 @@
+<!--
+doc/src/sgml/ref/create_multi_tenant.sgml
+PostgreSQL documentation
+-->
+
+<refentry id="sql-createmultitenant">
+ <indexterm zone="sql-createmultitenant">
+  <primary>CREATE MULTI TENANT</primary>
+ </indexterm>
+
+ <refmeta>
+  <refentrytitle>CREATE MULTI TENANT</refentrytitle>
+  <manvolnum>7</manvolnum>
+  <refmiscinfo>SQL - Language Statements</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CREATE MULTI TENANT</refname>
+  <refpurpose>define a new multi tenant server</refpurpose>
+ </refnamediv>
+
+ <refsynopsisdiv>
+<synopsis>
+CREATE MULTI TENANT [ IF NOT EXISTS ] <replaceable class="parameter">server_name</replaceable> [ TYPE '<replaceable class="parameter">server_type</replaceable>' ] [ VERSION '<replaceable class="parameter">server_version</replaceable>' ]
+    [ OPTIONS ( <replaceable class="parameter">option</replaceable> '<replaceable class="parameter">value</replaceable>' [, ... ] ) ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Description</title>
+
+  <para>
+   <command>CREATE MULTI TENANT</command> defines a new multi tenant server.  The
+   user who defines the multi tenant server becomes its owner.
+  </para>
+
+  <para>
+   A multi tenant server typically encapsulates connection information that
+   a foreign-data wrapper uses to access an external data resource.
+   Additional user-specific connection information may be specified by
+   means of user mappings.
+  </para>
+
+  <para>
+   The multi tenant server name must be unique within the database.
+  </para>
+
+  <para>
+   Creating a multi tenant server requires <literal>USAGE</literal> privilege on the
+   foreign-data wrapper being used.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parameters</title>
+
+  <variablelist>
+  <varlistentry>
+    <term><literal>IF NOT EXISTS</literal></term>
+    <listitem>
+     <para>
+      Do not throw an error if a multi tenant server with the same name already exists.
+      A notice is issued in this case.  Note that there is no guarantee that
+      the existing multi tenant server is anything like the one that would have been
+      created.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">server_name</replaceable></term>
+    <listitem>
+     <para>
+      The name of the multi tenant server to be created.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">server_type</replaceable></term>
+    <listitem>
+     <para>
+      Optional server type, potentially useful to foreign-data wrappers.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">server_version</replaceable></term>
+    <listitem>
+     <para>
+      Optional server version, potentially useful to foreign-data wrappers.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>OPTIONS ( <replaceable class="parameter">option</replaceable> '<replaceable class="parameter">value</replaceable>' [, ... ] )</literal></term>
+    <listitem>
+     <para>
+      This clause specifies the options for the multi tenant server.  The options
+      typically define the connection details of the multi tenant server, but the
+      actual names and values are dependent on the multi tenant server's
+      foreign-data wrapper.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Notes</title>
+
+  <para>
+   When using the <xref linkend="dblink"/> module,
+   a multi tenant server's name can be used
+   as an argument of the <xref linkend="contrib-dblink-connect"/>
+   function to indicate the connection parameters.  It is necessary to have
+   the <literal>USAGE</literal> privilege on the multi tenant server to be
+   able to use it in this way.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Examples</title>
+
+  <para>
+   Create a multi tenant server <literal>myserver</literal> that default uses the
+   foreign-data wrapper <literal>pgspider_core_fdw</literal> without specify in SQL query:
+<programlisting>
+CREATE MULTI TENANT myserver OPTIONS (host 'foo', dbname 'foodb', port '4813');
+</programlisting>
+   See <xref linkend="pgspider-core-fdw"/> for more details.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibility</title>
+
+  <para>
+   <command>CREATE MULTI TENANT</command> conforms to ISO/IEC 9075-9 (SQL/MED).
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>See Also</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-altermultitenant"/></member>
+   <member><xref linkend="sql-dropmultitenant"/></member>
+   <member><xref linkend="sql-createforeigndatawrapper"/></member>
+   <member><xref linkend="sql-createmultitenanttable"/></member>
+   <member><xref linkend="sql-createusermapping"/></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>

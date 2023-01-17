@@ -5063,86 +5063,86 @@ SELECT count(value1), find_in_set('---XYZ---', str1) FROM s3 GROUP BY find_in_se
 SELECT value1, find_in_set('---XYZ---', str1) FROM s3 GROUP BY 1,2 HAVING value1 > 1;
 
 --
--- test format()
+-- test mysql_format()
 --
--- select format (stub function, explain)
+-- select mysql_format (stub function, explain)
 --Testcase 1170:
 EXPLAIN VERBOSE
-SELECT format(value1, 4), format(value2, 4), format(value4, 4) FROM s3;
--- select format (stub function, result)
+SELECT mysql_format(value1, 4), mysql_format(value2, 4), mysql_format(value4, 4) FROM s3;
+-- select mysql_format (stub function, result)
 --Testcase 1171:
-SELECT format(value1, 4), format(value2, 4), format(value4, 4) FROM s3;
+SELECT mysql_format(value1, 4), mysql_format(value2, 4), mysql_format(value4, 4) FROM s3;
 
--- select format (stub function, explain)
+-- select mysql_format (stub function, explain)
 --Testcase 1172:
 EXPLAIN VERBOSE
-SELECT format(value1, 4, 'de_DE'), format(value2, 4, 'de_DE'), format(value4, 4, 'de_DE') FROM s3;
--- select format (stub function, result)
+SELECT mysql_format(value1, 4, 'de_DE'), mysql_format(value2, 4, 'de_DE'), mysql_format(value4, 4, 'de_DE') FROM s3;
+-- select mysql_format (stub function, result)
 --Testcase 1173:
-SELECT format(value1, 4, 'de_DE'), format(value2, 4, 'de_DE'), format(value4, 4, 'de_DE') FROM s3;
+SELECT mysql_format(value1, 4, 'de_DE'), mysql_format(value2, 4, 'de_DE'), mysql_format(value4, 4, 'de_DE') FROM s3;
 
--- select format (stub function, not pushdown constraints, explain)
+-- select mysql_format (stub function, not pushdown constraints, explain)
 --Testcase 1174:
 EXPLAIN VERBOSE
-SELECT value1, format(value1, 4) FROM s3 WHERE to_hex(value2) = '64';
--- select format (stub function, not pushdown constraints, result)
+SELECT value1, mysql_format(value1, 4) FROM s3 WHERE to_hex(value2) = '64';
+-- select mysql_format (stub function, not pushdown constraints, result)
 --Testcase 1175:
-SELECT value1, format(value1, 4) FROM s3 WHERE to_hex(value2) = '64';
+SELECT value1, mysql_format(value1, 4) FROM s3 WHERE to_hex(value2) = '64';
 
--- select format (stub function, pushdown constraints, explain)
+-- select mysql_format (stub function, pushdown constraints, explain)
 --Testcase 1176:
 EXPLAIN VERBOSE
-SELECT value1, format(value1, 4) FROM s3 WHERE value2 != 200;
--- select format (stub function, pushdown constraints, result)
+SELECT value1, mysql_format(value1, 4) FROM s3 WHERE value2 != 200;
+-- select mysql_format (stub function, pushdown constraints, result)
 --Testcase 1177:
-SELECT value1, format(value1, 4) FROM s3 WHERE value2 != 200;
+SELECT value1, mysql_format(value1, 4) FROM s3 WHERE value2 != 200;
 
--- select format with non pushdown func and explicit constant (explain)
+-- select mysql_format with non pushdown func and explicit constant (explain)
 --Testcase 1178:
 EXPLAIN VERBOSE
-SELECT format(value1, 4), pi(), 4.1 FROM s3;
--- select format with non pushdown func and explicit constant (result)
+SELECT mysql_format(value1, 4), pi(), 4.1 FROM s3;
+-- select mysql_format with non pushdown func and explicit constant (result)
 --Testcase 1179:
-SELECT format(value1, 4), pi(), 4.1 FROM s3;
+SELECT mysql_format(value1, 4), pi(), 4.1 FROM s3;
 
--- select format with order by (explain)
+-- select mysql_format with order by (explain)
 --Testcase 1180:
 EXPLAIN VERBOSE
-SELECT value1, format(value1, 4) FROM s3 ORDER BY format(value1, 4);
--- select format with order by (result)
+SELECT value1, mysql_format(value1, 4) FROM s3 ORDER BY mysql_format(value1, 4);
+-- select mysql_format with order by (result)
 --Testcase 1181:
-SELECT value1, format(value1, 4) FROM s3 ORDER BY format(value1, 4);
+SELECT value1, mysql_format(value1, 4) FROM s3 ORDER BY mysql_format(value1, 4);
 
--- select format with order by index (result)
+-- select mysql_format with order by index (result)
 --Testcase 1182:
-SELECT value1, format(value1, 4) FROM s3 ORDER BY 2,1;
--- select format with order by index (result)
+SELECT value1, mysql_format(value1, 4) FROM s3 ORDER BY 2,1;
+-- select mysql_format with order by index (result)
 --Testcase 1183:
-SELECT value1, format(value1, 4) FROM s3 ORDER BY 1,2;
+SELECT value1, mysql_format(value1, 4) FROM s3 ORDER BY 1,2;
 
--- select format with group by (explain)
+-- select mysql_format with group by (explain)
 --Testcase 1184:
 EXPLAIN VERBOSE
-SELECT count(value1), format(value1, 4) FROM s3 GROUP BY format(value1, 4);
--- select format with group by (result)
+SELECT count(value1), mysql_format(value1, 4) FROM s3 GROUP BY mysql_format(value1, 4);
+-- select mysql_format with group by (result)
 --Testcase 1185:
-SELECT count(value1), format(value1, 4) FROM s3 GROUP BY format(value1, 4);
+SELECT count(value1), mysql_format(value1, 4) FROM s3 GROUP BY mysql_format(value1, 4);
 
--- select format with group by index (result)
+-- select mysql_format with group by index (result)
 --Testcase 1186:
-SELECT value1, format(value1, 4) FROM s3 GROUP BY 2,1;
+SELECT value1, mysql_format(value1, 4) FROM s3 GROUP BY 2,1;
 
--- select format with group by having (explain)
+-- select mysql_format with group by having (explain)
 --Testcase 1187:
 EXPLAIN VERBOSE
-SELECT count(value1), format(value1, 4) FROM s3 GROUP BY format(value1, 4), value1 HAVING format(value1, 4) IS NOT NULL;
--- select format with group by having (result)
+SELECT count(value1), mysql_format(value1, 4) FROM s3 GROUP BY mysql_format(value1, 4), value1 HAVING mysql_format(value1, 4) IS NOT NULL;
+-- select mysql_format with group by having (result)
 --Testcase 1188:
-SELECT count(value1), format(value1, 4) FROM s3 GROUP BY format(value1, 4), value1 HAVING format(value1, 4) IS NOT NULL;
+SELECT count(value1), mysql_format(value1, 4) FROM s3 GROUP BY mysql_format(value1, 4), value1 HAVING mysql_format(value1, 4) IS NOT NULL;
 
--- select format with group by index having (result)
+-- select mysql_format with group by index having (result)
 --Testcase 1189:
-SELECT value1, format(value1, 4) FROM s3 GROUP BY 1,2 HAVING value1 > 1;
+SELECT value1, mysql_format(value1, 4) FROM s3 GROUP BY 1,2 HAVING value1 > 1;
 
 --
 -- test from_base64()
@@ -6485,404 +6485,404 @@ SELECT count(value1), quote(str2) FROM s3 GROUP BY quote(str2), str2 HAVING quot
 SELECT value1, quote(str2) FROM s3 GROUP BY 1,2 HAVING value1 > 1;
 
 --
--- test regexp_instr()
+-- test mysql_regexp_instr()
 --
--- select regexp_instr (stub function, explain)
+-- select mysql_regexp_instr (stub function, explain)
 --Testcase 1516:
 EXPLAIN VERBOSE
-SELECT regexp_instr(str1, 'XY'), regexp_instr(str2, 'XYZ') FROM s3;
--- select regexp_instr (stub function, result)
+SELECT mysql_regexp_instr(str1, 'XY'), mysql_regexp_instr(str2, 'XYZ') FROM s3;
+-- select mysql_regexp_instr (stub function, result)
 --Testcase 1517:
-SELECT regexp_instr(str1, 'XY'), regexp_instr(str2, 'XYZ') FROM s3;
+SELECT mysql_regexp_instr(str1, 'XY'), mysql_regexp_instr(str2, 'XYZ') FROM s3;
 
--- select regexp_instr (stub function, explain)
+-- select mysql_regexp_instr (stub function, explain)
 --Testcase 1518:
 EXPLAIN VERBOSE
-SELECT regexp_instr(str1, 'XY', 3), regexp_instr(str2, 'XYZ', 3) FROM s3;
--- select regexp_instr (stub function, result)
+SELECT mysql_regexp_instr(str1, 'XY', 3), mysql_regexp_instr(str2, 'XYZ', 3) FROM s3;
+-- select mysql_regexp_instr (stub function, result)
 --Testcase 1519:
-SELECT regexp_instr(str1, 'XY', 3), regexp_instr(str2, 'XYZ', 3) FROM s3;
+SELECT mysql_regexp_instr(str1, 'XY', 3), mysql_regexp_instr(str2, 'XYZ', 3) FROM s3;
 
--- select regexp_instr (stub function, explain)
+-- select mysql_regexp_instr (stub function, explain)
 --Testcase 1520:
 EXPLAIN VERBOSE
-SELECT regexp_instr(str1, 'XY', 3, 0), regexp_instr(str2, 'XYZ', 3, 0) FROM s3;
--- select regexp_instr (stub function, result)
+SELECT mysql_regexp_instr(str1, 'XY', 3, 0), mysql_regexp_instr(str2, 'XYZ', 3, 0) FROM s3;
+-- select mysql_regexp_instr (stub function, result)
 --Testcase 1521:
-SELECT regexp_instr(str1, 'XY', 3, 0), regexp_instr(str2, 'XYZ', 3, 0) FROM s3;
+SELECT mysql_regexp_instr(str1, 'XY', 3, 0), mysql_regexp_instr(str2, 'XYZ', 3, 0) FROM s3;
 
--- select regexp_instr (stub function, explain)
+-- select mysql_regexp_instr (stub function, explain)
 --Testcase 1522:
 EXPLAIN VERBOSE
-SELECT regexp_instr(str1, 'XY', 3, 0, 1), regexp_instr(str2, 'XYZ', 3, 0, 1) FROM s3;
--- select regexp_instr (stub function, result)
+SELECT mysql_regexp_instr(str1, 'XY', 3, 0, 1), mysql_regexp_instr(str2, 'XYZ', 3, 0, 1) FROM s3;
+-- select mysql_regexp_instr (stub function, result)
 --Testcase 1523:
-SELECT regexp_instr(str1, 'XY', 3, 0, 1), regexp_instr(str2, 'XYZ', 3, 0, 1) FROM s3;
+SELECT mysql_regexp_instr(str1, 'XY', 3, 0, 1), mysql_regexp_instr(str2, 'XYZ', 3, 0, 1) FROM s3;
 
--- select regexp_instr (stub function, explain)
+-- select mysql_regexp_instr (stub function, explain)
 --Testcase 1524:
 EXPLAIN VERBOSE
-SELECT regexp_instr(str1, 'xy', 3, 0, 1, 'i'), regexp_instr(str2, 'xyz', 3, 0, 1, 'i') FROM s3;
--- select regexp_instr (stub function, result)
+SELECT mysql_regexp_instr(str1, 'xy', 3, 0, 1, 'i'), mysql_regexp_instr(str2, 'xyz', 3, 0, 1, 'i') FROM s3;
+-- select mysql_regexp_instr (stub function, result)
 --Testcase 1525:
-SELECT regexp_instr(str1, 'xy', 3, 0, 1, 'i'), regexp_instr(str2, 'xyz', 3, 0, 1, 'i') FROM s3;
+SELECT mysql_regexp_instr(str1, 'xy', 3, 0, 1, 'i'), mysql_regexp_instr(str2, 'xyz', 3, 0, 1, 'i') FROM s3;
 
--- select regexp_instr (stub function, not pushdown constraints, explain)
+-- select mysql_regexp_instr (stub function, not pushdown constraints, explain)
 --Testcase 1526:
 EXPLAIN VERBOSE
-SELECT value1, regexp_instr(str2, 'XYZ', 3, 0) FROM s3 WHERE to_hex(value2) = '64';
--- select regexp_instr (stub function, not pushdown constraints, result)
+SELECT value1, mysql_regexp_instr(str2, 'XYZ', 3, 0) FROM s3 WHERE to_hex(value2) = '64';
+-- select mysql_regexp_instr (stub function, not pushdown constraints, result)
 --Testcase 1527:
-SELECT value1, regexp_instr(str2, 'XYZ', 3, 0) FROM s3 WHERE to_hex(value2) = '64';
+SELECT value1, mysql_regexp_instr(str2, 'XYZ', 3, 0) FROM s3 WHERE to_hex(value2) = '64';
 
--- select regexp_instr (stub function, pushdown constraints, explain)
+-- select mysql_regexp_instr (stub function, pushdown constraints, explain)
 --Testcase 1528:
 EXPLAIN VERBOSE
-SELECT value1, regexp_instr(str2, 'XYZ', 3, 0) FROM s3 WHERE value2 != 200;
--- select regexp_instr (stub function, pushdown constraints, result)
+SELECT value1, mysql_regexp_instr(str2, 'XYZ', 3, 0) FROM s3 WHERE value2 != 200;
+-- select mysql_regexp_instr (stub function, pushdown constraints, result)
 --Testcase 1529:
-SELECT value1, regexp_instr(str2, 'XYZ', 3, 0) FROM s3 WHERE value2 != 200;
+SELECT value1, mysql_regexp_instr(str2, 'XYZ', 3, 0) FROM s3 WHERE value2 != 200;
 
--- select regexp_instr with non pushdown func and explicit constant (explain)
+-- select mysql_regexp_instr with non pushdown func and explicit constant (explain)
 --Testcase 1530:
 EXPLAIN VERBOSE
-SELECT regexp_instr(str2, 'XYZ', 3, 0), pi(), 4.1 FROM s3;
--- select regexp_instr with non pushdown func and explicit constant (result)
+SELECT mysql_regexp_instr(str2, 'XYZ', 3, 0), pi(), 4.1 FROM s3;
+-- select mysql_regexp_instr with non pushdown func and explicit constant (result)
 --Testcase 1531:
-SELECT regexp_instr(str2, 'XYZ', 3, 0), pi(), 4.1 FROM s3;
+SELECT mysql_regexp_instr(str2, 'XYZ', 3, 0), pi(), 4.1 FROM s3;
 
--- select regexp_instr with order by (explain)
+-- select mysql_regexp_instr with order by (explain)
 --Testcase 1532:
 EXPLAIN VERBOSE
-SELECT value1, regexp_instr(str2, 'XYZ', 3, 0) FROM s3 ORDER BY regexp_instr(str2, 'XYZ', 3, 0);
--- select regexp_instr with order by (result)
+SELECT value1, mysql_regexp_instr(str2, 'XYZ', 3, 0) FROM s3 ORDER BY mysql_regexp_instr(str2, 'XYZ', 3, 0);
+-- select mysql_regexp_instr with order by (result)
 --Testcase 1533:
-SELECT value1, regexp_instr(str2, 'XYZ', 3, 0) FROM s3 ORDER BY regexp_instr(str2, 'XYZ', 3, 0);
+SELECT value1, mysql_regexp_instr(str2, 'XYZ', 3, 0) FROM s3 ORDER BY mysql_regexp_instr(str2, 'XYZ', 3, 0);
 
--- select regexp_instr with order by index (result)
+-- select mysql_regexp_instr with order by index (result)
 --Testcase 1534:
-SELECT value1, regexp_instr(str2, 'XYZ', 3, 0) FROM s3 ORDER BY 2,1;
--- select regexp_instr with order by index (result)
+SELECT value1, mysql_regexp_instr(str2, 'XYZ', 3, 0) FROM s3 ORDER BY 2,1;
+-- select mysql_regexp_instr with order by index (result)
 --Testcase 1535:
-SELECT value1, regexp_instr(str2, 'XYZ', 3, 0) FROM s3 ORDER BY 1,2;
+SELECT value1, mysql_regexp_instr(str2, 'XYZ', 3, 0) FROM s3 ORDER BY 1,2;
 
--- select regexp_instr with group by (explain)
+-- select mysql_regexp_instr with group by (explain)
 --Testcase 1536:
 EXPLAIN VERBOSE
-SELECT count(value1), regexp_instr(str2, 'XYZ', 3, 0) FROM s3 GROUP BY regexp_instr(str2, 'XYZ', 3, 0);
--- select regexp_instr with group by (result)
+SELECT count(value1), mysql_regexp_instr(str2, 'XYZ', 3, 0) FROM s3 GROUP BY mysql_regexp_instr(str2, 'XYZ', 3, 0);
+-- select mysql_regexp_instr with group by (result)
 --Testcase 1537:
-SELECT count(value1), regexp_instr(str2, 'XYZ', 3, 0) FROM s3 GROUP BY regexp_instr(str2, 'XYZ', 3, 0);
+SELECT count(value1), mysql_regexp_instr(str2, 'XYZ', 3, 0) FROM s3 GROUP BY mysql_regexp_instr(str2, 'XYZ', 3, 0);
 
--- select regexp_instr with group by index (result)
+-- select mysql_regexp_instr with group by index (result)
 --Testcase 1538:
-SELECT value1, regexp_instr(str2, 'XYZ', 3, 0) FROM s3 GROUP BY 2,1;
+SELECT value1, mysql_regexp_instr(str2, 'XYZ', 3, 0) FROM s3 GROUP BY 2,1;
 
--- select regexp_instr with group by having (explain)
+-- select mysql_regexp_instr with group by having (explain)
 --Testcase 1539:
 EXPLAIN VERBOSE
-SELECT count(value1), regexp_instr(str2, 'XYZ', 3, 0) FROM s3 GROUP BY regexp_instr(str2, 'XYZ', 3, 0), str2 HAVING regexp_instr(str2, 'XYZ', 3, 0) IS NOT NULL;
--- select regexp_instr with group by having (result)
+SELECT count(value1), mysql_regexp_instr(str2, 'XYZ', 3, 0) FROM s3 GROUP BY mysql_regexp_instr(str2, 'XYZ', 3, 0), str2 HAVING mysql_regexp_instr(str2, 'XYZ', 3, 0) IS NOT NULL;
+-- select mysql_regexp_instr with group by having (result)
 --Testcase 1540:
-SELECT count(value1), regexp_instr(str2, 'XYZ', 3, 0) FROM s3 GROUP BY regexp_instr(str2, 'XYZ', 3, 0), str2 HAVING regexp_instr(str2, 'XYZ', 3, 0) IS NOT NULL;
+SELECT count(value1), mysql_regexp_instr(str2, 'XYZ', 3, 0) FROM s3 GROUP BY mysql_regexp_instr(str2, 'XYZ', 3, 0), str2 HAVING mysql_regexp_instr(str2, 'XYZ', 3, 0) IS NOT NULL;
 
--- select regexp_instr with group by index having (result)
+-- select mysql_regexp_instr with group by index having (result)
 --Testcase 1541:
-SELECT value1, regexp_instr(str2, 'XYZ', 3, 0) FROM s3 GROUP BY 1,2 HAVING value1 > 1;
+SELECT value1, mysql_regexp_instr(str2, 'XYZ', 3, 0) FROM s3 GROUP BY 1,2 HAVING value1 > 1;
 
 --
--- test regexp_like()
+-- test mysql_regexp_like()
 --
--- select regexp_like (stub function, explain)
+-- select mysql_regexp_like (stub function, explain)
 --Testcase 1542:
 EXPLAIN VERBOSE
-SELECT regexp_instr(str1, 'XY'), regexp_instr(str2, 'XYZ') FROM s3;
--- select regexp_like (stub function, result)
+SELECT mysql_regexp_instr(str1, 'XY'), mysql_regexp_instr(str2, 'XYZ') FROM s3;
+-- select mysql_regexp_like (stub function, result)
 --Testcase 1543:
-SELECT regexp_instr(str1, 'XY'), regexp_instr(str2, 'XYZ') FROM s3;
+SELECT mysql_regexp_instr(str1, 'XY'), mysql_regexp_instr(str2, 'XYZ') FROM s3;
 
--- select regexp_like (stub function, explain)
+-- select mysql_regexp_like (stub function, explain)
 --Testcase 1544:
 EXPLAIN VERBOSE
-SELECT regexp_like('   XyZ   ', str2, 'i') FROM s3;
--- select regexp_like (stub function, result)
+SELECT mysql_regexp_like('   XyZ   ', str2, 'i') FROM s3;
+-- select mysql_regexp_like (stub function, result)
 --Testcase 1545:
-SELECT regexp_like('   XyZ   ', str2, 'i') FROM s3;
+SELECT mysql_regexp_like('   XyZ   ', str2, 'i') FROM s3;
 
--- select regexp_like (stub function, not pushdown constraints, explain)
+-- select mysql_regexp_like (stub function, not pushdown constraints, explain)
 --Testcase 1546:
 EXPLAIN VERBOSE
-SELECT value1, regexp_like('   XyZ   ', str2, 'i') FROM s3 WHERE to_hex(value2) = '64';
--- select regexp_like (stub function, not pushdown constraints, result)
+SELECT value1, mysql_regexp_like('   XyZ   ', str2, 'i') FROM s3 WHERE to_hex(value2) = '64';
+-- select mysql_regexp_like (stub function, not pushdown constraints, result)
 --Testcase 1547:
-SELECT value1, regexp_like('   XyZ   ', str2, 'i') FROM s3 WHERE to_hex(value2) = '64';
+SELECT value1, mysql_regexp_like('   XyZ   ', str2, 'i') FROM s3 WHERE to_hex(value2) = '64';
 
--- select regexp_like (stub function, pushdown constraints, explain)
+-- select mysql_regexp_like (stub function, pushdown constraints, explain)
 --Testcase 1548:
 EXPLAIN VERBOSE
-SELECT value1, regexp_like('   XyZ   ', str2, 'i') FROM s3 WHERE value2 != 200;
--- select regexp_like (stub function, pushdown constraints, result)
+SELECT value1, mysql_regexp_like('   XyZ   ', str2, 'i') FROM s3 WHERE value2 != 200;
+-- select mysql_regexp_like (stub function, pushdown constraints, result)
 --Testcase 1549:
-SELECT value1, regexp_like('   XyZ   ', str2, 'i') FROM s3 WHERE value2 != 200;
+SELECT value1, mysql_regexp_like('   XyZ   ', str2, 'i') FROM s3 WHERE value2 != 200;
 
--- select regexp_like with non pushdown func and explicit constant (explain)
+-- select mysql_regexp_like with non pushdown func and explicit constant (explain)
 --Testcase 1550:
 EXPLAIN VERBOSE
-SELECT regexp_like('   XyZ   ', str2, 'i'), pi(), 4.1 FROM s3;
--- select regexp_like with non pushdown func and explicit constant (result)
+SELECT mysql_regexp_like('   XyZ   ', str2, 'i'), pi(), 4.1 FROM s3;
+-- select mysql_regexp_like with non pushdown func and explicit constant (result)
 --Testcase 1551:
-SELECT regexp_like('   XyZ   ', str2, 'i'), pi(), 4.1 FROM s3;
+SELECT mysql_regexp_like('   XyZ   ', str2, 'i'), pi(), 4.1 FROM s3;
 
--- select regexp_like with order by (explain)
+-- select mysql_regexp_like with order by (explain)
 --Testcase 1552:
 EXPLAIN VERBOSE
-SELECT value1, regexp_like('   XyZ   ', str2, 'i') FROM s3 ORDER BY regexp_like('   XyZ   ', str2, 'i');
--- select regexp_like with order by (result)
+SELECT value1, mysql_regexp_like('   XyZ   ', str2, 'i') FROM s3 ORDER BY mysql_regexp_like('   XyZ   ', str2, 'i');
+-- select mysql_regexp_like with order by (result)
 --Testcase 1553:
-SELECT value1, regexp_like('   XyZ   ', str2, 'i') FROM s3 ORDER BY regexp_like('   XyZ   ', str2, 'i');
+SELECT value1, mysql_regexp_like('   XyZ   ', str2, 'i') FROM s3 ORDER BY mysql_regexp_like('   XyZ   ', str2, 'i');
 
--- select regexp_like with order by index (result)
+-- select mysql_regexp_like with order by index (result)
 --Testcase 1554:
-SELECT value1, regexp_like('   XyZ   ', str2, 'i') FROM s3 ORDER BY 2,1;
--- select regexp_like with order by index (result)
+SELECT value1, mysql_regexp_like('   XyZ   ', str2, 'i') FROM s3 ORDER BY 2,1;
+-- select mysql_regexp_like with order by index (result)
 --Testcase 1555:
-SELECT value1, regexp_like('   XyZ   ', str2, 'i') FROM s3 ORDER BY 1,2;
+SELECT value1, mysql_regexp_like('   XyZ   ', str2, 'i') FROM s3 ORDER BY 1,2;
 
--- select regexp_like with group by (explain)
+-- select mysql_regexp_like with group by (explain)
 --Testcase 1556:
 EXPLAIN VERBOSE
-SELECT count(value1), regexp_like('   XyZ   ', str2, 'i') FROM s3 GROUP BY regexp_like('   XyZ   ', str2, 'i');
--- select regexp_like with group by (result)
+SELECT count(value1), mysql_regexp_like('   XyZ   ', str2, 'i') FROM s3 GROUP BY mysql_regexp_like('   XyZ   ', str2, 'i');
+-- select mysql_regexp_like with group by (result)
 --Testcase 1557:
-SELECT count(value1), regexp_like('   XyZ   ', str2, 'i') FROM s3 GROUP BY regexp_like('   XyZ   ', str2, 'i');
+SELECT count(value1), mysql_regexp_like('   XyZ   ', str2, 'i') FROM s3 GROUP BY mysql_regexp_like('   XyZ   ', str2, 'i');
 
--- select regexp_like with group by index (result)
+-- select mysql_regexp_like with group by index (result)
 --Testcase 1558:
-SELECT value1, regexp_like('   XyZ   ', str2, 'i') FROM s3 GROUP BY 2,1;
+SELECT value1, mysql_regexp_like('   XyZ   ', str2, 'i') FROM s3 GROUP BY 2,1;
 
--- select regexp_like with group by having (explain)
+-- select mysql_regexp_like with group by having (explain)
 --Testcase 1559:
 EXPLAIN VERBOSE
-SELECT count(value1), regexp_like('   XyZ   ', str2, 'i') FROM s3 GROUP BY regexp_like('   XyZ   ', str2, 'i'), str2 HAVING regexp_like('   XyZ   ', str2, 'i') > 0;
--- select regexp_like with group by having (result)
+SELECT count(value1), mysql_regexp_like('   XyZ   ', str2, 'i') FROM s3 GROUP BY mysql_regexp_like('   XyZ   ', str2, 'i'), str2 HAVING mysql_regexp_like('   XyZ   ', str2, 'i') > 0;
+-- select mysql_regexp_like with group by having (result)
 --Testcase 1560:
-SELECT count(value1), regexp_like('   XyZ   ', str2, 'i') FROM s3 GROUP BY regexp_like('   XyZ   ', str2, 'i'), str2 HAVING regexp_like('   XyZ   ', str2, 'i') > 0;
+SELECT count(value1), mysql_regexp_like('   XyZ   ', str2, 'i') FROM s3 GROUP BY mysql_regexp_like('   XyZ   ', str2, 'i'), str2 HAVING mysql_regexp_like('   XyZ   ', str2, 'i') > 0;
 
--- select regexp_like with group by index having (result)
+-- select mysql_regexp_like with group by index having (result)
 --Testcase 1561:
-SELECT value1, regexp_like('   XyZ   ', str2, 'i') FROM s3 GROUP BY 1,2 HAVING value1 > 1;
+SELECT value1, mysql_regexp_like('   XyZ   ', str2, 'i') FROM s3 GROUP BY 1,2 HAVING value1 > 1;
 
 --
--- test regexp_replace()
+-- test mysql_regexp_replace()
 --
--- select regexp_replace (stub function, explain)
+-- select mysql_regexp_replace (stub function, explain)
 --Testcase 1562:
 EXPLAIN VERBOSE
-SELECT regexp_replace(str1, 'X', 'x') FROM s3;
--- select regexp_replace (stub function, result)
+SELECT mysql_regexp_replace(str1, 'X', 'x') FROM s3;
+-- select mysql_regexp_replace (stub function, result)
 --Testcase 1563:
-SELECT regexp_replace(str1, 'X', 'x') FROM s3;
+SELECT mysql_regexp_replace(str1, 'X', 'x') FROM s3;
 
--- select regexp_replace (stub function, explain)
+-- select mysql_regexp_replace (stub function, explain)
 --Testcase 1564:
 EXPLAIN VERBOSE
-SELECT regexp_replace(str1, 'Y', 'y', 3) FROM s3;
--- select regexp_replace (stub function, result)
+SELECT mysql_regexp_replace(str1, 'Y', 'y', 3) FROM s3;
+-- select mysql_regexp_replace (stub function, result)
 --Testcase 1565:
-SELECT regexp_replace(str1, 'Y', 'y', 3) FROM s3;
+SELECT mysql_regexp_replace(str1, 'Y', 'y', 3) FROM s3;
 
--- select regexp_replace (stub function, explain)
+-- select mysql_regexp_replace (stub function, explain)
 --Testcase 1566:
 EXPLAIN VERBOSE
-SELECT regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3;
--- select regexp_replace (stub function, result)
+SELECT mysql_regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3;
+-- select mysql_regexp_replace (stub function, result)
 --Testcase 1567:
-SELECT regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3;
+SELECT mysql_regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3;
 
--- select regexp_replace (stub function, explain)
+-- select mysql_regexp_replace (stub function, explain)
 --Testcase 1568:
 EXPLAIN VERBOSE
-SELECT regexp_replace(str1, 'y', 'K', 3, 0, 'i') FROM s3;
--- select regexp_replace (stub function, result)
+SELECT mysql_regexp_replace(str1, 'y', 'K', 3, 0, 'i') FROM s3;
+-- select mysql_regexp_replace (stub function, result)
 --Testcase 1569:
-SELECT regexp_replace(str1, 'y', 'K', 3, 0, 'i') FROM s3;
+SELECT mysql_regexp_replace(str1, 'y', 'K', 3, 0, 'i') FROM s3;
 
--- select regexp_replace (stub function, explain)
+-- select mysql_regexp_replace (stub function, explain)
 --Testcase 1570:
 EXPLAIN VERBOSE
-SELECT regexp_replace(str1, 'y', NULL, 3, 3, 'i') FROM s3;
--- select regexp_replace (stub function, result)
+SELECT mysql_regexp_replace(str1, 'y', NULL, 3, 3, 'i') FROM s3;
+-- select mysql_regexp_replace (stub function, result)
 --Testcase 1571:
-SELECT regexp_replace(str1, 'y', NULL, 3, 3, 'i') FROM s3;
+SELECT mysql_regexp_replace(str1, 'y', NULL, 3, 3, 'i') FROM s3;
 
--- select regexp_replace (stub function, not pushdown constraints, explain)
+-- select mysql_regexp_replace (stub function, not pushdown constraints, explain)
 --Testcase 1572:
 EXPLAIN VERBOSE
-SELECT value1, regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 WHERE to_hex(value2) = '64';
--- select regexp_replace (stub function, not pushdown constraints, result)
+SELECT value1, mysql_regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 WHERE to_hex(value2) = '64';
+-- select mysql_regexp_replace (stub function, not pushdown constraints, result)
 --Testcase 1573:
-SELECT value1, regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 WHERE to_hex(value2) = '64';
+SELECT value1, mysql_regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 WHERE to_hex(value2) = '64';
 
--- select regexp_replace (stub function, pushdown constraints, explain)
+-- select mysql_regexp_replace (stub function, pushdown constraints, explain)
 --Testcase 1574:
 EXPLAIN VERBOSE
-SELECT value1, regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 WHERE value2 != 200;
--- select regexp_replace (stub function, pushdown constraints, result)
+SELECT value1, mysql_regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 WHERE value2 != 200;
+-- select mysql_regexp_replace (stub function, pushdown constraints, result)
 --Testcase 1575:
-SELECT value1, regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 WHERE value2 != 200;
+SELECT value1, mysql_regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 WHERE value2 != 200;
 
--- select regexp_replace with non pushdown func and explicit constant (explain)
+-- select mysql_regexp_replace with non pushdown func and explicit constant (explain)
 --Testcase 1576:
 EXPLAIN VERBOSE
-SELECT regexp_replace(str1, 'Y', 'y', 3, 3), pi(), 4.1 FROM s3;
--- select regexp_replace with non pushdown func and explicit constant (result)
+SELECT mysql_regexp_replace(str1, 'Y', 'y', 3, 3), pi(), 4.1 FROM s3;
+-- select mysql_regexp_replace with non pushdown func and explicit constant (result)
 --Testcase 1577:
-SELECT regexp_replace(str1, 'Y', 'y', 3, 3), pi(), 4.1 FROM s3;
+SELECT mysql_regexp_replace(str1, 'Y', 'y', 3, 3), pi(), 4.1 FROM s3;
 
--- select regexp_replace with order by (explain)
+-- select mysql_regexp_replace with order by (explain)
 --Testcase 1578:
 EXPLAIN VERBOSE
-SELECT value1, regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 ORDER BY regexp_replace(str1, 'Y', 'y', 3, 3);
--- select regexp_replace with order by (result)
+SELECT value1, mysql_regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 ORDER BY mysql_regexp_replace(str1, 'Y', 'y', 3, 3);
+-- select mysql_regexp_replace with order by (result)
 --Testcase 1579:
-SELECT value1, regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 ORDER BY regexp_replace(str1, 'Y', 'y', 3, 3);
+SELECT value1, mysql_regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 ORDER BY mysql_regexp_replace(str1, 'Y', 'y', 3, 3);
 
--- select regexp_replace with order by index (result)
+-- select mysql_regexp_replace with order by index (result)
 --Testcase 1580:
-SELECT value1, regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 ORDER BY 2,1;
--- select regexp_replace with order by index (result)
+SELECT value1, mysql_regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 ORDER BY 2,1;
+-- select mysql_regexp_replace with order by index (result)
 --Testcase 1581:
-SELECT value1, regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 ORDER BY 1,2;
+SELECT value1, mysql_regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 ORDER BY 1,2;
 
--- select regexp_replace with group by (explain)
+-- select mysql_regexp_replace with group by (explain)
 --Testcase 1582:
 EXPLAIN VERBOSE
-SELECT count(value1), regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 GROUP BY regexp_replace(str1, 'Y', 'y', 3, 3);
--- select regexp_replace with group by (result)
+SELECT count(value1), mysql_regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 GROUP BY mysql_regexp_replace(str1, 'Y', 'y', 3, 3);
+-- select mysql_regexp_replace with group by (result)
 --Testcase 1583:
-SELECT count(value1), regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 GROUP BY regexp_replace(str1, 'Y', 'y', 3, 3);
+SELECT count(value1), mysql_regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 GROUP BY mysql_regexp_replace(str1, 'Y', 'y', 3, 3);
 
--- select regexp_replace with group by index (result)
+-- select mysql_regexp_replace with group by index (result)
 --Testcase 1584:
-SELECT value1, regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 GROUP BY 2,1;
+SELECT value1, mysql_regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 GROUP BY 2,1;
 
--- select regexp_replace with group by having (explain)
+-- select mysql_regexp_replace with group by having (explain)
 --Testcase 1585:
 EXPLAIN VERBOSE
-SELECT count(value1), regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 GROUP BY regexp_replace(str1, 'Y', 'y', 3, 3), str1 HAVING regexp_replace(str1, 'Y', 'y', 3, 3) IS NOT NULL;
--- select regexp_replace with group by having (result)
+SELECT count(value1), mysql_regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 GROUP BY mysql_regexp_replace(str1, 'Y', 'y', 3, 3), str1 HAVING mysql_regexp_replace(str1, 'Y', 'y', 3, 3) IS NOT NULL;
+-- select mysql_regexp_replace with group by having (result)
 --Testcase 1586:
-SELECT count(value1), regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 GROUP BY regexp_replace(str1, 'Y', 'y', 3, 3), str1 HAVING regexp_replace(str1, 'Y', 'y', 3, 3) IS NOT NULL;
+SELECT count(value1), mysql_regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 GROUP BY mysql_regexp_replace(str1, 'Y', 'y', 3, 3), str1 HAVING mysql_regexp_replace(str1, 'Y', 'y', 3, 3) IS NOT NULL;
 
--- select regexp_replace with group by index having (result)
+-- select mysql_regexp_replace with group by index having (result)
 --Testcase 1587:
-SELECT value1, regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 GROUP BY 1,2 HAVING value1 > 1;
+SELECT value1, mysql_regexp_replace(str1, 'Y', 'y', 3, 3) FROM s3 GROUP BY 1,2 HAVING value1 > 1;
 
 --
--- test regexp_substr()
+-- test mysql_regexp_substr()
 --
--- select regexp_substr (stub function, explain)
+-- select mysql_regexp_substr (stub function, explain)
 --Testcase 1588:
 EXPLAIN VERBOSE
-SELECT regexp_substr(str1, 'XYZ') FROM s3;
--- select regexp_substr (stub function, result)
+SELECT mysql_regexp_substr(str1, 'XYZ') FROM s3;
+-- select mysql_regexp_substr (stub function, result)
 --Testcase 1589:
-SELECT regexp_substr(str1, 'XYZ') FROM s3;
+SELECT mysql_regexp_substr(str1, 'XYZ') FROM s3;
 
--- select regexp_substr (stub function, explain)
+-- select mysql_regexp_substr (stub function, explain)
 --Testcase 1590:
 EXPLAIN VERBOSE
-SELECT regexp_substr(str1, 'XYZ', 3) FROM s3;
--- select regexp_substr (stub function, result)
+SELECT mysql_regexp_substr(str1, 'XYZ', 3) FROM s3;
+-- select mysql_regexp_substr (stub function, result)
 --Testcase 1591:
-SELECT regexp_substr(str1, 'XYZ', 3) FROM s3;
+SELECT mysql_regexp_substr(str1, 'XYZ', 3) FROM s3;
 
--- select regexp_substr (stub function, explain)
+-- select mysql_regexp_substr (stub function, explain)
 --Testcase 1592:
 EXPLAIN VERBOSE
-SELECT regexp_substr(str2, 'XYZ', 4, 0) FROM s3;
--- select regexp_substr (stub function, result)
+SELECT mysql_regexp_substr(str2, 'XYZ', 4, 0) FROM s3;
+-- select mysql_regexp_substr (stub function, result)
 --Testcase 1593:
-SELECT regexp_substr(str2, 'XYZ', 4, 0) FROM s3;
+SELECT mysql_regexp_substr(str2, 'XYZ', 4, 0) FROM s3;
 
--- select regexp_substr (stub function, explain)
+-- select mysql_regexp_substr (stub function, explain)
 --Testcase 1594:
 EXPLAIN VERBOSE
-SELECT regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3;
--- select regexp_substr (stub function, result)
+SELECT mysql_regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3;
+-- select mysql_regexp_substr (stub function, result)
 --Testcase 1595:
-SELECT regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3;
+SELECT mysql_regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3;
 
--- select regexp_substr (stub function, explain)
+-- select mysql_regexp_substr (stub function, explain)
 --Testcase 1596:
 EXPLAIN VERBOSE
-SELECT regexp_substr(str1, NULL, 4, 0, 'i') FROM s3;
--- select regexp_substr (stub function, result)
+SELECT mysql_regexp_substr(str1, NULL, 4, 0, 'i') FROM s3;
+-- select mysql_regexp_substr (stub function, result)
 --Testcase 1597:
-SELECT regexp_substr(str1, NULL, 4, 0, 'i') FROM s3;
+SELECT mysql_regexp_substr(str1, NULL, 4, 0, 'i') FROM s3;
 
--- select regexp_substr (stub function, not pushdown constraints, explain)
+-- select mysql_regexp_substr (stub function, not pushdown constraints, explain)
 --Testcase 1598:
 EXPLAIN VERBOSE
-SELECT value1, regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 WHERE to_hex(value2) = '64';
--- select regexp_substr (stub function, not pushdown constraints, result)
+SELECT value1, mysql_regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 WHERE to_hex(value2) = '64';
+-- select mysql_regexp_substr (stub function, not pushdown constraints, result)
 --Testcase 1599:
-SELECT value1, regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 WHERE to_hex(value2) = '64';
+SELECT value1, mysql_regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 WHERE to_hex(value2) = '64';
 
--- select regexp_substr (stub function, pushdown constraints, explain)
+-- select mysql_regexp_substr (stub function, pushdown constraints, explain)
 --Testcase 1600:
 EXPLAIN VERBOSE
-SELECT value1, regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 WHERE value2 != 200;
--- select regexp_substr (stub function, pushdown constraints, result)
+SELECT value1, mysql_regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 WHERE value2 != 200;
+-- select mysql_regexp_substr (stub function, pushdown constraints, result)
 --Testcase 1601:
-SELECT value1, regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 WHERE value2 != 200;
+SELECT value1, mysql_regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 WHERE value2 != 200;
 
--- select regexp_substr with non pushdown func and explicit constant (explain)
+-- select mysql_regexp_substr with non pushdown func and explicit constant (explain)
 --Testcase 1602:
 EXPLAIN VERBOSE
-SELECT regexp_substr(str1, 'xyz', 4, 0, 'i'), pi(), 4.1 FROM s3;
--- select regexp_substr with non pushdown func and explicit constant (result)
+SELECT mysql_regexp_substr(str1, 'xyz', 4, 0, 'i'), pi(), 4.1 FROM s3;
+-- select mysql_regexp_substr with non pushdown func and explicit constant (result)
 --Testcase 1603:
-SELECT regexp_substr(str1, 'xyz', 4, 0, 'i'), pi(), 4.1 FROM s3;
+SELECT mysql_regexp_substr(str1, 'xyz', 4, 0, 'i'), pi(), 4.1 FROM s3;
 
--- select regexp_substr with order by (explain)
+-- select mysql_regexp_substr with order by (explain)
 --Testcase 1604:
 EXPLAIN VERBOSE
-SELECT value1, regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 ORDER BY regexp_substr(str1, 'xyz', 4, 0, 'i');
--- select regexp_substr with order by (result)
+SELECT value1, mysql_regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 ORDER BY mysql_regexp_substr(str1, 'xyz', 4, 0, 'i');
+-- select mysql_regexp_substr with order by (result)
 --Testcase 1605:
-SELECT value1, regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 ORDER BY regexp_substr(str1, 'xyz', 4, 0, 'i');
+SELECT value1, mysql_regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 ORDER BY mysql_regexp_substr(str1, 'xyz', 4, 0, 'i');
 
--- select regexp_substr with order by index (result)
+-- select mysql_regexp_substr with order by index (result)
 --Testcase 1606:
-SELECT value1, regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 ORDER BY 2,1;
--- select regexp_substr with order by index (result)
+SELECT value1, mysql_regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 ORDER BY 2,1;
+-- select mysql_regexp_substr with order by index (result)
 --Testcase 1607:
-SELECT value1, regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 ORDER BY 1,2;
+SELECT value1, mysql_regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 ORDER BY 1,2;
 
--- select regexp_substr with group by (explain)
+-- select mysql_regexp_substr with group by (explain)
 --Testcase 1608:
 EXPLAIN VERBOSE
-SELECT count(value1), regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 GROUP BY regexp_substr(str1, 'xyz', 4, 0, 'i');
--- select regexp_substr with group by (result)
+SELECT count(value1), mysql_regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 GROUP BY mysql_regexp_substr(str1, 'xyz', 4, 0, 'i');
+-- select mysql_regexp_substr with group by (result)
 --Testcase 1609:
-SELECT count(value1), regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 GROUP BY regexp_substr(str1, 'xyz', 4, 0, 'i');
+SELECT count(value1), mysql_regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 GROUP BY mysql_regexp_substr(str1, 'xyz', 4, 0, 'i');
 
--- select regexp_substr with group by index (result)
+-- select mysql_regexp_substr with group by index (result)
 --Testcase 1610:
-SELECT value1, regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 GROUP BY 2,1;
+SELECT value1, mysql_regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 GROUP BY 2,1;
 
--- select regexp_substr with group by having (explain)
+-- select mysql_regexp_substr with group by having (explain)
 --Testcase 1611:
 EXPLAIN VERBOSE
-SELECT count(value1), regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 GROUP BY regexp_substr(str1, 'xyz', 4, 0, 'i'), str1 HAVING regexp_substr(str1, 'xyz', 4, 0, 'i') IS NOT NULL;
--- select regexp_substr with group by having (result)
+SELECT count(value1), mysql_regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 GROUP BY mysql_regexp_substr(str1, 'xyz', 4, 0, 'i'), str1 HAVING mysql_regexp_substr(str1, 'xyz', 4, 0, 'i') IS NOT NULL;
+-- select mysql_regexp_substr with group by having (result)
 --Testcase 1612:
-SELECT count(value1), regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 GROUP BY regexp_substr(str1, 'xyz', 4, 0, 'i'), str1 HAVING regexp_substr(str1, 'xyz', 4, 0, 'i') IS NOT NULL;
+SELECT count(value1), mysql_regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 GROUP BY mysql_regexp_substr(str1, 'xyz', 4, 0, 'i'), str1 HAVING mysql_regexp_substr(str1, 'xyz', 4, 0, 'i') IS NOT NULL;
 
--- select regexp_substr with group by index having (result)
+-- select mysql_regexp_substr with group by index having (result)
 --Testcase 1613:
-SELECT value1, regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 GROUP BY 1,2 HAVING value1 > 1;
+SELECT value1, mysql_regexp_substr(str1, 'xyz', 4, 0, 'i') FROM s3 GROUP BY 1,2 HAVING value1 > 1;
 
 --
 -- test repeat()
@@ -14958,7 +14958,7 @@ SELECT day(c2) as day1, day(c3) as day2, day('2021-01-01'::date) as day3, day('1
 -- ============================================================================
 
 --Testcase 3414:
-CREATE FOREIGN TABLE s7a (id int, tag1 text, value1 float, value2 int, value3 float, value4 int, value5 bit, str1 text, str2 text, __spd_url text) SERVER pgspider_core_svr;
+CREATE FOREIGN TABLE s7a (id int, tag1 text, value1 float, value2 int, value3 float, value4 int, value5 bit(16), str1 text, str2 text, __spd_url text) SERVER pgspider_core_svr;
 --Testcase 3415:
 CREATE FOREIGN TABLE s7a__pgspider_svr__0 (id int, tag1 text, value1 float, value2 int, value3 float, value4 int, value5 bit varying (16), str1 text, str2 text, __spd_url text) SERVER pgspider_svr OPTIONS (table_name 's7amysql');
 
@@ -18734,168 +18734,168 @@ SELECT c2, json_valid(c1) FROM s8 group by 1, 2 HAVING count(c2) > 0;
 --Testcase 4273:
 SELECT json_valid(json_build_array(c1, 'a', c2)) as json_valid1 FROM s8;
 
--- select json_value (stub function, explain)
+-- select mysql_json_value (stub function, explain)
 --Testcase 4274:
 EXPLAIN VERBOSE
-SELECT json_value(c1, '$.a'), json_value(c1, '$[1]'), json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8;
+SELECT mysql_json_value(c1, '$.a'), mysql_json_value(c1, '$[1]'), mysql_json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8;
 
--- select json_value (stub function, result)
+-- select mysql_json_value (stub function, result)
 --Testcase 4275:
-SELECT json_value(c1, '$.a'), json_value(c1, '$[1]'), json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8;
+SELECT mysql_json_value(c1, '$.a'), mysql_json_value(c1, '$[1]'), mysql_json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8;
 
--- select json_value (stub function, not pushdown constraints, explain)
+-- select mysql_json_value (stub function, not pushdown constraints, explain)
 --Testcase 4276:
 EXPLAIN VERBOSE
-SELECT json_value(c1, '$.a'), json_value(c1, '$[1]'), json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8 WHERE to_hex(id) = '2';
+SELECT mysql_json_value(c1, '$.a'), mysql_json_value(c1, '$[1]'), mysql_json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8 WHERE to_hex(id) = '2';
 
--- select json_value (stub function, not pushdown constraints, result)
+-- select mysql_json_value (stub function, not pushdown constraints, result)
 --Testcase 4277:
-SELECT json_value(c1, '$.a'), json_value(c1, '$[1]'), json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8 WHERE to_hex(id) = '2';
+SELECT mysql_json_value(c1, '$.a'), mysql_json_value(c1, '$[1]'), mysql_json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8 WHERE to_hex(id) = '2';
 
--- select json_value (stub function, pushdown constraints, explain)
+-- select mysql_json_value (stub function, pushdown constraints, explain)
 --Testcase 4278:
 EXPLAIN VERBOSE
-SELECT json_value(c1, '$.a'), json_value(c1, '$[1]'), json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8 WHERE id != 0;
+SELECT mysql_json_value(c1, '$.a'), mysql_json_value(c1, '$[1]'), mysql_json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8 WHERE id != 0;
 
--- select json_value (stub function, pushdown constraints, result)
+-- select mysql_json_value (stub function, pushdown constraints, result)
 --Testcase 4279:
-SELECT json_value(c1, '$.a'), json_value(c1, '$[1]'), json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8 WHERE id != 0;
+SELECT mysql_json_value(c1, '$.a'), mysql_json_value(c1, '$[1]'), mysql_json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8 WHERE id != 0;
 
--- select json_value (stub function, json_value in constraints, explain)
+-- select mysql_json_value (stub function, mysql_json_value in constraints, explain)
 --Testcase 4280:
 EXPLAIN VERBOSE
-SELECT json_value(c1, '$.a'), json_value(c1, '$[1]'), json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8 WHERE json_value(c1, '$.a', 'default 0 on empty')::int > 1;
+SELECT mysql_json_value(c1, '$.a'), mysql_json_value(c1, '$[1]'), mysql_json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8 WHERE mysql_json_value(c1, '$.a', 'default 0 on empty')::int > 1;
 
--- select json_value (stub function, json_value in constraints, result)
+-- select mysql_json_value (stub function, mysql_json_value in constraints, result)
 --Testcase 4281:
-SELECT json_value(c1, '$.a'), json_value(c1, '$[1]'), json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8 WHERE json_value(c1, '$.a', 'default 0 on empty')::int > 1;
+SELECT mysql_json_value(c1, '$.a'), mysql_json_value(c1, '$[1]'), mysql_json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8 WHERE mysql_json_value(c1, '$.a', 'default 0 on empty')::int > 1;
 
--- select json_value (stub function, json_value in constraints, explain)
+-- select mysql_json_value (stub function, mysql_json_value in constraints, explain)
 --Testcase 4282:
 EXPLAIN VERBOSE
-SELECT json_value(c1, '$.a'), json_value(c1, '$[1]'), json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8 WHERE json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 2)')::decimal = 49.95;
+SELECT mysql_json_value(c1, '$.a'), mysql_json_value(c1, '$[1]'), mysql_json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8 WHERE mysql_json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 2)')::decimal = 49.95;
 
--- select json_value (stub function, json_value in constraints, result)
+-- select mysql_json_value (stub function, mysql_json_value in constraints, result)
 --Testcase 4283:
-SELECT json_value(c1, '$.a'), json_value(c1, '$[1]'), json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8 WHERE json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 2)')::decimal = 49.95;
+SELECT mysql_json_value(c1, '$.a'), mysql_json_value(c1, '$[1]'), mysql_json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 1)')::numeric FROM s8 WHERE mysql_json_value('{"item": "shoes", "price": "49.95"}', '$.price', 'returning decimal(10, 2)')::decimal = 49.95;
 
--- select json_value (stub function, abnormal cast, explain)
+-- select mysql_json_value (stub function, abnormal cast, explain)
 --Testcase 4284:
 EXPLAIN VERBOSE
-SELECT json_value(c1, '$.a')::date FROM s8;
+SELECT mysql_json_value(c1, '$.a')::date FROM s8;
 
--- select json_value (stub function, abnormal cast, result)
+-- select mysql_json_value (stub function, abnormal cast, result)
 --Testcase 4285:
-SELECT json_value(c1, '$.a')::date FROM s8; -- should fail
+SELECT mysql_json_value(c1, '$.a')::date FROM s8; -- should fail
 
--- select json_value (stub function, abnormal cast, explain)
+-- select mysql_json_value (stub function, abnormal cast, explain)
 --Testcase 4286:
 EXPLAIN VERBOSE
-SELECT json_value(c1, '$.a', 'returning date')::date FROM s8;
+SELECT mysql_json_value(c1, '$.a', 'returning date')::date FROM s8;
 
--- select json_value (stub function, abnormal cast, result)
+-- select mysql_json_value (stub function, abnormal cast, result)
 --Testcase 4287:
-SELECT json_value(c1, '$.a', 'returning date')::date FROM s8; --empty result
+SELECT mysql_json_value(c1, '$.a', 'returning date')::date FROM s8; --empty result
 
--- select json_value (stub function, abnormal cast, explain)
+-- select mysql_json_value (stub function, abnormal cast, explain)
 --Testcase 4288:
 EXPLAIN VERBOSE
-SELECT json_value(c1, '$.a', 'returning date', 'error on error')::date FROM s8;
+SELECT mysql_json_value(c1, '$.a', 'returning date', 'error on error')::date FROM s8;
 
--- select json_value (stub function, abnormal cast, result)
+-- select mysql_json_value (stub function, abnormal cast, result)
 --Testcase 4289:
-SELECT json_value(c1, '$.a', 'returning date', 'error on error')::date FROM s8; -- should fail
+SELECT mysql_json_value(c1, '$.a', 'returning date', 'error on error')::date FROM s8; -- should fail
 
--- select json_value with normal cast
+-- select mysql_json_value with normal cast
 --Testcase 4290:
-SELECT json_value('{"a": "2000-01-01"}', '$.a')::timestamp, json_value('{"a": "2000-01-01"}', '$.a')::date , json_value('{"a": 1234}', '$.a')::bigint, json_value('{"a": "b"}', '$.a')::text FROM s8;
+SELECT mysql_json_value('{"a": "2000-01-01"}', '$.a')::timestamp, mysql_json_value('{"a": "2000-01-01"}', '$.a')::date , mysql_json_value('{"a": 1234}', '$.a')::bigint, mysql_json_value('{"a": "b"}', '$.a')::text FROM s8;
 
--- select json_value with normal cast
+-- select mysql_json_value with normal cast
 --Testcase 4291:
-SELECT json_value('{"a": "2000-01-01"}', '$.a')::timestamptz, json_value('{"a": "12:10:20.123456"}', '$.a')::time , json_value('{"a": "12:10:20.123456"}', '$.a')::timetz FROM s8;
+SELECT mysql_json_value('{"a": "2000-01-01"}', '$.a')::timestamptz, mysql_json_value('{"a": "12:10:20.123456"}', '$.a')::time , mysql_json_value('{"a": "12:10:20.123456"}', '$.a')::timetz FROM s8;
 
--- select json_value with type modifier (explain)
+-- select mysql_json_value with type modifier (explain)
 --Testcase 4292:
 EXPLAIN VERBOSE
-SELECT json_value('{"a": "2000-01-01 12:02:01.123456"}', '$.a')::timestamp(3), json_value('{"a": "2000-01-01 12:02:01.123456"}', '$.a')::timestamptz(3), json_value('{"a": "12:10:20.123456"}', '$.a')::time(3), json_value('{"a": "12:10:20.123456"}', '$.a')::timetz(3) FROM s8;
+SELECT mysql_json_value('{"a": "2000-01-01 12:02:01.123456"}', '$.a')::timestamp(3), mysql_json_value('{"a": "2000-01-01 12:02:01.123456"}', '$.a')::timestamptz(3), mysql_json_value('{"a": "12:10:20.123456"}', '$.a')::time(3), mysql_json_value('{"a": "12:10:20.123456"}', '$.a')::timetz(3) FROM s8;
 
--- select json_value with type modifier (result)
+-- select mysql_json_value with type modifier (result)
 --Testcase 4293:
-SELECT json_value('{"a": "2000-01-01 12:02:01.123456"}', '$.a')::timestamp(3), json_value('{"a": "2000-01-01 12:02:01.123456"}', '$.a')::timestamptz(3), json_value('{"a": "12:10:20.123456"}', '$.a')::time(3), json_value('{"a": "12:10:20.123456"}', '$.a')::timetz(3) FROM s8;
+SELECT mysql_json_value('{"a": "2000-01-01 12:02:01.123456"}', '$.a')::timestamp(3), mysql_json_value('{"a": "2000-01-01 12:02:01.123456"}', '$.a')::timestamptz(3), mysql_json_value('{"a": "12:10:20.123456"}', '$.a')::time(3), mysql_json_value('{"a": "12:10:20.123456"}', '$.a')::timetz(3) FROM s8;
 
--- select json_value with type modifier (explain)
+-- select mysql_json_value with type modifier (explain)
 --Testcase 4294:
 EXPLAIN VERBOSE
-SELECT json_value('{"a": 100}', '$.a')::numeric(10, 2), json_value('{"a": 100}', '$.a')::decimal(10, 2), json_unquote(json_value('{"a": "1.123456"}', '$.a'))::numeric(10, 3) FROM s8;
+SELECT mysql_json_value('{"a": 100}', '$.a')::numeric(10, 2), mysql_json_value('{"a": 100}', '$.a')::decimal(10, 2), json_unquote(mysql_json_value('{"a": "1.123456"}', '$.a'))::numeric(10, 3) FROM s8;
 
--- select json_value with type modifier (result)
+-- select mysql_json_value with type modifier (result)
 --Testcase 4295:
-SELECT json_value('{"a": 100}', '$.a')::numeric(10, 2), json_value('{"a": 100}', '$.a')::decimal(10, 2), json_unquote(json_value('{"a": "1.123456"}', '$.a'))::numeric(10, 3) FROM s8;
+SELECT mysql_json_value('{"a": 100}', '$.a')::numeric(10, 2), mysql_json_value('{"a": 100}', '$.a')::decimal(10, 2), json_unquote(mysql_json_value('{"a": "1.123456"}', '$.a'))::numeric(10, 3) FROM s8;
 
--- select json_value as nest function with agg (pushdown, explain)
+-- select mysql_json_value as nest function with agg (pushdown, explain)
 --Testcase 4296:
 EXPLAIN VERBOSE
-SELECT sum(id), json_value(json_build_object('item', 'shoe', 'price', sum(id)), '$.price')::int FROM s8;
+SELECT sum(id), mysql_json_value(json_build_object('item', 'shoe', 'price', sum(id)), '$.price')::int FROM s8;
 
--- select json_value as nest function with agg (pushdown, result)
+-- select mysql_json_value as nest function with agg (pushdown, result)
 --Testcase 4297:
-SELECT sum(id), json_value(json_build_object('item', 'shoe', 'price', sum(id)), '$.price')::int FROM s8;
+SELECT sum(id), mysql_json_value(json_build_object('item', 'shoe', 'price', sum(id)), '$.price')::int FROM s8;
 
--- select json_value with non pushdown func and explicit constant (EXPLAIN)
+-- select mysql_json_value with non pushdown func and explicit constant (EXPLAIN)
 --Testcase 4298:
 EXPLAIN VERBOSE
-SELECT json_value(c1, '$[1]'), pi(), 4.1 FROM s8;
+SELECT mysql_json_value(c1, '$[1]'), pi(), 4.1 FROM s8;
 
--- select json_value with non pushdown func and explicit constant (result)
+-- select mysql_json_value with non pushdown func and explicit constant (result)
 --Testcase 4299:
-SELECT json_value(c1, '$[1]'), pi(), 4.1 FROM s8;
+SELECT mysql_json_value(c1, '$[1]'), pi(), 4.1 FROM s8;
 
 
--- select json_value with order by index (result)
+-- select mysql_json_value with order by index (result)
 --Testcase 4300:
-SELECT id, json_value(c1, '$.a') FROM s8 ORDER BY 2, 1;
+SELECT id, mysql_json_value(c1, '$.a') FROM s8 ORDER BY 2, 1;
 
--- select json_value with order by index (result)
+-- select mysql_json_value with order by index (result)
 --Testcase 4301:
-SELECT id, json_value(c1, '$.a') FROM s8 ORDER BY 1, 2;
+SELECT id, mysql_json_value(c1, '$.a') FROM s8 ORDER BY 1, 2;
 
--- select json_value with group by (EXPLAIN)
+-- select mysql_json_value with group by (EXPLAIN)
 --Testcase 4302:
 EXPLAIN VERBOSE
-SELECT count(id), json_value(c1, '$.a') FROM s8 group by json_value(c1, '$.a');
+SELECT count(id), mysql_json_value(c1, '$.a') FROM s8 group by mysql_json_value(c1, '$.a');
 
--- select json_value with group by (result)
+-- select mysql_json_value with group by (result)
 --Testcase 4303:
-SELECT count(id), json_value(c1, '$.a') FROM s8 group by json_value(c1, '$.a');
+SELECT count(id), mysql_json_value(c1, '$.a') FROM s8 group by mysql_json_value(c1, '$.a');
 
--- select json_value with group by index (result)
+-- select mysql_json_value with group by index (result)
 --Testcase 4304:
-SELECT id, json_value(c1, '$.a') FROM s8 group by 2, 1;
+SELECT id, mysql_json_value(c1, '$.a') FROM s8 group by 2, 1;
 
--- select json_value with group by index (result)
+-- select mysql_json_value with group by index (result)
 --Testcase 4305:
-SELECT id, json_value(c1, '$.a') FROM s8 group by 1, 2;
+SELECT id, mysql_json_value(c1, '$.a') FROM s8 group by 1, 2;
 
--- select json_value with group by having (EXPLAIN)
+-- select mysql_json_value with group by having (EXPLAIN)
 --Testcase 4306:
 EXPLAIN VERBOSE
-SELECT count(c2), json_value(c1, '$.a') FROM s8 group by json_value(c1, '$.a') HAVING count(c2) > 0;
+SELECT count(c2), mysql_json_value(c1, '$.a') FROM s8 group by mysql_json_value(c1, '$.a') HAVING count(c2) > 0;
 
--- select json_value with group by having (result)
+-- select mysql_json_value with group by having (result)
 --Testcase 4307:
-SELECT count(c2), json_value(c1, '$.a') FROM s8 group by json_value(c1, '$.a') HAVING count(c2) > 0;
+SELECT count(c2), mysql_json_value(c1, '$.a') FROM s8 group by mysql_json_value(c1, '$.a') HAVING count(c2) > 0;
 
--- select json_value with group by index having (result)
+-- select mysql_json_value with group by index having (result)
 --Testcase 4308:
-SELECT c2, json_value(c1, '$.a') FROM s8 group by 2, 1 HAVING count(c2) > 0;
+SELECT c2, mysql_json_value(c1, '$.a') FROM s8 group by 2, 1 HAVING count(c2) > 0;
 
--- select json_value with group by index having (result)
+-- select mysql_json_value with group by index having (result)
 --Testcase 4309:
-SELECT c2, json_value(c1, '$.a') FROM s8 group by 1, 2 HAVING count(c2) > 0;
+SELECT c2, mysql_json_value(c1, '$.a') FROM s8 group by 1, 2 HAVING count(c2) > 0;
 
--- select json_value and as
+-- select mysql_json_value and as
 --Testcase 4310:
-SELECT json_value(c1, '$[1]') as json_value1 FROM s8;
+SELECT mysql_json_value(c1, '$[1]') as mysql_json_value1 FROM s8;
 
 -- select member_of (builtin function, explain)
 --Testcase 4311:

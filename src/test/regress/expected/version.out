@@ -5,168 +5,168 @@
 -- test --version option
 -- ===================================================================
 \! clusterdb \-\-version
-clusterdb (PGSpider) 14.0
+clusterdb (PGSpider) 15.0
 \! createdb \-\-version
-createdb (PGSpider) 14.0
+createdb (PGSpider) 15.0
 \! createuser \-\-version
-createuser (PGSpider) 14.0
+createuser (PGSpider) 15.0
 \! dropdb \-\-version
-dropdb (PGSpider) 14.0
+dropdb (PGSpider) 15.0
 \! dropuser \-\-version
-dropuser (PGSpider) 14.0
+dropuser (PGSpider) 15.0
 \! ecpg \-\-version
-ecpg (PGSpider) 14.0
+ecpg (PGSpider) 15.0
 \! initdb \-\-version
-initdb (PGSpider) 14.0
+initdb (PGSpider) 15.0
 \! pg_archivecleanup \-\-version
-pg_archivecleanup (PGSpider) 14.0
+pg_archivecleanup (PGSpider) 15.0
 \! pg_basebackup \-\-version
-pg_basebackup (PGSpider) 14.0
+pg_basebackup (PGSpider) 15.0
 \! pgbench \-\-version
-pgbench (PGSpider) 14.0
+pgbench (PGSpider) 15.0
 \! pg_checksums \-\-version
-pg_checksums (PGSpider) 14.0
+pg_checksums (PGSpider) 15.0
 \! pg_config \-\-version
-PGSpider 14.0
+PGSpider 15.0
 \! pg_controldata \-\-version
-pg_controldata (PGSpider) 14.0
+pg_controldata (PGSpider) 15.0
 \! pg_ctl \-\-version
-pg_ctl (PGSpider) 14.0
+pg_ctl (PGSpider) 15.0
 \! pg_dump \-\-version
-pg_dump (PGSpider) 14.0
+pg_dump (PGSpider) 15.0
 \! pg_dumpall \-\-version
-pg_dumpall (PGSpider) 14.0
+pg_dumpall (PGSpider) 15.0
 \! pg_isready \-\-version
-pg_isready (PGSpider) 14.0
+pg_isready (PGSpider) 15.0
 \! pg_receivewal \-\-version
-pg_receivewal (PGSpider) 14.0
+pg_receivewal (PGSpider) 15.0
 \! pg_recvlogical \-\-version
-pg_recvlogical (PGSpider) 14.0
+pg_recvlogical (PGSpider) 15.0
 \! pg_resetwal \-\-version
-pg_resetwal (PGSpider) 14.0
+pg_resetwal (PGSpider) 15.0
 \! pg_restore \-\-version
-pg_restore (PGSpider) 14.0
+pg_restore (PGSpider) 15.0
 \! pg_rewind \-\-version
-pg_rewind (PGSpider) 14.0
+pg_rewind (PGSpider) 15.0
 \! pgspider \-\-version
-pgspider (PGSpider) 14.0
+pgspider (PGSpider) 15.0
 \! pg_test_fsync \-\-version
-pg_test_fsync (PGSpider) 14.0
+pg_test_fsync (PGSpider) 15.0
 \! pg_test_timing \-\-version
-pg_test_timing (PGSpider) 14.0
+pg_test_timing (PGSpider) 15.0
 \! pg_upgrade \-\-version
-pg_upgrade (PGSpider) 14.0
+pg_upgrade (PGSpider) 15.0
 \! pg_verifybackup \-\-version
-pg_verifybackup (PGSpider) 14.0
+pg_verifybackup (PGSpider) 15.0
 \! pg_waldump \-\-version
-pg_waldump (PGSpider) 14.0
+pg_waldump (PGSpider) 15.0
 \! postmaster \-\-version
-pgspider (PGSpider) 14.0
+pgspider (PGSpider) 15.0
 \! psql \-\-version
-psql (PGSpider) 14.0
+psql (PGSpider) 15.0
 \! reindexdb \-\-version
-reindexdb (PGSpider) 14.0
+reindexdb (PGSpider) 15.0
 \! vacuumdb \-\-version
-vacuumdb (PGSpider) 14.0
+vacuumdb (PGSpider) 15.0
 \! $PWD/../../../contrib/oid2name/oid2name \-\-version
-oid2name (PGSpider) 14.0
+oid2name (PGSpider) 15.0
 \! $PWD/../../../contrib/vacuumlo/vacuumlo \-\-version
-vacuumlo (PGSpider) 14.0
+vacuumlo (PGSpider) 15.0
 \! ./pg_regress \-\-version
-pg_regress (PGSpider) 14.0
+pg_regress (PGSpider) 15.0
 -- src/test/isolation/isolationtester not support --version option
 -- \! $PWD/../isolation/isolationtester \-\-version
 \! $PWD/../isolation/pg_isolation_regress \-\-version
-pg_regress (PGSpider) 14.0
+pg_regress (PGSpider) 15.0
 -- ===================================================================
 -- test --V option
 -- ===================================================================
 \! clusterdb \-V
-clusterdb (PGSpider) 14.0
+clusterdb (PGSpider) 15.0
 \! createdb \-V
-createdb (PGSpider) 14.0
+createdb (PGSpider) 15.0
 \! createuser \-V
-createuser (PGSpider) 14.0
+createuser (PGSpider) 15.0
 \! dropdb \-V
-dropdb (PGSpider) 14.0
+dropdb (PGSpider) 15.0
 \! dropuser \-V
-dropuser (PGSpider) 14.0
+dropuser (PGSpider) 15.0
 \! ecpg \-V
-ecpg (PGSpider) 14.0
+ecpg (PGSpider) 15.0
 \! initdb \-V
-initdb (PGSpider) 14.0
+initdb (PGSpider) 15.0
 \! pg_archivecleanup \-V
-pg_archivecleanup (PGSpider) 14.0
+pg_archivecleanup (PGSpider) 15.0
 \! pg_basebackup \-V
-pg_basebackup (PGSpider) 14.0
+pg_basebackup (PGSpider) 15.0
 \! pgbench \-V
-pgbench (PGSpider) 14.0
+pgbench (PGSpider) 15.0
 \! pg_checksums \-V
-pg_checksums (PGSpider) 14.0
+pg_checksums (PGSpider) 15.0
 -- pg_config have no -V option
 -- \! pg_config \-V
 \! pg_controldata \-V
-pg_controldata (PGSpider) 14.0
+pg_controldata (PGSpider) 15.0
 \! pg_ctl \-V
-pg_ctl (PGSpider) 14.0
+pg_ctl (PGSpider) 15.0
 \! pg_dump \-V
-pg_dump (PGSpider) 14.0
+pg_dump (PGSpider) 15.0
 \! pg_dumpall \-V
-pg_dumpall (PGSpider) 14.0
+pg_dumpall (PGSpider) 15.0
 \! pg_isready \-V
-pg_isready (PGSpider) 14.0
+pg_isready (PGSpider) 15.0
 \! pg_receivewal \-V
-pg_receivewal (PGSpider) 14.0
+pg_receivewal (PGSpider) 15.0
 \! pg_recvlogical \-V
-pg_recvlogical (PGSpider) 14.0
+pg_recvlogical (PGSpider) 15.0
 \! pg_resetwal \-V
-pg_resetwal (PGSpider) 14.0
+pg_resetwal (PGSpider) 15.0
 \! pg_restore \-V
-pg_restore (PGSpider) 14.0
+pg_restore (PGSpider) 15.0
 \! pg_rewind \-V
-pg_rewind (PGSpider) 14.0
+pg_rewind (PGSpider) 15.0
 \! pgspider \-V
-pgspider (PGSpider) 14.0
+pgspider (PGSpider) 15.0
 \! pg_test_fsync \-V
-pg_test_fsync (PGSpider) 14.0
+pg_test_fsync (PGSpider) 15.0
 \! pg_test_timing \-V
-pg_test_timing (PGSpider) 14.0
+pg_test_timing (PGSpider) 15.0
 \! pg_upgrade \-V
-pg_upgrade (PGSpider) 14.0
+pg_upgrade (PGSpider) 15.0
 \! pg_verifybackup \-V
-pg_verifybackup (PGSpider) 14.0
+pg_verifybackup (PGSpider) 15.0
 \! pg_waldump \-V
-pg_waldump (PGSpider) 14.0
+pg_waldump (PGSpider) 15.0
 \! postmaster \-V
-pgspider (PGSpider) 14.0
+pgspider (PGSpider) 15.0
 \! psql \-V
-psql (PGSpider) 14.0
+psql (PGSpider) 15.0
 \! reindexdb \-V
-reindexdb (PGSpider) 14.0
+reindexdb (PGSpider) 15.0
 \! vacuumdb \-V
-vacuumdb (PGSpider) 14.0
+vacuumdb (PGSpider) 15.0
 \! $PWD/../../../contrib/oid2name/oid2name \-V
-oid2name (PGSpider) 14.0
+oid2name (PGSpider) 15.0
 \! $PWD/../../../contrib/vacuumlo/vacuumlo \-V
-vacuumlo (PGSpider) 14.0
+vacuumlo (PGSpider) 15.0
 \! ./pg_regress \-V
-pg_regress (PGSpider) 14.0
+pg_regress (PGSpider) 15.0
 \! $PWD/../isolation/isolationtester \-V
-isolationtester (PGSpider) 14.0
+isolationtester (PGSpider) 15.0
 \! $PWD/../isolation/pg_isolation_regress \-V
-pg_regress (PGSpider) 14.0
+pg_regress (PGSpider) 15.0
 -- ===================================================================
 -- test function version()
 -- ===================================================================
 SELECT substring(version(), 1, 13) AS version;
     version    
 ---------------
- PGSpider 14.0
+ PGSpider 15.0
 (1 row)
 
 SELECT * FROM substring(version(),1,13);
    substring   
 ---------------
- PGSpider 14.0
+ PGSpider 15.0
 (1 row)
 

@@ -177,7 +177,7 @@ EXPLAIN VERBOSE
 SELECT sqrt_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                  QUERY PLAN                                                                 
 --------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (sqrt_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -424,7 +424,7 @@ EXPLAIN VERBOSE
 SELECT log_all(50) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                   QUERY PLAN                                                                   
 -----------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (log_all('50'::double precision)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -505,7 +505,7 @@ EXPLAIN VERBOSE
 SELECT log2_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                  QUERY PLAN                                                                 
 --------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (log2_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -580,7 +580,7 @@ EXPLAIN VERBOSE
 SELECT log10_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                  QUERY PLAN                                                                  
 ---------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (log10_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -611,7 +611,7 @@ EXPLAIN VERBOSE
 SELECT spread(value1),spread(value2),spread(value3),spread(value4) FROM s3;
                                                  QUERY PLAN                                                  
 -------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (spread(value1)), (spread(value2)), (spread(value3)), (spread(value4))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -637,7 +637,7 @@ EXPLAIN VERBOSE
 SELECT sum(value3),abs(sum(value3)) FROM s3;
                                QUERY PLAN                               
 ------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=16)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=16)
    Output: (sum(value3)), (abs(sum(value3)))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -708,7 +708,7 @@ EXPLAIN VERBOSE
 SELECT sqrt(count(value1)), pi(), 4.1 FROM s3;
                                            QUERY PLAN                                            
 -------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=48)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=48)
    Output: (sqrt((count(value1))::double precision)), '3.141592653589793'::double precision, 4.1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -736,7 +736,7 @@ EXPLAIN VERBOSE
 SELECT spread("value1"),influx_time(time, interval '1s'),tag1 FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                                QUERY PLAN                                                                                
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=48)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=48)
    Output: (spread(value1)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -789,8 +789,9 @@ SELECT value1, abs(1-value1) FROM s3 order by abs(1-value1);
    ->  Foreign Scan on public.s3  (cost=10.00..3430.07 rows=3413 width=16)
          Output: value1, (abs(('1'::double precision - value1)))
          Node: influxdb_svr / Status: Alive
+           Sort push-down: no
            InfluxDB query: SELECT "value1", abs((1 - "value1")) FROM "s3"
-(7 rows)
+(8 rows)
 
 -- select abs with order by (result)
 --Testcase 76:
@@ -875,7 +876,7 @@ EXPLAIN VERBOSE
 SELECT abs_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                 QUERY PLAN                                                                 
 -------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (abs_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -952,7 +953,7 @@ EXPLAIN VERBOSE
 SELECT spread(value1) FROM s3 HAVING spread(value1) > 100;
                         QUERY PLAN                         
 -----------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (spread(value1))
    Filter: ((spread(s3.value1)) > '100'::double precision)
    Node: influxdb_svr / Status: Alive
@@ -973,7 +974,7 @@ EXPLAIN VERBOSE
 SELECT spread_all(*) from s3;
                    QUERY PLAN                    
 -------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (spread_all(*))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -994,7 +995,7 @@ EXPLAIN VERBOSE
 SELECT spread_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                             QUERY PLAN                                                                            
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (spread_all(*)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1024,7 +1025,7 @@ EXPLAIN VERBOSE
 SELECT spread_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                   QUERY PLAN                                                                  
 ----------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=64)
    Output: (spread_all(*)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1046,7 +1047,7 @@ EXPLAIN VERBOSE
 SELECT (spread_all(*)::s3).* from s3;
                                                                                                                 QUERY PLAN                                                                                                                 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((spread_all(*)))::s3)."time", (((spread_all(*)))::s3).tag1, (((spread_all(*)))::s3).value1, (((spread_all(*)))::s3).value2, (((spread_all(*)))::s3).value3, (((spread_all(*)))::s3).value4, (((spread_all(*)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1067,7 +1068,7 @@ EXPLAIN VERBOSE
 SELECT spread('/value[1,4]/') from s3;
                         QUERY PLAN                         
 -----------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (spread('/value[1,4]/'::text))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1088,7 +1089,7 @@ EXPLAIN VERBOSE
 SELECT spread('/^v.*/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                               QUERY PLAN                                                                               
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (spread('/^v.*/'::text)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1118,7 +1119,7 @@ EXPLAIN VERBOSE
 SELECT spread('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                        QUERY PLAN                                                                        
 ---------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=64)
    Output: (spread('/value[1,4]/'::text)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1140,7 +1141,7 @@ EXPLAIN VERBOSE
 SELECT (spread('/value[1,4]/')::s3).* from s3;
                                                                                                                                                                      QUERY PLAN                                                                                                                                                                     
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((spread('/value[1,4]/'::text)))::s3)."time", (((spread('/value[1,4]/'::text)))::s3).tag1, (((spread('/value[1,4]/'::text)))::s3).value1, (((spread('/value[1,4]/'::text)))::s3).value2, (((spread('/value[1,4]/'::text)))::s3).value3, (((spread('/value[1,4]/'::text)))::s3).value4, (((spread('/value[1,4]/'::text)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1194,8 +1195,10 @@ SELECT abs(value1), abs(value3), sqrt(value2) FROM s3 ORDER BY abs(value3) LIMIT
          ->  Foreign Scan on public.s3  (cost=10.00..3447.13 rows=3413 width=24)
                Output: (abs(value1)), (abs(value3)), (sqrt((value2)::double precision))
                Node: influxdb_svr / Status: Alive
+                 Limit push-down: no
+                 Sort push-down: no
                  InfluxDB query: SELECT abs("value1"), abs("value3"), sqrt("value2") FROM "s3"
-(9 rows)
+(11 rows)
 
 -- select with order by limit (result)
 --Testcase 109:
@@ -1246,8 +1249,9 @@ SELECT sqrt(abs(value3)),min(value1) FROM s3 GROUP BY value3 HAVING sqrt(abs(val
                Output: value3, value1
                Filter: (sqrt(abs(s3.value3)) > '0'::double precision)
                Node: influxdb_svr / Status: Alive
+                 Sort push-down: no
                  InfluxDB query: SELECT "value1", "value3" FROM "s3"
-(11 rows)
+(12 rows)
 
 -- nested function in where clause (result)
 --Testcase 113:
@@ -1267,7 +1271,7 @@ EXPLAIN VERBOSE
 SELECT first(time, value1), first(time, value2), first(time, value3), first(time, value4) FROM s3;
                                                   QUERY PLAN                                                  
 --------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (first("time", value1)), (first("time", value2)), (first("time", value3)), (first("time", value4))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1287,7 +1291,7 @@ EXPLAIN VERBOSE
 SELECT first_all(*) from s3;
                    QUERY PLAN                    
 -------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (first_all(*))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1308,7 +1312,7 @@ EXPLAIN VERBOSE
 SELECT first_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                            QUERY PLAN                                                                            
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (first_all(*)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1343,7 +1347,7 @@ EXPLAIN VERBOSE
 SELECT (first_all(*)::s3).* from s3;
                                                                                                              QUERY PLAN                                                                                                             
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((first_all(*)))::s3)."time", (((first_all(*)))::s3).tag1, (((first_all(*)))::s3).value1, (((first_all(*)))::s3).value2, (((first_all(*)))::s3).value3, (((first_all(*)))::s3).value4, (((first_all(*)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1364,7 +1368,7 @@ EXPLAIN VERBOSE
 SELECT first('/value[1,4]/') from s3;
                         QUERY PLAN                        
 ----------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (first('/value[1,4]/'::text))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1405,7 +1409,7 @@ EXPLAIN VERBOSE
 SELECT first('/^v.*/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                               QUERY PLAN                                                                              
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (first('/^v.*/'::text)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1440,7 +1444,7 @@ EXPLAIN VERBOSE
 SELECT (first('/value[1,4]/')::s3).* from s3;
                                                                                                                                                                  QUERY PLAN                                                                                                                                                                  
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((first('/value[1,4]/'::text)))::s3)."time", (((first('/value[1,4]/'::text)))::s3).tag1, (((first('/value[1,4]/'::text)))::s3).value1, (((first('/value[1,4]/'::text)))::s3).value2, (((first('/value[1,4]/'::text)))::s3).value3, (((first('/value[1,4]/'::text)))::s3).value4, (((first('/value[1,4]/'::text)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1460,7 +1464,7 @@ EXPLAIN VERBOSE
 SELECT last(time, value1), last(time, value2), last(time, value3), last(time, value4) FROM s3;
                                                 QUERY PLAN                                                
 ----------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (last("time", value1)), (last("time", value2)), (last("time", value3)), (last("time", value4))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1480,7 +1484,7 @@ EXPLAIN VERBOSE
 SELECT last_all(*) from s3;
                    QUERY PLAN                    
 -------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (last_all(*))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1501,7 +1505,7 @@ EXPLAIN VERBOSE
 SELECT last_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                            QUERY PLAN                                                                           
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (last_all(*)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1536,7 +1540,7 @@ EXPLAIN VERBOSE
 SELECT (last_all(*)::s3).* from s3;
                                                                                                          QUERY PLAN                                                                                                          
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((last_all(*)))::s3)."time", (((last_all(*)))::s3).tag1, (((last_all(*)))::s3).value1, (((last_all(*)))::s3).value2, (((last_all(*)))::s3).value3, (((last_all(*)))::s3).value4, (((last_all(*)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1557,7 +1561,7 @@ EXPLAIN VERBOSE
 SELECT last('/value[1,4]/') from s3;
                        QUERY PLAN                        
 ---------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (last('/value[1,4]/'::text))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1598,7 +1602,7 @@ EXPLAIN VERBOSE
 SELECT last('/^v.*/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                              QUERY PLAN                                                                              
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (last('/^v.*/'::text)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1633,7 +1637,7 @@ EXPLAIN VERBOSE
 SELECT (last('/value[1,4]/')::s3).* from s3;
                                                                                                                                                               QUERY PLAN                                                                                                                                                              
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((last('/value[1,4]/'::text)))::s3)."time", (((last('/value[1,4]/'::text)))::s3).tag1, (((last('/value[1,4]/'::text)))::s3).value1, (((last('/value[1,4]/'::text)))::s3).value2, (((last('/value[1,4]/'::text)))::s3).value3, (((last('/value[1,4]/'::text)))::s3).value4, (((last('/value[1,4]/'::text)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1653,7 +1657,7 @@ EXPLAIN VERBOSE
 SELECT sample(value2, 3) FROM s3 WHERE value2 < 200;
                                     QUERY PLAN                                     
 -----------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (sample(value2, 3))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1674,7 +1678,7 @@ EXPLAIN VERBOSE
 SELECT sample(value2, 1) FROM s3 WHERE time >= to_timestamp(0) AND time <= to_timestamp(5) GROUP BY influx_time(time, interval '3s');
                                                                              QUERY PLAN                                                                             
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=16)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=16)
    Output: (sample(value2, 1)), (influx_time("time", '@ 3 secs'::interval))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1720,7 +1724,7 @@ EXPLAIN VERBOSE
 SELECT sample_all(50) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                               QUERY PLAN                                                                              
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=72)
    Output: (sample_all(50)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1800,7 +1804,7 @@ EXPLAIN VERBOSE
 SELECT sample('/^v.*/', 50) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                                 QUERY PLAN                                                                                 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=72)
    Output: (sample('/^v.*/'::text, 50)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1948,7 +1952,7 @@ EXPLAIN VERBOSE
 SELECT cumulative_sum_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                       QUERY PLAN                                                                      
 ------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (cumulative_sum_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -1973,7 +1977,7 @@ EXPLAIN VERBOSE
 SELECT cumulative_sum('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                            QUERY PLAN                                                                            
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (cumulative_sum('/value[1,4]/'::text)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -2134,7 +2138,7 @@ EXPLAIN VERBOSE
 SELECT derivative_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                     QUERY PLAN                                                                    
 --------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (derivative_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -2157,7 +2161,7 @@ EXPLAIN VERBOSE
 SELECT derivative('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                          QUERY PLAN                                                                          
 -------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (derivative('/value[1,4]/'::text)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -2320,7 +2324,7 @@ EXPLAIN VERBOSE
 SELECT non_negative_derivative_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                           QUERY PLAN                                                                           
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (non_negative_derivative_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -2343,7 +2347,7 @@ EXPLAIN VERBOSE
 SELECT non_negative_derivative('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                                 QUERY PLAN                                                                                
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (non_negative_derivative('/value[1,4]/'::text)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -2484,7 +2488,7 @@ EXPLAIN VERBOSE
 SELECT difference_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                     QUERY PLAN                                                                    
 --------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (difference_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -2507,7 +2511,7 @@ EXPLAIN VERBOSE
 SELECT difference('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                          QUERY PLAN                                                                          
 -------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (difference('/value[1,4]/'::text)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -2648,7 +2652,7 @@ EXPLAIN VERBOSE
 SELECT non_negative_difference_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                           QUERY PLAN                                                                           
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (non_negative_difference_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -2671,7 +2675,7 @@ EXPLAIN VERBOSE
 SELECT non_negative_difference('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                                 QUERY PLAN                                                                                
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (non_negative_difference('/value[1,4]/'::text)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -2834,7 +2838,7 @@ EXPLAIN VERBOSE
 SELECT elapsed_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                   QUERY PLAN                                                                   
 -----------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (elapsed_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -2857,7 +2861,7 @@ EXPLAIN VERBOSE
 SELECT elapsed('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                         QUERY PLAN                                                                        
 ----------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (elapsed('/value[1,4]/'::text)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -2998,7 +3002,7 @@ EXPLAIN VERBOSE
 SELECT moving_average_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                        QUERY PLAN                                                                        
 ---------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (moving_average_all(2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -3021,7 +3025,7 @@ EXPLAIN VERBOSE
 SELECT moving_average('/value[1,4]/', 2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                              QUERY PLAN                                                                             
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (moving_average('/value[1,4]/'::text, 2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -3183,7 +3187,7 @@ EXPLAIN VERBOSE
 SELECT chande_momentum_oscillator_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                              QUERY PLAN                                                                              
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (chande_momentum_oscillator_all(2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -3206,7 +3210,7 @@ EXPLAIN VERBOSE
 SELECT chande_momentum_oscillator('/value[1,4]/',2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                                    QUERY PLAN                                                                                   
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (chande_momentum_oscillator('/value[1,4]/'::text, 2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -3368,7 +3372,7 @@ EXPLAIN VERBOSE
 SELECT exponential_moving_average_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                              QUERY PLAN                                                                              
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (exponential_moving_average_all(2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -3391,7 +3395,7 @@ EXPLAIN VERBOSE
 SELECT exponential_moving_average('/value[1,4]/',2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                                    QUERY PLAN                                                                                   
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (exponential_moving_average('/value[1,4]/'::text, 2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -3505,7 +3509,7 @@ EXPLAIN VERBOSE
 SELECT double_exponential_moving_average_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                                  QUERY PLAN                                                                                 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (double_exponential_moving_average_all(2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -3528,7 +3532,7 @@ EXPLAIN VERBOSE
 SELECT double_exponential_moving_average('/value[1,4]/',2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                                       QUERY PLAN                                                                                       
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (double_exponential_moving_average('/value[1,4]/'::text, 2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -3639,7 +3643,7 @@ EXPLAIN VERBOSE
 SELECT kaufmans_efficiency_ratio_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                              QUERY PLAN                                                                             
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (kaufmans_efficiency_ratio_all(2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -3660,7 +3664,7 @@ EXPLAIN VERBOSE
 SELECT kaufmans_efficiency_ratio('/value[1,4]/',2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                                   QUERY PLAN                                                                                   
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (kaufmans_efficiency_ratio('/value[1,4]/'::text, 2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -3815,7 +3819,7 @@ EXPLAIN VERBOSE
 SELECT kaufmans_adaptive_moving_average_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                                 QUERY PLAN                                                                                 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (kaufmans_adaptive_moving_average_all(2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -3836,7 +3840,7 @@ EXPLAIN VERBOSE
 SELECT kaufmans_adaptive_moving_average('/value[1,4]/',2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                                       QUERY PLAN                                                                                      
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (kaufmans_adaptive_moving_average('/value[1,4]/'::text, 2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -3948,7 +3952,7 @@ EXPLAIN VERBOSE
 SELECT triple_exponential_moving_average_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                                  QUERY PLAN                                                                                 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (triple_exponential_moving_average_all(2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -3971,7 +3975,7 @@ EXPLAIN VERBOSE
 SELECT triple_exponential_moving_average('/value[1,4]/',2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                                       QUERY PLAN                                                                                       
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (triple_exponential_moving_average('/value[1,4]/'::text, 2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4082,7 +4086,7 @@ EXPLAIN VERBOSE
 SELECT triple_exponential_derivative_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                                QUERY PLAN                                                                               
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (triple_exponential_derivative_all(2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4103,7 +4107,7 @@ EXPLAIN VERBOSE
 SELECT triple_exponential_derivative('/value[1,4]/',2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                                     QUERY PLAN                                                                                     
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (triple_exponential_derivative('/value[1,4]/'::text, 2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4212,7 +4216,7 @@ EXPLAIN VERBOSE
 SELECT relative_strength_index_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                             QUERY PLAN                                                                            
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (relative_strength_index_all(2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4233,7 +4237,7 @@ EXPLAIN VERBOSE
 SELECT relative_strength_index('/value[1,4]/',2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                                  QUERY PLAN                                                                                  
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (relative_strength_index('/value[1,4]/'::text, 2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4300,7 +4304,7 @@ EXPLAIN VERBOSE
 SELECT integral(value1),integral(value2),integral(value3),integral(value4) FROM s3;
                                                      QUERY PLAN                                                      
 ---------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (integral(value1)), (integral(value2)), (integral(value3)), (integral(value4))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4320,7 +4324,7 @@ EXPLAIN VERBOSE
 SELECT integral(value1, interval '1s'),integral(value2, interval '1s'),integral(value3, interval '1s'),integral(value4, interval '1s') FROM s3;
                                                                                   QUERY PLAN                                                                                  
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (integral(value1, '@ 1 sec'::interval)), (integral(value2, '@ 1 sec'::interval)), (integral(value3, '@ 1 sec'::interval)), (integral(value4, '@ 1 sec'::interval))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4346,7 +4350,7 @@ EXPLAIN VERBOSE
 SELECT integral("value1"),influx_time(time, interval '1s'),tag1 FROM s3 GROUP BY influx_time(time, interval '1s'), tag1;
                                          QUERY PLAN                                          
 ---------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=48)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=48)
    Output: (integral(value1)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4370,7 +4374,7 @@ EXPLAIN VERBOSE
 SELECT integral("value1", interval '1s'),influx_time(time, interval '1s'),tag1 FROM s3 GROUP BY influx_time(time, interval '1s'), tag1;
                                                QUERY PLAN                                                
 ---------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=48)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=48)
    Output: (integral(value1, '@ 1 sec'::interval)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4482,7 +4486,7 @@ EXPLAIN VERBOSE
 SELECT integral(value1) FROM s3 HAVING integral(value1) > 100;
                          QUERY PLAN                          
 -------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (integral(value1))
    Filter: ((integral(s3.value1)) > '100'::double precision)
    Node: influxdb_svr / Status: Alive
@@ -4503,7 +4507,7 @@ EXPLAIN VERBOSE
 SELECT integral(value1, interval '1s') FROM s3 HAVING integral(value1, interval '1s') > 100;
                                     QUERY PLAN                                    
 ----------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (integral(value1, '@ 1 sec'::interval))
    Filter: ((integral(s3.value1, '@ 1 sec'::interval)) > '100'::double precision)
    Node: influxdb_svr / Status: Alive
@@ -4524,7 +4528,7 @@ EXPLAIN VERBOSE
 SELECT integral_all(*) from s3;
                     QUERY PLAN                    
 --------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (integral_all(*))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4545,7 +4549,7 @@ EXPLAIN VERBOSE
 SELECT integral_all(*) FROM s3 GROUP BY influx_time(time, interval '1s'), tag1;
                                       QUERY PLAN                                      
 --------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (integral_all(*)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4569,7 +4573,7 @@ EXPLAIN VERBOSE
 SELECT integral_all(*) FROM s3 WHERE value1 > 0.3 GROUP BY tag1;
                                         QUERY PLAN                                         
 -------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=64)
    Output: (integral_all(*)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4590,7 +4594,7 @@ EXPLAIN VERBOSE
 SELECT (integral_all(*)::s3).* from s3;
                                                                                                                        QUERY PLAN                                                                                                                        
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((integral_all(*)))::s3)."time", (((integral_all(*)))::s3).tag1, (((integral_all(*)))::s3).value1, (((integral_all(*)))::s3).value2, (((integral_all(*)))::s3).value3, (((integral_all(*)))::s3).value4, (((integral_all(*)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4611,7 +4615,7 @@ EXPLAIN VERBOSE
 SELECT integral('/value[1,4]/') from s3;
                          QUERY PLAN                          
 -------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (integral('/value[1,4]/'::text))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4632,7 +4636,7 @@ EXPLAIN VERBOSE
 SELECT integral('/^v.*/') FROM s3 GROUP BY influx_time(time, interval '1s'), tag1;
                                         QUERY PLAN                                         
 -------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (integral('/^v.*/'::text)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4656,7 +4660,7 @@ EXPLAIN VERBOSE
 SELECT integral('/value[1,4]/') FROM s3 WHERE value1 > 0.3 GROUP BY tag1;
                                               QUERY PLAN                                              
 ------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=64)
    Output: (integral('/value[1,4]/'::text)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4677,7 +4681,7 @@ EXPLAIN VERBOSE
 SELECT (integral('/value[1,4]/')::s3).* from s3;
                                                                                                                                                                             QUERY PLAN                                                                                                                                                                            
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((integral('/value[1,4]/'::text)))::s3)."time", (((integral('/value[1,4]/'::text)))::s3).tag1, (((integral('/value[1,4]/'::text)))::s3).value1, (((integral('/value[1,4]/'::text)))::s3).value2, (((integral('/value[1,4]/'::text)))::s3).value3, (((integral('/value[1,4]/'::text)))::s3).value4, (((integral('/value[1,4]/'::text)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4698,7 +4702,7 @@ EXPLAIN VERBOSE
 SELECT mean(value1),mean(value2),mean(value3),mean(value4) FROM s3;
                                              QUERY PLAN                                              
 -----------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (mean(value1)), (mean(value2)), (mean(value3)), (mean(value4))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4724,7 +4728,7 @@ EXPLAIN VERBOSE
 SELECT mean("value1"),influx_time(time, interval '1s'),tag1 FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                               QUERY PLAN                                                                               
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=48)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=48)
    Output: (mean(value1)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4798,7 +4802,7 @@ EXPLAIN VERBOSE
 SELECT mean(value1) FROM s3 HAVING mean(value1) > 100;
                        QUERY PLAN                        
 ---------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (mean(value1))
    Filter: ((mean(s3.value1)) > '100'::double precision)
    Node: influxdb_svr / Status: Alive
@@ -4819,7 +4823,7 @@ EXPLAIN VERBOSE
 SELECT mean_all(*) from s3;
                    QUERY PLAN                    
 -------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (mean_all(*))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4840,7 +4844,7 @@ EXPLAIN VERBOSE
 SELECT mean_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                            QUERY PLAN                                                                           
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (mean_all(*)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4870,7 +4874,7 @@ EXPLAIN VERBOSE
 SELECT mean_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                  QUERY PLAN                                                                 
 --------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=64)
    Output: (mean_all(*)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4892,7 +4896,7 @@ EXPLAIN VERBOSE
 SELECT (mean_all(*)::s3).* from s3;
                                                                                                          QUERY PLAN                                                                                                          
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((mean_all(*)))::s3)."time", (((mean_all(*)))::s3).tag1, (((mean_all(*)))::s3).value1, (((mean_all(*)))::s3).value2, (((mean_all(*)))::s3).value3, (((mean_all(*)))::s3).value4, (((mean_all(*)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4913,7 +4917,7 @@ EXPLAIN VERBOSE
 SELECT mean('/value[1,4]/') from s3;
                        QUERY PLAN                        
 ---------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (mean('/value[1,4]/'::text))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4934,7 +4938,7 @@ EXPLAIN VERBOSE
 SELECT mean('/^v.*/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                              QUERY PLAN                                                                              
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (mean('/^v.*/'::text)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4964,7 +4968,7 @@ EXPLAIN VERBOSE
 SELECT mean('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                       QUERY PLAN                                                                       
 -------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=64)
    Output: (mean('/value[1,4]/'::text)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -4986,7 +4990,7 @@ EXPLAIN VERBOSE
 SELECT (mean('/value[1,4]/')::s3).* from s3;
                                                                                                                                                               QUERY PLAN                                                                                                                                                              
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((mean('/value[1,4]/'::text)))::s3)."time", (((mean('/value[1,4]/'::text)))::s3).tag1, (((mean('/value[1,4]/'::text)))::s3).value1, (((mean('/value[1,4]/'::text)))::s3).value2, (((mean('/value[1,4]/'::text)))::s3).value3, (((mean('/value[1,4]/'::text)))::s3).value4, (((mean('/value[1,4]/'::text)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5007,7 +5011,7 @@ EXPLAIN VERBOSE
 SELECT median(value1),median(value2),median(value3),median(value4) FROM s3;
                                                  QUERY PLAN                                                  
 -------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (median(value1)), (median(value2)), (median(value3)), (median(value4))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5033,7 +5037,7 @@ EXPLAIN VERBOSE
 SELECT median("value1"),influx_time(time, interval '1s'),tag1 FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                                QUERY PLAN                                                                                
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=48)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=48)
    Output: (median(value1)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5107,7 +5111,7 @@ EXPLAIN VERBOSE
 SELECT median(value1) FROM s3 HAVING median(value1) > 100;
                         QUERY PLAN                         
 -----------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (median(value1))
    Filter: ((median(s3.value1)) > '100'::double precision)
    Node: influxdb_svr / Status: Alive
@@ -5128,7 +5132,7 @@ EXPLAIN VERBOSE
 SELECT median_all(*) from s3;
                    QUERY PLAN                    
 -------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (median_all(*))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5149,7 +5153,7 @@ EXPLAIN VERBOSE
 SELECT median_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                             QUERY PLAN                                                                            
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (median_all(*)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5179,7 +5183,7 @@ EXPLAIN VERBOSE
 SELECT median_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                   QUERY PLAN                                                                  
 ----------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=64)
    Output: (median_all(*)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5201,7 +5205,7 @@ EXPLAIN VERBOSE
 SELECT (median_all(*)::s3).* from s3;
                                                                                                                 QUERY PLAN                                                                                                                 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((median_all(*)))::s3)."time", (((median_all(*)))::s3).tag1, (((median_all(*)))::s3).value1, (((median_all(*)))::s3).value2, (((median_all(*)))::s3).value3, (((median_all(*)))::s3).value4, (((median_all(*)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5222,7 +5226,7 @@ EXPLAIN VERBOSE
 SELECT median('/^v.*/') from s3;
                      QUERY PLAN                      
 -----------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (median('/^v.*/'::text))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5243,7 +5247,7 @@ EXPLAIN VERBOSE
 SELECT median('/^v.*/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                               QUERY PLAN                                                                               
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (median('/^v.*/'::text)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5273,7 +5277,7 @@ EXPLAIN VERBOSE
 SELECT median('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                        QUERY PLAN                                                                        
 ---------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=64)
    Output: (median('/value[1,4]/'::text)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5295,7 +5299,7 @@ EXPLAIN VERBOSE
 SELECT (median('/value[1,4]/')::s3).* from s3;
                                                                                                                                                                      QUERY PLAN                                                                                                                                                                     
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((median('/value[1,4]/'::text)))::s3)."time", (((median('/value[1,4]/'::text)))::s3).tag1, (((median('/value[1,4]/'::text)))::s3).value1, (((median('/value[1,4]/'::text)))::s3).value2, (((median('/value[1,4]/'::text)))::s3).value3, (((median('/value[1,4]/'::text)))::s3).value4, (((median('/value[1,4]/'::text)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5316,7 +5320,7 @@ EXPLAIN VERBOSE
 SELECT influx_mode(value1),influx_mode(value2),influx_mode(value3),influx_mode(value4) FROM s3;
                                               QUERY PLAN                                              
 ------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (influx_mode(value1)), (influx_mode(value2)), (influx_mode(value3)), (influx_mode(value4))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5342,7 +5346,7 @@ EXPLAIN VERBOSE
 SELECT influx_mode("value1"),influx_time(time, interval '1s'),tag1 FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                               QUERY PLAN                                                                               
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=48)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=48)
    Output: (influx_mode(value1)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5416,7 +5420,7 @@ EXPLAIN VERBOSE
 SELECT influx_mode(value1) FROM s3 HAVING influx_mode(value1) > 100;
                            QUERY PLAN                           
 ----------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (influx_mode(value1))
    Filter: ((influx_mode(s3.value1)) > '100'::double precision)
    Node: influxdb_svr / Status: Alive
@@ -5437,7 +5441,7 @@ EXPLAIN VERBOSE
 SELECT influx_mode_all(*) from s3;
                    QUERY PLAN                    
 -------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (influx_mode_all(*))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5458,7 +5462,7 @@ EXPLAIN VERBOSE
 SELECT influx_mode_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                            QUERY PLAN                                                                           
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (influx_mode_all(*)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5488,7 +5492,7 @@ EXPLAIN VERBOSE
 SELECT influx_mode_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                  QUERY PLAN                                                                 
 --------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=64)
    Output: (influx_mode_all(*)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5510,7 +5514,7 @@ EXPLAIN VERBOSE
 SELECT (influx_mode_all(*)::s3).* from s3;
                                                                                                                                   QUERY PLAN                                                                                                                                  
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((influx_mode_all(*)))::s3)."time", (((influx_mode_all(*)))::s3).tag1, (((influx_mode_all(*)))::s3).value1, (((influx_mode_all(*)))::s3).value2, (((influx_mode_all(*)))::s3).value3, (((influx_mode_all(*)))::s3).value4, (((influx_mode_all(*)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5531,7 +5535,7 @@ EXPLAIN VERBOSE
 SELECT influx_mode('/value[1,4]/') from s3;
                        QUERY PLAN                        
 ---------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (influx_mode('/value[1,4]/'::text))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5552,7 +5556,7 @@ EXPLAIN VERBOSE
 SELECT influx_mode('/^v.*/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                              QUERY PLAN                                                                              
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (influx_mode('/^v.*/'::text)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5582,7 +5586,7 @@ EXPLAIN VERBOSE
 SELECT influx_mode('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                       QUERY PLAN                                                                       
 -------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=64)
    Output: (influx_mode('/value[1,4]/'::text)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5604,7 +5608,7 @@ EXPLAIN VERBOSE
 SELECT (influx_mode('/value[1,4]/')::s3).* from s3;
                                                                                                                                                                                       QUERY PLAN                                                                                                                                                                                       
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((influx_mode('/value[1,4]/'::text)))::s3)."time", (((influx_mode('/value[1,4]/'::text)))::s3).tag1, (((influx_mode('/value[1,4]/'::text)))::s3).value1, (((influx_mode('/value[1,4]/'::text)))::s3).value2, (((influx_mode('/value[1,4]/'::text)))::s3).value3, (((influx_mode('/value[1,4]/'::text)))::s3).value4, (((influx_mode('/value[1,4]/'::text)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5625,7 +5629,7 @@ EXPLAIN VERBOSE
 SELECT stddev(value1),stddev(value2),stddev(value3),stddev(value4) FROM s3;
                                                  QUERY PLAN                                                  
 -------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=80)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=80)
    Output: (stddev(value1)), (stddev(value2)), (stddev(value3)), (stddev(value4))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5646,7 +5650,7 @@ EXPLAIN VERBOSE
 SELECT stddev("value1"),influx_time(time, interval '1s'),tag1 FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                                QUERY PLAN                                                                                
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=48)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=48)
    Output: (stddev(value1)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5693,7 +5697,7 @@ EXPLAIN VERBOSE
 SELECT stddev_all(*) from s3;
                    QUERY PLAN                    
 -------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (stddev_all(*))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5714,7 +5718,7 @@ EXPLAIN VERBOSE
 SELECT stddev_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                             QUERY PLAN                                                                            
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (stddev_all(*)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5744,7 +5748,7 @@ EXPLAIN VERBOSE
 SELECT stddev_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                   QUERY PLAN                                                                  
 ----------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=64)
    Output: (stddev_all(*)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5766,7 +5770,7 @@ EXPLAIN VERBOSE
 SELECT stddev('/value[1,4]/') from s3;
                         QUERY PLAN                         
 -----------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (stddev('/value[1,4]/'::text))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5787,7 +5791,7 @@ EXPLAIN VERBOSE
 SELECT stddev('/^v.*/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                               QUERY PLAN                                                                               
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (stddev('/^v.*/'::text)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5817,7 +5821,7 @@ EXPLAIN VERBOSE
 SELECT stddev('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                        QUERY PLAN                                                                        
 ---------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=64)
    Output: (stddev('/value[1,4]/'::text)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5839,7 +5843,7 @@ EXPLAIN VERBOSE
 SELECT influx_sum_all(*) from s3;
                    QUERY PLAN                    
 -------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (influx_sum_all(*))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5860,7 +5864,7 @@ EXPLAIN VERBOSE
 SELECT influx_sum_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                           QUERY PLAN                                                                           
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (influx_sum_all(*)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5890,7 +5894,7 @@ EXPLAIN VERBOSE
 SELECT influx_sum_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                 QUERY PLAN                                                                 
 -------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=64)
    Output: (influx_sum_all(*)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5912,7 +5916,7 @@ EXPLAIN VERBOSE
 SELECT (influx_sum_all(*)::s3).* from s3;
                                                                                                                               QUERY PLAN                                                                                                                               
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((influx_sum_all(*)))::s3)."time", (((influx_sum_all(*)))::s3).tag1, (((influx_sum_all(*)))::s3).value1, (((influx_sum_all(*)))::s3).value2, (((influx_sum_all(*)))::s3).value3, (((influx_sum_all(*)))::s3).value4, (((influx_sum_all(*)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5933,7 +5937,7 @@ EXPLAIN VERBOSE
 SELECT influx_sum('/value[1,4]/') from s3;
                        QUERY PLAN                       
 --------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (influx_sum('/value[1,4]/'::text))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5954,7 +5958,7 @@ EXPLAIN VERBOSE
 SELECT influx_sum('/^v.*/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                              QUERY PLAN                                                                             
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (influx_sum('/^v.*/'::text)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -5984,7 +5988,7 @@ EXPLAIN VERBOSE
 SELECT influx_sum('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                       QUERY PLAN                                                                      
 ------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=64)
    Output: (influx_sum('/value[1,4]/'::text)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6006,7 +6010,7 @@ EXPLAIN VERBOSE
 SELECT (influx_sum('/value[1,4]/')::s3).* from s3;
                                                                                                                                                                                    QUERY PLAN                                                                                                                                                                                   
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((influx_sum('/value[1,4]/'::text)))::s3)."time", (((influx_sum('/value[1,4]/'::text)))::s3).tag1, (((influx_sum('/value[1,4]/'::text)))::s3).value1, (((influx_sum('/value[1,4]/'::text)))::s3).value2, (((influx_sum('/value[1,4]/'::text)))::s3).value3, (((influx_sum('/value[1,4]/'::text)))::s3).value4, (((influx_sum('/value[1,4]/'::text)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6056,15 +6060,15 @@ SELECT bottom(value1, 1), bottom(value2, 1), bottom(value3, 1), bottom(value4, 1
 -- selector function bottom() cannot be combined with other functions(result)
 --Testcase 531:
 SELECT bottom(value1, 1), bottom(value2, 1), bottom(value3, 1), bottom(value4, 1) FROM s3;
-ERROR:  influxdb_fdw : selector function bottom() cannot be combined with other functions
 ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:influxdb_fdw : selector function bottom() cannot be combined with other functions
 -- select influx_max(*) (stub agg function, explain)
 --Testcase 532:
 EXPLAIN VERBOSE
 SELECT influx_max_all(*) from s3;
                    QUERY PLAN                    
 -------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (influx_max_all(*))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6085,7 +6089,7 @@ EXPLAIN VERBOSE
 SELECT influx_max_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                           QUERY PLAN                                                                           
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (influx_max_all(*)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6115,7 +6119,7 @@ EXPLAIN VERBOSE
 SELECT influx_max_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                 QUERY PLAN                                                                 
 -------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=64)
    Output: (influx_max_all(*)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6137,7 +6141,7 @@ EXPLAIN VERBOSE
 SELECT (influx_max_all(*)::s3).* from s3;
                                                                                                                               QUERY PLAN                                                                                                                               
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((influx_max_all(*)))::s3)."time", (((influx_max_all(*)))::s3).tag1, (((influx_max_all(*)))::s3).value1, (((influx_max_all(*)))::s3).value2, (((influx_max_all(*)))::s3).value3, (((influx_max_all(*)))::s3).value4, (((influx_max_all(*)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6158,7 +6162,7 @@ EXPLAIN VERBOSE
 SELECT influx_max('/value[1,4]/') from s3;
                        QUERY PLAN                       
 --------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (influx_max('/value[1,4]/'::text))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6179,7 +6183,7 @@ EXPLAIN VERBOSE
 SELECT influx_max('/^v.*/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                              QUERY PLAN                                                                             
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (influx_max('/^v.*/'::text)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6209,7 +6213,7 @@ EXPLAIN VERBOSE
 SELECT influx_max('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                       QUERY PLAN                                                                      
 ------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=64)
    Output: (influx_max('/value[1,4]/'::text)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6231,7 +6235,7 @@ EXPLAIN VERBOSE
 SELECT (influx_max('/value[1,4]/')::s3).* from s3;
                                                                                                                                                                                    QUERY PLAN                                                                                                                                                                                   
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((influx_max('/value[1,4]/'::text)))::s3)."time", (((influx_max('/value[1,4]/'::text)))::s3).tag1, (((influx_max('/value[1,4]/'::text)))::s3).value1, (((influx_max('/value[1,4]/'::text)))::s3).value2, (((influx_max('/value[1,4]/'::text)))::s3).value3, (((influx_max('/value[1,4]/'::text)))::s3).value4, (((influx_max('/value[1,4]/'::text)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6252,7 +6256,7 @@ EXPLAIN VERBOSE
 SELECT influx_min_all(*) from s3;
                    QUERY PLAN                    
 -------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (influx_min_all(*))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6273,7 +6277,7 @@ EXPLAIN VERBOSE
 SELECT influx_min_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                           QUERY PLAN                                                                           
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (influx_min_all(*)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6303,7 +6307,7 @@ EXPLAIN VERBOSE
 SELECT influx_min_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                 QUERY PLAN                                                                 
 -------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=64)
    Output: (influx_min_all(*)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6325,7 +6329,7 @@ EXPLAIN VERBOSE
 SELECT (influx_min_all(*)::s3).* from s3;
                                                                                                                               QUERY PLAN                                                                                                                               
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((influx_min_all(*)))::s3)."time", (((influx_min_all(*)))::s3).tag1, (((influx_min_all(*)))::s3).value1, (((influx_min_all(*)))::s3).value2, (((influx_min_all(*)))::s3).value3, (((influx_min_all(*)))::s3).value4, (((influx_min_all(*)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6346,7 +6350,7 @@ EXPLAIN VERBOSE
 SELECT influx_min('/value[1,4]/') from s3;
                        QUERY PLAN                       
 --------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (influx_min('/value[1,4]/'::text))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6367,7 +6371,7 @@ EXPLAIN VERBOSE
 SELECT influx_min('/^v.*/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                              QUERY PLAN                                                                             
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (influx_min('/^v.*/'::text)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6397,7 +6401,7 @@ EXPLAIN VERBOSE
 SELECT influx_min('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                       QUERY PLAN                                                                      
 ------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=64)
    Output: (influx_min('/value[1,4]/'::text)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6419,7 +6423,7 @@ EXPLAIN VERBOSE
 SELECT (influx_min('/value[1,4]/')::s3).* from s3;
                                                                                                                                                                                    QUERY PLAN                                                                                                                                                                                   
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=104)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=104)
    Output: (((influx_min('/value[1,4]/'::text)))::s3)."time", (((influx_min('/value[1,4]/'::text)))::s3).tag1, (((influx_min('/value[1,4]/'::text)))::s3).value1, (((influx_min('/value[1,4]/'::text)))::s3).value2, (((influx_min('/value[1,4]/'::text)))::s3).value3, (((influx_min('/value[1,4]/'::text)))::s3).value4, (((influx_min('/value[1,4]/'::text)))::s3).__spd_url
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6520,7 +6524,7 @@ EXPLAIN VERBOSE
 SELECT percentile_all(50) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                                 QUERY PLAN                                                                                
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=72)
    Output: (percentile_all(50)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6550,7 +6554,7 @@ EXPLAIN VERBOSE
 SELECT percentile_all(70.5) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                                  QUERY PLAN                                                                                 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=72)
    Output: (percentile_all('70.5'::double precision)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6580,7 +6584,7 @@ EXPLAIN VERBOSE
 SELECT percentile_all(50) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                       QUERY PLAN                                                                      
 ------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (percentile_all(50)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6602,7 +6606,7 @@ EXPLAIN VERBOSE
 SELECT percentile_all(70.5) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                        QUERY PLAN                                                                       
 --------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (percentile_all('70.5'::double precision)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6684,7 +6688,7 @@ EXPLAIN VERBOSE
 SELECT percentile('/^v.*/', 50) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                                   QUERY PLAN                                                                                   
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=72)
    Output: (percentile('/^v.*/'::text, 50)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6714,7 +6718,7 @@ EXPLAIN VERBOSE
 SELECT percentile('/value[1,4]/', 70.5) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                             QUERY PLAN                                                                             
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (percentile('/value[1,4]/'::text, '70.5'::double precision)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6825,8 +6829,8 @@ SELECT top(value1, 1), top(value2, 1), top(value3, 1), top(value4, 1) FROM s3;
 -- selector function top() cannot be combined with other functions(result)
 --Testcase 599:
 SELECT top(value1, 1), top(value2, 1), top(value3, 1), top(value4, 1) FROM s3;
-ERROR:  influxdb_fdw : selector function top() cannot be combined with other functions
 ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:influxdb_fdw : selector function top() cannot be combined with other functions
 -- select acos (builtin function, explain)
 --Testcase 600:
 EXPLAIN VERBOSE
@@ -6903,7 +6907,7 @@ EXPLAIN VERBOSE
 SELECT sum(value3),acos(sum(value3)) FROM s3;
                                QUERY PLAN                                
 -------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=16)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=16)
    Output: (sum(value3)), (acos(sum(value3)))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -6980,8 +6984,9 @@ SELECT value1, acos(1-value1) FROM s3 order by acos(1-value1);
    ->  Foreign Scan on public.s3  (cost=10.00..3430.07 rows=3413 width=16)
          Output: value1, (acos(('1'::double precision - value1)))
          Node: influxdb_svr / Status: Alive
+           Sort push-down: no
            InfluxDB query: SELECT "value1", acos((1 - "value1")) FROM "s3"
-(7 rows)
+(8 rows)
 
 -- select acos with order by (result)
 --Testcase 613:
@@ -7066,7 +7071,7 @@ EXPLAIN VERBOSE
 SELECT acos_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                  QUERY PLAN                                                                 
 --------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (acos_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -7186,7 +7191,7 @@ EXPLAIN VERBOSE
 SELECT sum(value3),asin(sum(value3)) FROM s3;
                                QUERY PLAN                                
 -------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=16)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=16)
    Output: (sum(value3)), (asin(sum(value3)))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -7263,8 +7268,9 @@ SELECT value1, asin(1-value1) FROM s3 order by asin(1-value1);
    ->  Foreign Scan on public.s3  (cost=10.00..3430.07 rows=3413 width=16)
          Output: value1, (asin(('1'::double precision - value1)))
          Node: influxdb_svr / Status: Alive
+           Sort push-down: no
            InfluxDB query: SELECT "value1", asin((1 - "value1")) FROM "s3"
-(7 rows)
+(8 rows)
 
 -- select asin with order by (result)
 --Testcase 636:
@@ -7349,7 +7355,7 @@ EXPLAIN VERBOSE
 SELECT asin_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                  QUERY PLAN                                                                 
 --------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (asin_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -7469,7 +7475,7 @@ EXPLAIN VERBOSE
 SELECT sum(value3),atan(sum(value3)) FROM s3;
                                QUERY PLAN                                
 -------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=16)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=16)
    Output: (sum(value3)), (atan(sum(value3)))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -7546,8 +7552,9 @@ SELECT value1, atan(1-value1) FROM s3 order by atan(1-value1);
    ->  Foreign Scan on public.s3  (cost=10.00..3430.07 rows=3413 width=16)
          Output: value1, (atan(('1'::double precision - value1)))
          Node: influxdb_svr / Status: Alive
+           Sort push-down: no
            InfluxDB query: SELECT "value1", atan((1 - "value1")) FROM "s3"
-(7 rows)
+(8 rows)
 
 -- select atan with order by (result)
 --Testcase 659:
@@ -7632,7 +7639,7 @@ EXPLAIN VERBOSE
 SELECT atan_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                  QUERY PLAN                                                                 
 --------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (atan_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -7745,7 +7752,7 @@ EXPLAIN VERBOSE
 SELECT sum(value3), sum(value4),atan2(sum(value3), sum(value3)) FROM s3;
                                                QUERY PLAN                                               
 --------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=48)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=48)
    Output: (sum(value3)), (sum(value4)), (atan2(sum(value3), sum(value3)))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -7822,8 +7829,9 @@ SELECT value1, atan2(1-value1, 1-value2) FROM s3 order by atan2(1-value1, 1-valu
    ->  Foreign Scan on public.s3  (cost=10.00..3447.13 rows=3413 width=16)
          Output: value1, (atan2(('1'::double precision - value1), ((1 - value2))::double precision))
          Node: influxdb_svr / Status: Alive
+           Sort push-down: no
            InfluxDB query: SELECT "value1", atan2((1 - "value1"), (1 - "value2")) FROM "s3"
-(7 rows)
+(8 rows)
 
 -- select atan2 with order by (result)
 --Testcase 682:
@@ -7978,7 +7986,7 @@ EXPLAIN VERBOSE
 SELECT sum(value3),ceil(sum(value3)) FROM s3;
                                QUERY PLAN                                
 -------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=16)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=16)
    Output: (sum(value3)), (ceil(sum(value3)))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -8055,8 +8063,9 @@ SELECT value1, ceil(1-value1) FROM s3 order by ceil(1-value1);
    ->  Foreign Scan on public.s3  (cost=10.00..3430.07 rows=3413 width=16)
          Output: value1, (ceil(('1'::double precision - value1)))
          Node: influxdb_svr / Status: Alive
+           Sort push-down: no
            InfluxDB query: SELECT "value1", ceil((1 - "value1")) FROM "s3"
-(7 rows)
+(8 rows)
 
 -- select ceil with order by (result)
 --Testcase 701:
@@ -8141,7 +8150,7 @@ EXPLAIN VERBOSE
 SELECT ceil_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                  QUERY PLAN                                                                 
 --------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (ceil_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -8261,7 +8270,7 @@ EXPLAIN VERBOSE
 SELECT sum(value3),cos(sum(value3)) FROM s3;
                                QUERY PLAN                               
 ------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=16)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=16)
    Output: (sum(value3)), (cos(sum(value3)))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -8338,8 +8347,9 @@ SELECT value1, cos(1-value1) FROM s3 order by cos(1-value1);
    ->  Foreign Scan on public.s3  (cost=10.00..3430.07 rows=3413 width=16)
          Output: value1, (cos(('1'::double precision - value1)))
          Node: influxdb_svr / Status: Alive
+           Sort push-down: no
            InfluxDB query: SELECT "value1", cos((1 - "value1")) FROM "s3"
-(7 rows)
+(8 rows)
 
 -- select cos with order by (result)
 --Testcase 724:
@@ -8424,7 +8434,7 @@ EXPLAIN VERBOSE
 SELECT cos_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                 QUERY PLAN                                                                 
 -------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (cos_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -8519,7 +8529,7 @@ EXPLAIN VERBOSE
 SELECT sum(value3),exp(sum(value3)) FROM s3;
                                QUERY PLAN                               
 ------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=16)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=16)
    Output: (sum(value3)), (exp(sum(value3)))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -8596,8 +8606,9 @@ SELECT value1, exp(1-value1) FROM s3 order by exp(1-value1);
    ->  Foreign Scan on public.s3  (cost=10.00..3430.07 rows=3413 width=16)
          Output: value1, (exp(('1'::double precision - value1)))
          Node: influxdb_svr / Status: Alive
+           Sort push-down: no
            InfluxDB query: SELECT "value1", exp((1 - "value1")) FROM "s3"
-(7 rows)
+(8 rows)
 
 -- select exp with order by (result)
 --Testcase 745:
@@ -8682,7 +8693,7 @@ EXPLAIN VERBOSE
 SELECT exp_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                 QUERY PLAN                                                                 
 -------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (exp_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -8783,7 +8794,7 @@ EXPLAIN VERBOSE
 SELECT sum(value3),floor(sum(value3)) FROM s3;
                                 QUERY PLAN                                
 --------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=16)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=16)
    Output: (sum(value3)), (floor(sum(value3)))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -8860,8 +8871,9 @@ SELECT value1, floor(1-value1) FROM s3 order by floor(1-value1);
    ->  Foreign Scan on public.s3  (cost=10.00..3430.07 rows=3413 width=16)
          Output: value1, (floor(('1'::double precision - value1)))
          Node: influxdb_svr / Status: Alive
+           Sort push-down: no
            InfluxDB query: SELECT "value1", floor((1 - "value1")) FROM "s3"
-(7 rows)
+(8 rows)
 
 -- select floor with order by (result)
 --Testcase 767:
@@ -8946,7 +8958,7 @@ EXPLAIN VERBOSE
 SELECT floor_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                  QUERY PLAN                                                                  
 ---------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (floor_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -9066,7 +9078,7 @@ EXPLAIN VERBOSE
 SELECT sum(value3),ln(sum(value3)) FROM s3;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=16)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=16)
    Output: (sum(value3)), (ln(sum(value3)))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -9143,8 +9155,9 @@ SELECT value1, ln(1-value1) FROM s3 order by ln(1-value1);
    ->  Foreign Scan on public.s3  (cost=10.00..3430.07 rows=3413 width=16)
          Output: value1, (ln(('1'::double precision - value1)))
          Node: influxdb_svr / Status: Alive
+           Sort push-down: no
            InfluxDB query: SELECT "value1", ln((1 - "value1")) FROM "s3"
-(7 rows)
+(8 rows)
 
 -- select ln with order by (result)
 --Testcase 790:
@@ -9229,7 +9242,7 @@ EXPLAIN VERBOSE
 SELECT ln_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                 QUERY PLAN                                                                
 ------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (ln_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -9330,7 +9343,7 @@ EXPLAIN VERBOSE
 SELECT sum(value3),pow(sum(value3), 2) FROM s3;
                                 QUERY PLAN                                 
 ---------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=16)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=16)
    Output: (sum(value3)), (pow(sum(value3), '2'::double precision))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -9407,8 +9420,9 @@ SELECT value1, pow(1-value1, 2) FROM s3 order by pow(1-value1, 2);
    ->  Foreign Scan on public.s3  (cost=10.00..3430.07 rows=3413 width=16)
          Output: value1, (pow(('1'::double precision - value1), '2'::double precision))
          Node: influxdb_svr / Status: Alive
+           Sort push-down: no
            InfluxDB query: SELECT "value1", pow((1 - "value1"), 2) FROM "s3"
-(7 rows)
+(8 rows)
 
 -- select pow with order by (result)
 --Testcase 812:
@@ -9493,7 +9507,7 @@ EXPLAIN VERBOSE
 SELECT pow_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                   QUERY PLAN                                                                  
 ----------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (pow_all(2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -9613,7 +9627,7 @@ EXPLAIN VERBOSE
 SELECT sum(value3),round(sum(value3)) FROM s3;
                                 QUERY PLAN                                
 --------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=16)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=16)
    Output: (sum(value3)), (round(sum(value3)))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -9690,8 +9704,9 @@ SELECT value1, round(1-value1) FROM s3 order by round(1-value1);
    ->  Foreign Scan on public.s3  (cost=10.00..3430.07 rows=3413 width=16)
          Output: value1, (round(('1'::double precision - value1)))
          Node: influxdb_svr / Status: Alive
+           Sort push-down: no
            InfluxDB query: SELECT "value1", round((1 - "value1")) FROM "s3"
-(7 rows)
+(8 rows)
 
 -- select round with order by (result)
 --Testcase 835:
@@ -9776,7 +9791,7 @@ EXPLAIN VERBOSE
 SELECT round_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                  QUERY PLAN                                                                  
 ---------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (round_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -9896,7 +9911,7 @@ EXPLAIN VERBOSE
 SELECT sum(value3),sin(sum(value3)) FROM s3;
                                QUERY PLAN                               
 ------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=16)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=16)
    Output: (sum(value3)), (sin(sum(value3)))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -9973,8 +9988,9 @@ SELECT value1, sin(1-value1) FROM s3 order by sin(1-value1);
    ->  Foreign Scan on public.s3  (cost=10.00..3430.07 rows=3413 width=16)
          Output: value1, (sin(('1'::double precision - value1)))
          Node: influxdb_svr / Status: Alive
+           Sort push-down: no
            InfluxDB query: SELECT "value1", sin((1 - "value1")) FROM "s3"
-(7 rows)
+(8 rows)
 
 -- select sin with order by (result)
 --Testcase 858:
@@ -10059,7 +10075,7 @@ EXPLAIN VERBOSE
 SELECT sin_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                 QUERY PLAN                                                                 
 -------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (sin_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -10154,7 +10170,7 @@ EXPLAIN VERBOSE
 SELECT sum(value3),tan(sum(value3)) FROM s3;
                                QUERY PLAN                               
 ------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=16)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=16)
    Output: (sum(value3)), (tan(sum(value3)))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -10231,8 +10247,9 @@ SELECT value1, tan(1-value1) FROM s3 order by tan(1-value1);
    ->  Foreign Scan on public.s3  (cost=10.00..3430.07 rows=3413 width=16)
          Output: value1, (tan(('1'::double precision - value1)))
          Node: influxdb_svr / Status: Alive
+           Sort push-down: no
            InfluxDB query: SELECT "value1", tan((1 - "value1")) FROM "s3"
-(7 rows)
+(8 rows)
 
 -- select tan with order by (result)
 --Testcase 879:
@@ -10317,7 +10334,7 @@ EXPLAIN VERBOSE
 SELECT tan_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                 QUERY PLAN                                                                 
 -------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=0 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=0 width=64)
    Output: (tan_all()), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -10348,7 +10365,7 @@ EXPLAIN VERBOSE
 SELECT holt_winters(min(value1), 5, 1) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s');
                                                                                     QUERY PLAN                                                                                    
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=16)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=16)
    Output: (holt_winters(min(value1), 5, 1)), (influx_time("time", '@ 1 sec'::interval))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -10373,7 +10390,7 @@ EXPLAIN VERBOSE
 SELECT holt_winters_with_fit(min(value1), 5, 1) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s');
                                                                                         QUERY PLAN                                                                                         
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=16)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=16)
    Output: (holt_winters_with_fit(min(value1), 5, 1)), (influx_time("time", '@ 1 sec'::interval))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -10403,7 +10420,7 @@ EXPLAIN VERBOSE
 SELECT influx_count_all(*) FROM s3;
                    QUERY PLAN                    
 -------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=32)
    Output: (influx_count_all(*))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -10424,7 +10441,7 @@ EXPLAIN VERBOSE
 SELECT influx_count_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                            QUERY PLAN                                                                            
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=72)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=72)
    Output: (influx_count_all(*)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -10454,7 +10471,7 @@ EXPLAIN VERBOSE
 SELECT influx_count_all(*) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                  QUERY PLAN                                                                  
 ---------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=64)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=64)
    Output: (influx_count_all(*)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -10502,7 +10519,7 @@ EXPLAIN VERBOSE
 SELECT influx_distinct(value1) FROM s3;
                        QUERY PLAN                        
 ---------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (influx_distinct(value1))
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -10528,7 +10545,7 @@ EXPLAIN VERBOSE
 SELECT influx_distinct(value1), influx_time(time, interval '1s'),tag1 FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY influx_time(time, interval '1s'), tag1;
                                                                                 QUERY PLAN                                                                                 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=48)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=48)
    Output: (influx_distinct(value1)), (influx_time("time", '@ 1 sec'::interval)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -10553,7 +10570,7 @@ EXPLAIN VERBOSE
 SELECT influx_distinct(value2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1;
                                                                       QUERY PLAN                                                                       
 -------------------------------------------------------------------------------------------------------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=40)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=40)
    Output: (influx_distinct(value2)), tag1
    Node: influxdb_svr / Status: Alive
      Agg push-down: yes
@@ -10602,7 +10619,7 @@ EXPLAIN VERBOSE
 SELECT influx_distinct(value2) FROM s3 HAVING influx_distinct(value2) > 100;
                        QUERY PLAN                        
 ---------------------------------------------------------
- Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+ Foreign Scan  (cost=1.00..1.00 rows=1 width=8)
    Output: (influx_distinct(value2))
    Filter: ((influx_distinct(s3.value2)) > 100)
    Node: influxdb_svr / Status: Alive

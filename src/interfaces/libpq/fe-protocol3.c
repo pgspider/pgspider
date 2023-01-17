@@ -3,7 +3,7 @@
  * fe-protocol3.c
  *	  functions that are specific to frontend/backend protocol version 3
  *
- * Portions Copyright (c) 1996-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
@@ -163,18 +163,6 @@ pqParseInput3(PGconn *conn)
 				return;
 
 			/*
-			 * We're also notionally not-IDLE when in pipeline mode the state
-			 * says "idle" (so we have completed receiving the results of one
-			 * query from the server and dispatched them to the application)
-			 * but another query is queued; yield back control to caller so
-			 * that they can initiate processing of the next query in the
-			 * queue.
-			 */
-			if (conn->pipelineStatus != PQ_PIPELINE_OFF &&
-				conn->cmd_queue_head != NULL)
-				return;
-
-			/*
 			 * Unexpected message in IDLE state; need to recover somehow.
 			 * ERROR messages are handled using the notice processor;
 			 * ParameterStatus is handled normally; anything else is just
@@ -213,7 +201,7 @@ pqParseInput3(PGconn *conn)
 				case 'C':		/* command complete */
 					if (pqGets(&conn->workBuffer, conn))
 						return;
-					if (conn->result == NULL)
+					if (!pgHavePendingResult(conn))
 					{
 						conn->result = PQmakeEmptyPGresult(conn,
 														   PGRES_COMMAND_OK);
@@ -267,7 +255,7 @@ pqParseInput3(PGconn *conn)
 					}
 					break;
 				case 'I':		/* empty query */
-					if (conn->result == NULL)
+					if (!pgHavePendingResult(conn))
 					{
 						conn->result = PQmakeEmptyPGresult(conn,
 														   PGRES_EMPTY_QUERY);
@@ -285,7 +273,7 @@ pqParseInput3(PGconn *conn)
 					if (conn->cmd_queue_head &&
 						conn->cmd_queue_head->queryclass == PGQUERY_PREPARE)
 					{
-						if (conn->result == NULL)
+						if (!pgHavePendingResult(conn))
 						{
 							conn->result = PQmakeEmptyPGresult(conn,
 															   PGRES_COMMAND_OK);
@@ -320,8 +308,9 @@ pqParseInput3(PGconn *conn)
 						return;
 					break;
 				case 'T':		/* Row Description */
-					if (conn->result != NULL &&
-						conn->result->resultStatus == PGRES_FATAL_ERROR)
+					if (conn->error_result ||
+						(conn->result != NULL &&
+						 conn->result->resultStatus == PGRES_FATAL_ERROR))
 					{
 						/*
 						 * We've already choked for some reason.  Just discard
@@ -365,7 +354,7 @@ pqParseInput3(PGconn *conn)
 					if (conn->cmd_queue_head &&
 						conn->cmd_queue_head->queryclass == PGQUERY_DESCRIBE)
 					{
-						if (conn->result == NULL)
+						if (!pgHavePendingResult(conn))
 						{
 							conn->result = PQmakeEmptyPGresult(conn,
 															   PGRES_COMMAND_OK);
@@ -391,8 +380,9 @@ pqParseInput3(PGconn *conn)
 						if (getAnotherTuple(conn, msgLength))
 							return;
 					}
-					else if (conn->result != NULL &&
-							 conn->result->resultStatus == PGRES_FATAL_ERROR)
+					else if (conn->error_result ||
+							 (conn->result != NULL &&
+							  conn->result->resultStatus == PGRES_FATAL_ERROR))
 					{
 						/*
 						 * We've already choked for some reason.  Just discard
@@ -1004,10 +994,18 @@ pqGetErrorNotice3(PGconn *conn, bool isError)
 	 */
 	if (isError)
 	{
-		if (res)
-			pqSetResultError(res, &workBuf);
 		pqClearAsyncResult(conn);	/* redundant, but be safe */
-		conn->result = res;
+		if (res)
+		{
+			pqSetResultError(res, &workBuf, 0);
+			conn->result = res;
+		}
+		else
+		{
+			/* Fall back to using the internal-error processing paths */
+			conn->error_result = true;
+		}
+
 		if (PQExpBufferDataBroken(workBuf))
 			appendPQExpBufferStr(&conn->errorMessage,
 								 libpq_gettext("out of memory\n"));
@@ -2154,10 +2152,33 @@ pqFunctionCall3(PGconn *conn, Oid fnid,
 					continue;
 				/* consume the message and exit */
 				conn->inStart += 5 + msgLength;
-				/* if we saved a result object (probably an error), use it */
-				if (conn->result)
-					return pqPrepareAsyncResult(conn);
-				return PQmakeEmptyPGresult(conn, status);
+
+				/*
+				 * If we already have a result object (probably an error), use
+				 * that.  Otherwise, if we saw a function result message,
+				 * report COMMAND_OK.  Otherwise, the backend violated the
+				 * protocol, so complain.
+				 */
+				if (!pgHavePendingResult(conn))
+				{
+					if (status == PGRES_COMMAND_OK)
+					{
+						conn->result = PQmakeEmptyPGresult(conn, status);
+						if (!conn->result)
+						{
+							appendPQExpBufferStr(&conn->errorMessage,
+												 libpq_gettext("out of memory\n"));
+							pqSaveErrorResult(conn);
+						}
+					}
+					else
+					{
+						appendPQExpBufferStr(&conn->errorMessage,
+											 libpq_gettext("protocol error: no function result\n"));
+						pqSaveErrorResult(conn);
+					}
+				}
+				return pqPrepareAsyncResult(conn);
 			case 'S':			/* parameter status */
 				if (getParameterStatus(conn))
 					continue;

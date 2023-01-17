@@ -1,0 +1,144 @@
+<!--
+doc/src/sgml/ref/alter_multi_tenant.sgml
+PostgreSQL documentation
+-->
+
+<refentry id="sql-altermultitenant">
+ <indexterm zone="sql-altermultitenant">
+  <primary>ALTER MULTI TENANT</primary>
+ </indexterm>
+
+ <refmeta>
+  <refentrytitle>ALTER MULTI TENANT</refentrytitle>
+  <manvolnum>7</manvolnum>
+  <refmiscinfo>SQL - Language Statements</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>ALTER MULTI TENANT</refname>
+  <refpurpose>change the definition of a multi tenant server</refpurpose>
+ </refnamediv>
+
+ <refsynopsisdiv>
+<synopsis>
+ALTER MULTI TENANT <replaceable class="parameter">name</replaceable> [ VERSION '<replaceable class="parameter">new_version</replaceable>' ]
+    [ OPTIONS ( [ ADD | SET | DROP ] <replaceable class="parameter">option</replaceable> ['<replaceable class="parameter">value</replaceable>'] [, ... ] ) ]
+ALTER MULTI TENANT <replaceable class="parameter">name</replaceable> OWNER TO { <replaceable>new_owner</replaceable> | CURRENT_ROLE | CURRENT_USER | SESSION_USER }
+ALTER MULTI TENANT <replaceable class="parameter">name</replaceable> RENAME TO <replaceable>new_name</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Description</title>
+
+  <para>
+   <command>ALTER MULTI TENANT</command> changes the definition of a foreign
+   multi tenant server.  The first form changes the multi tenant server version string or the
+   generic options of the multi tenant server (at least one clause is required).
+   The second form changes the owner of the multi tenant server.
+  </para>
+
+  <para>
+   To alter the multi tenant server you must be the owner of the multi tenant server.
+   Additionally to alter the owner, you must own the multi tenant server and also
+   be a direct or indirect member of the new owning role, and you must
+   have <literal>USAGE</literal> privilege on the multi tenant server's foreign-data
+   wrapper.  (Note that superusers satisfy all these criteria
+   automatically.)
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parameters</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">name</replaceable></term>
+    <listitem>
+     <para>
+      The name of an existing multi tenant server.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">new_version</replaceable></term>
+    <listitem>
+     <para>
+      New multi tenant server version.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>OPTIONS ( [ ADD | SET | DROP ] <replaceable class="parameter">option</replaceable> ['<replaceable class="parameter">value</replaceable>'] [, ... ] )</literal></term>
+    <listitem>
+     <para>
+      Change options for the
+      multi tenant server.  <literal>ADD</literal>, <literal>SET</literal>, and <literal>DROP</literal>
+      specify the action to be performed.  <literal>ADD</literal> is assumed
+      if no operation is explicitly specified.  Option names must be
+      unique; names and values are also validated using the multi tenant server's
+      foreign-data wrapper library.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">new_owner</replaceable></term>
+    <listitem>
+     <para>
+      The user name of the new owner of the multi tenant server.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">new_name</replaceable></term>
+    <listitem>
+     <para>
+      The new name for the multi tenant server.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Examples</title>
+
+  <para>
+   Alter multi tenant <literal>foo</literal>, add connection options:
+<programlisting>
+ALTER MULTI TENANT foo OPTIONS (host 'foo', dbname 'foodb');
+</programlisting>
+  </para>
+
+  <para>
+   Alter multi tenant <literal>foo</literal>, change version,
+   change <literal>host</literal> option:
+<programlisting>
+ALTER MULTI TENANT foo VERSION '8.4' OPTIONS (SET host 'baz');
+</programlisting></para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibility</title>
+
+  <para>
+   <command>ALTER MULTI TENANT</command> conforms to ISO/IEC 9075-9 (SQL/MED).
+   The <literal>OWNER TO</literal> and <literal>RENAME</literal> forms are
+   PostgreSQL extensions.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>See Also</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-createmultitenant"/></member>
+   <member><xref linkend="sql-dropmultitenant"/></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>

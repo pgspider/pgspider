@@ -3,7 +3,7 @@
  * foreigncmds.c
  *	  foreign-data wrapper/server creation/manipulation commands
  *
- * Portions Copyright (c) 1996-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
  *
  *
  * IDENTIFICATION
@@ -515,7 +515,7 @@ lookup_fdw_validator_func(DefElem *validator)
  * Process function options of CREATE/ALTER FDW
  */
 static void
-parse_func_options(List *func_options,
+parse_func_options(ParseState *pstate, List *func_options,
 				   bool *handler_given, Oid *fdwhandler,
 				   bool *validator_given, Oid *fdwvalidator)
 {
@@ -534,18 +534,14 @@ parse_func_options(List *func_options,
 		if (strcmp(def->defname, "handler") == 0)
 		{
 			if (*handler_given)
-				ereport(ERROR,
-						(errcode(ERRCODE_SYNTAX_ERROR),
-						 errmsg("conflicting or redundant options")));
+				errorConflictingDefElem(def, pstate);
 			*handler_given = true;
 			*fdwhandler = lookup_fdw_handler_func(def);
 		}
 		else if (strcmp(def->defname, "validator") == 0)
 		{
 			if (*validator_given)
-				ereport(ERROR,
-						(errcode(ERRCODE_SYNTAX_ERROR),
-						 errmsg("conflicting or redundant options")));
+				errorConflictingDefElem(def, pstate);
 			*validator_given = true;
 			*fdwvalidator = lookup_fdw_validator_func(def);
 		}
@@ -559,7 +555,7 @@ parse_func_options(List *func_options,
  * Create a foreign-data wrapper
  */
 ObjectAddress
-CreateForeignDataWrapper(CreateFdwStmt *stmt)
+CreateForeignDataWrapper(ParseState *pstate, CreateFdwStmt *stmt)
 {
 	Relation	rel;
 	Datum		values[Natts_pg_foreign_data_wrapper];
@@ -577,7 +573,7 @@ CreateForeignDataWrapper(CreateFdwStmt *stmt)
 
 	rel = table_open(ForeignDataWrapperRelationId, RowExclusiveLock);
 
-	/* Must be super user */
+	/* Must be superuser */
 	if (!superuser())
 		ereport(ERROR,
 				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
@@ -611,7 +607,7 @@ CreateForeignDataWrapper(CreateFdwStmt *stmt)
 	values[Anum_pg_foreign_data_wrapper_fdwowner - 1] = ObjectIdGetDatum(ownerId);
 
 	/* Lookup handler and validator functions, if given */
-	parse_func_options(stmt->func_options,
+	parse_func_options(pstate, stmt->func_options,
 					   &handler_given, &fdwhandler,
 					   &validator_given, &fdwvalidator);
 
@@ -675,7 +671,7 @@ CreateForeignDataWrapper(CreateFdwStmt *stmt)
  * Alter foreign-data wrapper
  */
 ObjectAddress
-AlterForeignDataWrapper(AlterFdwStmt *stmt)
+AlterForeignDataWrapper(ParseState *pstate, AlterFdwStmt *stmt)
 {
 	Relation	rel;
 	HeapTuple	tp;
@@ -694,7 +690,7 @@ AlterForeignDataWrapper(AlterFdwStmt *stmt)
 
 	rel = table_open(ForeignDataWrapperRelationId, RowExclusiveLock);
 
-	/* Must be super user */
+	/* Must be superuser */
 	if (!superuser())
 		ereport(ERROR,
 				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
@@ -717,7 +713,7 @@ AlterForeignDataWrapper(AlterFdwStmt *stmt)
 	memset(repl_null, false, sizeof(repl_null));
 	memset(repl_repl, false, sizeof(repl_repl));
 
-	parse_func_options(stmt->func_options,
+	parse_func_options(pstate, stmt->func_options,
 					   &handler_given, &fdwhandler,
 					   &validator_given, &fdwvalidator);
 
@@ -859,13 +855,22 @@ CreateForeignServer(CreateForeignServerStmt *stmt)
 	ownerId = GetUserId();
 
 	/*
-	 * Check that there is no other foreign server by this name. Do nothing if
-	 * IF NOT EXISTS was enforced.
+	 * Check that there is no other foreign server by this name.  If there is
+	 * one, do nothing if IF NOT EXISTS was specified.
 	 */
-	if (GetForeignServerByName(stmt->servername, true) != NULL)
+	srvId = get_foreign_server_oid(stmt->servername, true);
+	if (OidIsValid(srvId))
 	{
 		if (stmt->if_not_exists)
 		{
+			/*
+			 * If we are in an extension script, insist that the pre-existing
+			 * object be a member of the extension, to avoid security risks.
+			 */
+			ObjectAddressSet(myself, ForeignServerRelationId, srvId);
+			checkMembershipInCurrentExtension(&myself);
+
+			/* OK to skip */
 			ereport(NOTICE,
 					(errcode(ERRCODE_DUPLICATE_OBJECT),
 					 errmsg("server \"%s\" already exists, skipping",
@@ -1130,6 +1135,10 @@ CreateUserMapping(CreateUserMappingStmt *stmt)
 	{
 		if (stmt->if_not_exists)
 		{
+			/*
+			 * Since user mappings aren't members of extensions (see comments
+			 * below), no need for checkMembershipInCurrentExtension here.
+			 */
 			ereport(NOTICE,
 					(errcode(ERRCODE_DUPLICATE_OBJECT),
 					 errmsg("user mapping for \"%s\" already exists for server \"%s\", skipping",

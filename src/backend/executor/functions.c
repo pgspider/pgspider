@@ -3,7 +3,7 @@
  * functions.c
  *	  Execution of SQL-language functions
  *
- * Portions Copyright (c) 1996-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
@@ -718,7 +718,7 @@ init_sql_fcache(FunctionCallInfo fcinfo, Oid collation, bool lazyEvalOK)
 			RawStmt    *parsetree = lfirst_node(RawStmt, lc);
 			List	   *queryTree_sublist;
 
-			queryTree_sublist = pg_analyze_and_rewrite_params(parsetree,
+			queryTree_sublist = pg_analyze_and_rewrite_withcb(parsetree,
 															  fcache->src,
 															  (ParserSetupHook) sql_fn_parser_setup,
 															  fcache->pinfo,
@@ -941,6 +941,7 @@ postquel_sub_params(SQLFunctionCachePtr fcache,
 	if (nargs > 0)
 	{
 		ParamListInfo paramLI;
+		Oid		   *argtypes = fcache->pinfo->argtypes;
 
 		if (fcache->paramLI == NULL)
 		{
@@ -957,10 +958,24 @@ postquel_sub_params(SQLFunctionCachePtr fcache,
 		{
 			ParamExternData *prm = &paramLI->params[i];
 
-			prm->value = fcinfo->args[i].value;
+			/*
+			 * If an incoming parameter value is a R/W expanded datum, we
+			 * force it to R/O.  We'd be perfectly entitled to scribble on it,
+			 * but the problem is that if the parameter is referenced more
+			 * than once in the function, earlier references might mutate the
+			 * value seen by later references, which won't do at all.  We
+			 * could do better if we could be sure of the number of Param
+			 * nodes in the function's plans; but we might not have planned
+			 * all the statements yet, nor do we have plan tree walker
+			 * infrastructure.  (Examining the parse trees is not good enough,
+			 * because of possible function inlining during planning.)
+			 */
 			prm->isnull = fcinfo->args[i].isnull;
+			prm->value = MakeExpandedObjectReadOnly(fcinfo->args[i].value,
+													prm->isnull,
+													get_typlen(argtypes[i]));
 			prm->pflags = 0;
-			prm->ptype = fcache->pinfo->argtypes[i];
+			prm->ptype = argtypes[i];
 		}
 	}
 	else

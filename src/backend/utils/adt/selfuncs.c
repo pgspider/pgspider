@@ -10,7 +10,7 @@
  *	  Index cost functions are located via the index AM's API struct,
  *	  which is obtained from the handler function registered in pg_am.
  *
- * Portions Copyright (c) 1996-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
@@ -3443,13 +3443,13 @@ estimate_num_groups(PlannerInfo *root, List *groupExprs, double input_rows,
 		 * expression, treat it as a single variable even if it's really more
 		 * complicated.
 		 *
-		 * XXX This has the consequence that if there's a statistics on the
-		 * expression, we don't split it into individual Vars. This affects
-		 * our selection of statistics in estimate_multivariate_ndistinct,
-		 * because it's probably better to use more accurate estimate for each
-		 * expression and treat them as independent, than to combine estimates
-		 * for the extracted variables when we don't know how that relates to
-		 * the expressions.
+		 * XXX This has the consequence that if there's a statistics object on
+		 * the expression, we don't split it into individual Vars. This
+		 * affects our selection of statistics in
+		 * estimate_multivariate_ndistinct, because it's probably better to
+		 * use more accurate estimate for each expression and treat them as
+		 * independent, than to combine estimates for the extracted variables
+		 * when we don't know how that relates to the expressions.
 		 */
 		examine_variable(root, groupexpr, 0, &vardata);
 		if (HeapTupleIsValid(vardata.statsTuple) || vardata.isunique)
@@ -3596,7 +3596,6 @@ estimate_num_groups(PlannerInfo *root, List *groupExprs, double input_rows,
 					 */
 					if (estinfo != NULL && varinfo2->isdefault)
 						estinfo->flags |= SELFLAG_USED_DEFAULT;
-
 				}
 
 				/* we're done with this relation */
@@ -3913,12 +3912,13 @@ estimate_multivariate_ndistinct(PlannerInfo *root, RelOptInfo *rel,
 	Oid			statOid = InvalidOid;
 	MVNDistinct *stats;
 	StatisticExtInfo *matched_info = NULL;
+	RangeTblEntry *rte;
 
 	/* bail out immediately if the table has no extended statistics */
 	if (!rel->statlist)
 		return false;
 
-	/* look for the ndistinct statistics matching the most vars */
+	/* look for the ndistinct statistics object matching the most vars */
 	nmatches_vars = 0;			/* we require at least two matches */
 	nmatches_exprs = 0;
 	foreach(lc, rel->statlist)
@@ -3964,7 +3964,7 @@ estimate_multivariate_ndistinct(PlannerInfo *root, RelOptInfo *rel,
 				continue;
 			}
 
-			/* expression - see if it's in the statistics */
+			/* expression - see if it's in the statistics object */
 			foreach(lc3, info->exprs)
 			{
 				Node	   *expr = (Node *) lfirst(lc3);
@@ -4003,7 +4003,8 @@ estimate_multivariate_ndistinct(PlannerInfo *root, RelOptInfo *rel,
 
 	Assert(nmatches_vars + nmatches_exprs > 1);
 
-	stats = statext_ndistinct_load(statOid);
+	rte = planner_rt_fetch(rel->relid, root);
+	stats = statext_ndistinct_load(statOid, rte->inh);
 
 	/*
 	 * If we have a match, search it for the specific item that matches (there
@@ -4053,7 +4054,7 @@ estimate_multivariate_ndistinct(PlannerInfo *root, RelOptInfo *rel,
 				if (!AttrNumberIsForUserDefinedAttr(attnum))
 					continue;
 
-				/* Is the variable covered by the statistics? */
+				/* Is the variable covered by the statistics object? */
 				if (!bms_is_member(attnum, matched_info->keys))
 					continue;
 
@@ -4075,7 +4076,7 @@ estimate_multivariate_ndistinct(PlannerInfo *root, RelOptInfo *rel,
 			if (found)
 				continue;
 
-			/* expression - see if it's in the statistics */
+			/* expression - see if it's in the statistics object */
 			idx = 0;
 			foreach(lc3, matched_info->exprs)
 			{
@@ -4293,6 +4294,7 @@ convert_to_scalar(Datum value, Oid valuetypid, Oid collid, double *scaledvalue,
 		case REGOPERATOROID:
 		case REGCLASSOID:
 		case REGTYPEOID:
+		case REGCOLLATIONOID:
 		case REGCONFIGOID:
 		case REGDICTIONARYOID:
 		case REGROLEOID:
@@ -4424,6 +4426,7 @@ convert_numeric_to_scalar(Datum value, Oid typid, bool *failure)
 		case REGOPERATOROID:
 		case REGCLASSOID:
 		case REGTYPEOID:
+		case REGCOLLATIONOID:
 		case REGCONFIGOID:
 		case REGDICTIONARYOID:
 		case REGROLEOID:
@@ -5222,6 +5225,7 @@ examine_variable(PlannerInfo *root, Node *node, int varRelid,
 		foreach(slist, onerel->statlist)
 		{
 			StatisticExtInfo *info = (StatisticExtInfo *) lfirst(slist);
+			RangeTblEntry *rte = planner_rt_fetch(onerel->relid, root);
 			ListCell   *expr_item;
 			int			pos;
 
@@ -5250,22 +5254,16 @@ examine_variable(PlannerInfo *root, Node *node, int varRelid,
 				/* found a match, see if we can extract pg_statistic row */
 				if (equal(node, expr))
 				{
-					HeapTuple	t = statext_expressions_load(info->statOid, pos);
-
-					/* Get index's table for permission check */
-					RangeTblEntry *rte;
 					Oid			userid;
-
-					vardata->statsTuple = t;
 
 					/*
 					 * XXX Not sure if we should cache the tuple somewhere.
 					 * Now we just create a new copy every time.
 					 */
-					vardata->freefunc = ReleaseDummy;
+					vardata->statsTuple =
+						statext_expressions_load(info->statOid, rte->inh, pos);
 
-					rte = planner_rt_fetch(onerel->relid, root);
-					Assert(rte->rtekind == RTE_RELATION);
+					vardata->freefunc = ReleaseDummy;
 
 					/*
 					 * Use checkAsUser if it's set, in case we're accessing
@@ -5276,8 +5274,8 @@ examine_variable(PlannerInfo *root, Node *node, int varRelid,
 					/*
 					 * For simplicity, we insist on the whole table being
 					 * selectable, rather than trying to identify which
-					 * column(s) the statistics depends on.  Also require all
-					 * rows to be selectable --- there must be no
+					 * column(s) the statistics object depends on.  Also
+					 * require all rows to be selectable --- there must be no
 					 * securityQuals from security barrier views or RLS
 					 * policies.
 					 */
@@ -5841,15 +5839,35 @@ get_variable_range(PlannerInfo *root, VariableStatData *vardata,
 	/*
 	 * If we have most-common-values info, look for extreme MCVs.  This is
 	 * needed even if we also have a histogram, since the histogram excludes
-	 * the MCVs.
+	 * the MCVs.  However, if we *only* have MCVs and no histogram, we should
+	 * be pretty wary of deciding that that is a full representation of the
+	 * data.  Proceed only if the MCVs represent the whole table (to within
+	 * roundoff error).
 	 */
 	if (get_attstatsslot(&sslot, vardata->statsTuple,
 						 STATISTIC_KIND_MCV, InvalidOid,
-						 ATTSTATSSLOT_VALUES))
+						 have_data ? ATTSTATSSLOT_VALUES :
+						 (ATTSTATSSLOT_VALUES | ATTSTATSSLOT_NUMBERS)))
 	{
-		get_stats_slot_range(&sslot, opfuncoid, &opproc,
-							 collation, typLen, typByVal,
-							 &tmin, &tmax, &have_data);
+		bool		use_mcvs = have_data;
+
+		if (!have_data)
+		{
+			double		sumcommon = 0.0;
+			double		nullfrac;
+			int			i;
+
+			for (i = 0; i < sslot.nnumbers; i++)
+				sumcommon += sslot.numbers[i];
+			nullfrac = ((Form_pg_statistic) GETSTRUCT(vardata->statsTuple))->stanullfrac;
+			if (sumcommon + nullfrac > 0.99999)
+				use_mcvs = true;
+		}
+
+		if (use_mcvs)
+			get_stats_slot_range(&sslot, opfuncoid, &opproc,
+								 collation, typLen, typByVal,
+								 &tmin, &tmax, &have_data);
 		free_attstatsslot(&sslot);
 	}
 

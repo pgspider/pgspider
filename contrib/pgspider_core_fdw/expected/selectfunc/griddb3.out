@@ -203,10 +203,12 @@ SELECT * FROM s3 WHERE char_length(name) > 4  ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..367.91 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((char_length(name) > 4))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((char_length(name) > 4))
-(9 rows)
+(11 rows)
 
 --Testcase 18:
 SELECT * FROM s3 WHERE char_length(name) > 4  ORDER BY 1;
@@ -246,10 +248,12 @@ SELECT * FROM s3 WHERE char_length(name) < 6  ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..367.91 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((char_length(name) < 6))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((char_length(name) < 6))
-(9 rows)
+(11 rows)
 
 --Testcase 20:
 SELECT * FROM s3 WHERE char_length(name) < 6  ORDER BY 1;
@@ -282,10 +286,12 @@ SELECT * FROM s3 WHERE concat(name,' and george') = 'fred and george' ORDER BY 1
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Filter: (concat(s3.name, ' and george') = 'fred and george'::text)
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((concat(name, ' and george') = 'fred and george'))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb
-(10 rows)
+(12 rows)
 
 --Testcase 22:
 SELECT * FROM s3 WHERE concat(name,' and george') = 'fred and george' ORDER BY 1;
@@ -306,10 +312,12 @@ SELECT * FROM s3 WHERE substr(name,2,3) = 'red' ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..323.07 rows=34 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((substring(name, 2, 3) = 'red'))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((substr(name, 2, 3) = 'red'::text))
-(9 rows)
+(11 rows)
 
 --Testcase 24:
 SELECT * FROM s3 WHERE substr(name,2,3) = 'red' ORDER BY 1;
@@ -329,10 +337,12 @@ SELECT * FROM s3 WHERE substr(name,1,3) <> 'fre' ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..458.23 rows=6792 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((substring(name, 1, 3) <> 'fre'))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((substr(name, 1, 3) <> 'fre'::text))
-(9 rows)
+(11 rows)
 
 --Testcase 26:
 SELECT * FROM s3 WHERE substr(name,1,3) <> 'fre' ORDER BY 1;
@@ -378,10 +388,12 @@ SELECT * FROM s3 WHERE upper(name) = 'FRED' ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..323.07 rows=34 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((upper(name) = 'FRED'))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((upper(name) = 'FRED'::text))
-(9 rows)
+(11 rows)
 
 --Testcase 28:
 SELECT * FROM s3 WHERE upper(name) = 'FRED' ORDER BY 1;
@@ -401,10 +413,12 @@ SELECT * FROM s3 WHERE upper(name) <> 'FRED' ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..458.23 rows=6792 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((upper(name) <> 'FRED'))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((upper(name) <> 'FRED'::text))
-(9 rows)
+(11 rows)
 
 --Testcase 30:
 SELECT * FROM s3 WHERE upper(name) <> 'FRED' ORDER BY 1;
@@ -450,10 +464,12 @@ SELECT * FROM s3 WHERE lower(name) = 'george' ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..323.07 rows=34 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((lower(name) = 'george'))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((lower(name) = 'george'::text))
-(9 rows)
+(11 rows)
 
 --Testcase 32:
 SELECT * FROM s3 WHERE lower(name) = 'george' ORDER BY 1;
@@ -473,10 +489,12 @@ SELECT * FROM s3 WHERE lower(name) <> 'bob' ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..458.23 rows=6792 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((lower(name) <> 'bob'))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((lower(name) <> 'bob'::text))
-(9 rows)
+(11 rows)
 
 --Testcase 34:
 SELECT * FROM s3 WHERE lower(name) <> 'bob' ORDER BY 1;
@@ -522,10 +540,12 @@ SELECT * FROM s3 WHERE round(gpa) > 3.5 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..367.91 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((round(gpa) > 3.5))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((round(gpa) > 3.5::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 36:
 SELECT * FROM s3 WHERE round(gpa) > 3.5 ORDER BY 1;
@@ -568,10 +588,12 @@ SELECT * FROM s3 WHERE round(gpa) <= 3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..367.91 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((round(gpa) <= 3))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((round(gpa) <= 3::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 38:
 SELECT * FROM s3 WHERE round(gpa) <= 3 ORDER BY 1;
@@ -594,10 +616,12 @@ SELECT * FROM s3 WHERE floor(gpa) = 3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..323.07 rows=34 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((floor(gpa) = 3))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((floor(gpa) = 3::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 40:
 SELECT * FROM s3 WHERE floor(gpa) = 3 ORDER BY 1;
@@ -641,10 +665,12 @@ SELECT * FROM s3 WHERE floor(gpa) < 2 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..367.91 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((floor(gpa) < 2))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((floor(gpa) < 2::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 42:
 SELECT * FROM s3 WHERE floor(gpa) < 3 ORDER BY 1;
@@ -666,10 +692,12 @@ SELECT * FROM s3 WHERE ceiling(gpa) >= 3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..367.91 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((ceiling(gpa) >= 3))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((ceiling(gpa) >= 3::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 44:
 SELECT * FROM s3 WHERE ceiling(gpa) >= 3 ORDER BY 1;
@@ -715,10 +743,12 @@ SELECT * FROM s3 WHERE ceiling(gpa) = 4 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..323.07 rows=34 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((ceiling(gpa) = 4))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((ceiling(gpa) = 4::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 46:
 SELECT * FROM s3 WHERE ceiling(gpa) = 4 ORDER BY 1;
@@ -766,10 +796,12 @@ SELECT date, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, d
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=69)
          Output: date, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestamp(strcol) > TIMESTAMP('2020-01-05T21:00:00Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol FROM public.s31griddb WHERE ((public.griddb_timestamp(strcol) > '2020-01-05 21:00:00'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 48:
 SELECT date, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol FROM s3 WHERE griddb_timestamp(strcol) > '2020-01-05 21:00:00' ORDER BY 1;
@@ -788,10 +820,12 @@ SELECT date, strcol FROM s3 WHERE date < griddb_timestamp(strcol) ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=40)
          Output: date, strcol
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((date < timestamp(strcol)))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, strcol FROM public.s31griddb WHERE ((date < public.griddb_timestamp(strcol)))
-(9 rows)
+(11 rows)
 
 --Testcase 50:
 SELECT date, strcol FROM s3 WHERE date < griddb_timestamp(strcol) ORDER BY 1;
@@ -842,10 +876,12 @@ SELECT date1 FROM s3 WHERE timestampadd('YEAR', date1, -1) > '2019-12-29 05:00:0
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampadd('YEAR', date1, (-1)) > TIMESTAMP('2019-12-29T05:00:00Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampadd('YEAR'::public.time_unit, date1, (-1)) > '2019-12-29 05:00:00'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 52:
 SELECT date1 FROM s3 WHERE timestampadd('YEAR', date1, -1) > '2019-12-29 05:00:00' ORDER BY 1;
@@ -889,10 +925,12 @@ SELECT date1 FROM s3 WHERE timestampadd('YEAR', date1, 5) >= '2025-12-29 04:50:0
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampadd('YEAR', date1, 5) >= TIMESTAMP('2025-12-29T04:50:00Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampadd('YEAR'::public.time_unit, date1, 5) >= '2025-12-29 04:50:00'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 54:
 SELECT date1 FROM s3 WHERE timestampadd('YEAR', date1, 5) >= '2025-12-29 04:50:00' ORDER BY 1;
@@ -937,10 +975,12 @@ SELECT date1 FROM s3 WHERE timestampadd('YEAR', date1, 5) >= '2025-12-29' ORDER 
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampadd('YEAR', date1, 5) >= TIMESTAMP('2025-12-29T00:00:00Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampadd('YEAR'::public.time_unit, date1, 5) >= '2025-12-29 00:00:00'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 56:
 SELECT date1 FROM s3 WHERE timestampadd('YEAR', date1, 5) >= '2025-12-29' ORDER BY 1;
@@ -987,10 +1027,12 @@ SELECT date1 FROM s3 WHERE timestampadd('MONTH', date1, -3) > '2020-06-29 05:00:
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampadd('MONTH', date1, (-3)) > TIMESTAMP('2020-06-29T05:00:00Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampadd('MONTH'::public.time_unit, date1, (-3)) > '2020-06-29 05:00:00'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 58:
 SELECT date1 FROM s3 WHERE timestampadd('MONTH', date1, -3) > '2020-06-29 05:00:00' ORDER BY 1;
@@ -1036,10 +1078,12 @@ SELECT date1 FROM s3 WHERE timestampadd('MONTH', date1, 3) = '2021-03-29 05:00:3
    ->  Foreign Scan on public.s3  (cost=200.00..2012.50 rows=34 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampadd('MONTH', date1, 3) = TIMESTAMP('2021-03-29T05:00:30Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampadd('MONTH'::public.time_unit, date1, 3) = '2021-03-29 05:00:30'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 60:
 SELECT date1 FROM s3 WHERE timestampadd('MONTH', date1, 3) = '2021-03-29 05:00:30' ORDER BY 1;
@@ -1060,10 +1104,12 @@ SELECT date1 FROM s3 WHERE timestampadd('MONTH', date1, 3) >= '2021-03-29' ORDER
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampadd('MONTH', date1, 3) >= TIMESTAMP('2021-03-29T00:00:00Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampadd('MONTH'::public.time_unit, date1, 3) >= '2021-03-29 00:00:00'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 62:
 SELECT date1 FROM s3 WHERE timestampadd('MONTH', date1, 3) >= '2021-03-29' ORDER BY 1;
@@ -1110,10 +1156,12 @@ SELECT date1 FROM s3 WHERE timestampadd('DAY', date1, -3) > '2020-06-29 05:00:00
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampadd('DAY', date1, (-3)) > TIMESTAMP('2020-06-29T05:00:00Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampadd('DAY'::public.time_unit, date1, (-3)) > '2020-06-29 05:00:00'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 64:
 SELECT date1 FROM s3 WHERE timestampadd('DAY', date1, -3) > '2020-06-29 05:00:00' ORDER BY 1;
@@ -1159,10 +1207,12 @@ SELECT date1 FROM s3 WHERE timestampadd('DAY', date1, 3) = '2021-01-01 05:00:30'
    ->  Foreign Scan on public.s3  (cost=200.00..2012.50 rows=34 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampadd('DAY', date1, 3) = TIMESTAMP('2021-01-01T05:00:30Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampadd('DAY'::public.time_unit, date1, 3) = '2021-01-01 05:00:30'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 66:
 SELECT date1 FROM s3 WHERE timestampadd('DAY', date1, 3) = '2021-01-01 05:00:30' ORDER BY 1;
@@ -1183,10 +1233,12 @@ SELECT date1 FROM s3 WHERE timestampadd('DAY', date1, 3) >= '2021-01-01' ORDER B
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampadd('DAY', date1, 3) >= TIMESTAMP('2021-01-01T00:00:00Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampadd('DAY'::public.time_unit, date1, 3) >= '2021-01-01 00:00:00'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 68:
 SELECT date1 FROM s3 WHERE timestampadd('DAY', date1, 3) >= '2021-01-01' ORDER BY 1;
@@ -1233,10 +1285,12 @@ SELECT date1 FROM s3 WHERE timestampadd('HOUR', date1, -1) > '2020-12-29 04:00:0
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampadd('HOUR', date1, (-1)) > TIMESTAMP('2020-12-29T04:00:00Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampadd('HOUR'::public.time_unit, date1, (-1)) > '2020-12-29 04:00:00'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 70:
 SELECT date1 FROM s3 WHERE timestampadd('HOUR', date1, -1) > '2020-12-29 04:00:00' ORDER BY 1;
@@ -1280,10 +1334,12 @@ SELECT date1 FROM s3 WHERE timestampadd('HOUR', date1, 2) >= '2020-12-29 06:50:0
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampadd('HOUR', date1, 2) >= TIMESTAMP('2020-12-29T06:50:00Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampadd('HOUR'::public.time_unit, date1, 2) >= '2020-12-29 06:50:00'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 72:
 SELECT date1 FROM s3 WHERE timestampadd('HOUR', date1, 2) >= '2020-12-29 06:50:00' ORDER BY 1;
@@ -1329,10 +1385,12 @@ SELECT date1 FROM s3 WHERE timestampadd('MINUTE', date1, 20) = '2020-12-29 05:00
    ->  Foreign Scan on public.s3  (cost=200.00..2012.50 rows=34 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampadd('MINUTE', date1, 20) = TIMESTAMP('2020-12-29T05:00:00Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampadd('MINUTE'::public.time_unit, date1, 20) = '2020-12-29 05:00:00'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 74:
 SELECT date1 FROM s3 WHERE timestampadd('MINUTE', date1, 20) = '2020-12-29 05:00:00' ORDER BY 1;
@@ -1352,10 +1410,12 @@ SELECT date1 FROM s3 WHERE timestampadd('MINUTE', date1, -50) <= '2020-12-29 04:
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampadd('MINUTE', date1, (-50)) <= TIMESTAMP('2020-12-29T04:00:00Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampadd('MINUTE'::public.time_unit, date1, (-50)) <= '2020-12-29 04:00:00'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 76:
 SELECT date1 FROM s3 WHERE timestampadd('MINUTE', date1, -50) <= '2020-12-29 04:00:00' ORDER BY 1;
@@ -1377,10 +1437,12 @@ SELECT date1 FROM s3 WHERE timestampadd('SECOND', date1, 25) >= '2020-12-29 04:4
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampadd('SECOND', date1, 25) >= TIMESTAMP('2020-12-29T04:40:30Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampadd('SECOND'::public.time_unit, date1, 25) >= '2020-12-29 04:40:30'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 78:
 SELECT date1 FROM s3 WHERE timestampadd('SECOND', date1, 25) >= '2020-12-29 04:40:30' ORDER BY 1;
@@ -1425,10 +1487,12 @@ SELECT date1 FROM s3 WHERE timestampadd('SECOND', date1, -50) <= '2020-12-29 04:
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampadd('SECOND', date1, (-50)) <= TIMESTAMP('2020-12-29T04:00:00Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampadd('SECOND'::public.time_unit, date1, (-50)) <= '2020-12-29 04:00:00'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 80:
 SELECT date1 FROM s3 WHERE timestampadd('SECOND', date1, -30) = '2020-12-29 05:00:00' ORDER BY 1;
@@ -1450,10 +1514,12 @@ SELECT date1 FROM s3 WHERE timestampadd('MILLISECOND', date1, 300) = '2020-12-29
    ->  Foreign Scan on public.s3  (cost=200.00..2012.50 rows=34 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampadd('MILLISECOND', date1, 300) = TIMESTAMP('2020-12-29T05:10:00.420Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampadd('MILLISECOND'::public.time_unit, date1, 300) = '2020-12-29 05:10:00.42'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 82:
 SELECT date1 FROM s3 WHERE timestampadd('MILLISECOND', date1, 300) = '2020-12-29 05:10:00.420' ORDER BY 1;
@@ -1474,10 +1540,12 @@ SELECT date1 FROM s3 WHERE timestampadd('MILLISECOND', date1, -55) = '2020-12-29
    ->  Foreign Scan on public.s3  (cost=200.00..2012.50 rows=34 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampadd('MILLISECOND', date1, (-55)) = TIMESTAMP('2020-12-29T05:10:00.065Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampadd('MILLISECOND'::public.time_unit, date1, (-55)) = '2020-12-29 05:10:00.065'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 84:
 SELECT date1 FROM s3 WHERE timestampadd('MILLISECOND', date1, -55) = '2020-12-29 05:10:00.065' ORDER BY 1;
@@ -1499,10 +1567,12 @@ SELECT date1 FROM s3 WHERE timestampadd('MICROSECOND', date1, -55) = '2020-12-29
    ->  Foreign Scan on public.s3  (cost=200.00..2012.50 rows=34 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampadd('MICROSECOND', date1, (-55)) = TIMESTAMP('2020-12-29T05:10:00.065Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampadd('MICROSECOND'::public.time_unit, date1, (-55)) = '2020-12-29 05:10:00.065'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --timestampdiff
 --YEAR
@@ -1517,10 +1587,12 @@ SELECT date1 FROM s3 WHERE timestampdiff('YEAR', date1, '2018-01-04 08:48:00') >
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('YEAR', date1, TIMESTAMP('2018-01-04T08:48:00Z')) > 0))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampdiff('YEAR'::public.time_unit, date1, '2018-01-04 08:48:00'::timestamp without time zone) > 0::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 87:
 SELECT date1 FROM s3 WHERE timestampdiff('YEAR', date1, '2018-01-04 08:48:00') > 0 ORDER BY 1;
@@ -1566,10 +1638,12 @@ SELECT date2 FROM s3 WHERE timestampdiff('YEAR', '2015-07-15 08:48:00', date2) <
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('YEAR', TIMESTAMP('2015-07-15T08:48:00Z'), date2) < 5))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date2 FROM public.s31griddb WHERE ((public.timestampdiff('YEAR'::public.time_unit, '2015-07-15 08:48:00'::timestamp without time zone, date2) < 5::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 89:
 SELECT date2 FROM s3 WHERE timestampdiff('YEAR', '2015-07-15 08:48:00', date2) < 5 ORDER BY 1;
@@ -1614,10 +1688,12 @@ SELECT date1, date2 FROM s3 WHERE timestampdiff('YEAR', date1, date2) > 10 ORDER
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=16)
          Output: date1, date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('YEAR', date1, date2) > 10))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1, date2 FROM public.s31griddb WHERE ((public.timestampdiff('YEAR'::public.time_unit, date1, date2) > 10::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 91:
 SELECT date1, date2 FROM s3 WHERE timestampdiff('YEAR', date1, date2) > 10 ORDER BY 1;
@@ -1638,10 +1714,12 @@ SELECT date1 FROM s3 WHERE timestampdiff('MONTH', date1, '2020-11-04 08:48:00') 
    ->  Foreign Scan on public.s3  (cost=200.00..2012.50 rows=34 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('MONTH', date1, TIMESTAMP('2020-11-04T08:48:00Z')) = 1))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampdiff('MONTH'::public.time_unit, date1, '2020-11-04 08:48:00'::timestamp without time zone) = 1::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 93:
 SELECT date1 FROM s3 WHERE timestampdiff('MONTH', date1, '2020-11-04 08:48:00') = 1 ORDER BY 1;
@@ -1687,10 +1765,12 @@ SELECT date2 FROM s3 WHERE timestampdiff('YEAR', '2020-02-15 08:48:00', date2) <
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('YEAR', TIMESTAMP('2020-02-15T08:48:00Z'), date2) < 5))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date2 FROM public.s31griddb WHERE ((public.timestampdiff('YEAR'::public.time_unit, '2020-02-15 08:48:00'::timestamp without time zone, date2) < 5::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 95:
 SELECT date2 FROM s3 WHERE timestampdiff('YEAR', '2020-02-15 08:48:00', date2) < 5 ORDER BY 1;
@@ -1735,10 +1815,12 @@ SELECT date1, date2 FROM s3 WHERE timestampdiff('MONTH', date1, date2) < 10 ORDE
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=16)
          Output: date1, date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('MONTH', date1, date2) < 10))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1, date2 FROM public.s31griddb WHERE ((public.timestampdiff('MONTH'::public.time_unit, date1, date2) < 10::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 97:
 SELECT date1, date2 FROM s3 WHERE timestampdiff('MONTH', date1, date2) < 10 ORDER BY 1;
@@ -1784,10 +1866,12 @@ SELECT date2 FROM s3 WHERE timestampdiff('DAY', date2, '2020-12-04 08:48:00') > 
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('DAY', date2, TIMESTAMP('2020-12-04T08:48:00Z')) > 20))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date2 FROM public.s31griddb WHERE ((public.timestampdiff('DAY'::public.time_unit, date2, '2020-12-04 08:48:00'::timestamp without time zone) > 20::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 99:
 SELECT date2 FROM s3 WHERE timestampdiff('DAY', date2, '2020-12-04 08:48:00') > 20 ORDER BY 1;
@@ -1829,10 +1913,12 @@ SELECT date2 FROM s3 WHERE timestampdiff('DAY', '2020-02-15 08:48:00', date2) < 
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('DAY', TIMESTAMP('2020-02-15T08:48:00Z'), date2) < 5))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date2 FROM public.s31griddb WHERE ((public.timestampdiff('DAY'::public.time_unit, '2020-02-15 08:48:00'::timestamp without time zone, date2) < 5::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 101:
 SELECT date2 FROM s3 WHERE timestampdiff('DAY', '2020-02-15 08:48:00', date2) < 5 ORDER BY 1;
@@ -1877,10 +1963,12 @@ SELECT date1, date2 FROM s3 WHERE timestampdiff('DAY', date1, date2) > 10 ORDER 
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=16)
          Output: date1, date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('DAY', date1, date2) > 10))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1, date2 FROM public.s31griddb WHERE ((public.timestampdiff('DAY'::public.time_unit, date1, date2) > 10::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 103:
 SELECT date1, date2 FROM s3 WHERE timestampdiff('DAY', date1, date2) > 10 ORDER BY 1;
@@ -1904,10 +1992,12 @@ SELECT date1 FROM s3 WHERE timestampdiff('HOUR', date1, '2020-12-29 07:40:00') <
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('HOUR', date1, TIMESTAMP('2020-12-29T07:40:00Z')) < 0))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.timestampdiff('HOUR'::public.time_unit, date1, '2020-12-29 07:40:00'::timestamp without time zone) < 0::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 105:
 SELECT date1 FROM s3 WHERE timestampdiff('HOUR', date1, '2020-12-29 07:40:00') < 0 ORDER BY 1;
@@ -1940,10 +2030,12 @@ SELECT date2 FROM s3 WHERE timestampdiff('HOUR', '2020-12-15 08:48:00', date2) >
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('HOUR', TIMESTAMP('2020-12-15T08:48:00Z'), date2) > 3.5))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date2 FROM public.s31griddb WHERE ((public.timestampdiff('HOUR'::public.time_unit, '2020-12-15 08:48:00'::timestamp without time zone, date2) > 3.5::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 107:
 SELECT date2 FROM s3 WHERE timestampdiff('HOUR', '2020-12-15 08:48:00', date2) > 3.5 ORDER BY 1;
@@ -1966,10 +2058,12 @@ SELECT date1, date2 FROM s3 WHERE timestampdiff('HOUR', date1, date2) > 10 ORDER
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=16)
          Output: date1, date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('HOUR', date1, date2) > 10))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1, date2 FROM public.s31griddb WHERE ((public.timestampdiff('HOUR'::public.time_unit, date1, date2) > 10::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 109:
 SELECT date1, date2 FROM s3 WHERE timestampdiff('HOUR', date1, date2) > 10 ORDER BY 1;
@@ -1993,10 +2087,12 @@ SELECT date2 FROM s3 WHERE timestampdiff('MINUTE', date2, '2020-12-04 08:48:00')
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('MINUTE', date2, TIMESTAMP('2020-12-04T08:48:00Z')) > 20))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date2 FROM public.s31griddb WHERE ((public.timestampdiff('MINUTE'::public.time_unit, date2, '2020-12-04 08:48:00'::timestamp without time zone) > 20::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 111:
 SELECT date2 FROM s3 WHERE timestampdiff('MINUTE', date2, '2020-12-04 08:48:00') > 20 ORDER BY 1;
@@ -2040,10 +2136,12 @@ SELECT date2 FROM s3 WHERE timestampdiff('MINUTE', '2020-02-15 08:48:00', date2)
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('MINUTE', TIMESTAMP('2020-02-15T08:48:00Z'), date2) < 5))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date2 FROM public.s31griddb WHERE ((public.timestampdiff('MINUTE'::public.time_unit, '2020-02-15 08:48:00'::timestamp without time zone, date2) < 5::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 113:
 SELECT date2 FROM s3 WHERE timestampdiff('MINUTE', '2020-02-15 08:48:00', date2) < 5 ORDER BY 1;
@@ -2088,10 +2186,12 @@ SELECT date1, date2 FROM s3 WHERE timestampdiff('MINUTE', date1, date2) > 10 ORD
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=16)
          Output: date1, date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('MINUTE', date1, date2) > 10))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1, date2 FROM public.s31griddb WHERE ((public.timestampdiff('MINUTE'::public.time_unit, date1, date2) > 10::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 115:
 SELECT date1, date2 FROM s3 WHERE timestampdiff('MINUTE', date1, date2) > 10 ORDER BY 1;
@@ -2117,10 +2217,12 @@ SELECT date2 FROM s3 WHERE timestampdiff('SECOND', date2, '2020-12-04 08:48:00')
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('SECOND', date2, TIMESTAMP('2020-12-04T08:48:00Z')) > 1000))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date2 FROM public.s31griddb WHERE ((public.timestampdiff('SECOND'::public.time_unit, date2, '2020-12-04 08:48:00'::timestamp without time zone) > 1000::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 117:
 SELECT date2 FROM s3 WHERE timestampdiff('SECOND', date2, '2020-12-04 08:48:00') > 1000 ORDER BY 1;
@@ -2164,10 +2266,12 @@ SELECT date2 FROM s3 WHERE timestampdiff('SECOND', '2020-03-17 04:50:00', date2)
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('SECOND', TIMESTAMP('2020-03-17T04:50:00Z'), date2) < 100))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date2 FROM public.s31griddb WHERE ((public.timestampdiff('SECOND'::public.time_unit, '2020-03-17 04:50:00'::timestamp without time zone, date2) < 100::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 119:
 SELECT date2 FROM s3 WHERE timestampdiff('SECOND', '2020-03-17 04:50:00', date2) < 100 ORDER BY 1;
@@ -2211,10 +2315,12 @@ SELECT date1, date2 FROM s3 WHERE timestampdiff('SECOND', date1, date2) > 160000
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=16)
          Output: date1, date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('SECOND', date1, date2) > 1600000))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1, date2 FROM public.s31griddb WHERE ((public.timestampdiff('SECOND'::public.time_unit, date1, date2) > 1600000::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 121:
 SELECT date1, date2 FROM s3 WHERE timestampdiff('SECOND', date1, date2) > 1600000 ORDER BY 1;
@@ -2236,10 +2342,12 @@ SELECT date2 FROM s3 WHERE timestampdiff('MILLISECOND', date2, '2020-12-04 08:48
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('MILLISECOND', date2, TIMESTAMP('2020-12-04T08:48:00Z')) > 200))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date2 FROM public.s31griddb WHERE ((public.timestampdiff('MILLISECOND'::public.time_unit, date2, '2020-12-04 08:48:00'::timestamp without time zone) > 200::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 123:
 SELECT date2 FROM s3 WHERE timestampdiff('MILLISECOND', date2, '2020-12-04 08:48:00') > 200 ORDER BY 1;
@@ -2283,10 +2391,12 @@ SELECT date2 FROM s3 WHERE timestampdiff('MILLISECOND', '2020-03-17 08:48:00', d
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('MILLISECOND', TIMESTAMP('2020-03-17T08:48:00Z'), date2) < 0))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date2 FROM public.s31griddb WHERE ((public.timestampdiff('MILLISECOND'::public.time_unit, '2020-03-17 08:48:00'::timestamp without time zone, date2) < 0::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 125:
 SELECT date2 FROM s3 WHERE timestampdiff('MILLISECOND', '2020-03-17 08:48:00', date2) < 0 ORDER BY 1;
@@ -2330,10 +2440,12 @@ SELECT date1, date2 FROM s3 WHERE timestampdiff('MILLISECOND', date1, date2) = -
    ->  Foreign Scan on public.s3  (cost=200.00..2012.50 rows=34 width=16)
          Output: date1, date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('MILLISECOND', date1, date2) = (-443)))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date1, date2 FROM public.s31griddb WHERE ((public.timestampdiff('MILLISECOND'::public.time_unit, date1, date2) = (-443)::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 127:
 SELECT date1, date2 FROM s3 WHERE timestampdiff('MILLISECOND', date1, date2) = -443 ORDER BY 1;
@@ -2355,10 +2467,12 @@ SELECT date2 FROM s3 WHERE timestampdiff('MICROSECOND', date2, '2020-12-04 08:48
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('MICROSECOND', date2, TIMESTAMP('2020-12-04T08:48:00Z')) > 20))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date2 FROM public.s31griddb WHERE ((public.timestampdiff('MICROSECOND'::public.time_unit, date2, '2020-12-04 08:48:00'::timestamp without time zone) > 20::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 129:
 EXPLAIN VERBOSE
@@ -2377,18 +2491,20 @@ LINE 2: SELECT date1, date2 FROM s3 WHERE timestampdiff('NANOSECOND'...
 --Testcase 131:
 EXPLAIN VERBOSE
 SELECT date1 FROM s3 WHERE to_timestamp_ms(intcol) > '1970-01-01 1:00:00' ORDER BY 1;
-                                                                           QUERY PLAN                                                                           
-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                       QUERY PLAN                                                                       
+--------------------------------------------------------------------------------------------------------------------------------------------------------
  Sort  (cost=2201.32..2207.01 rows=2276 width=8)
    Output: date1
    Sort Key: s3.date1
    ->  Foreign Scan on public.s3  (cost=200.00..2074.41 rows=2276 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((to_timestamp_ms((intcol)) > TIMESTAMP('1970-01-01T01:00:00Z')))
          Node: pgspider_svr / Status: Alive
-           Remote SQL: SELECT date1, intcol FROM public.s31griddb WHERE ((public.to_timestamp_ms(intcol) > '1970-01-01 01:00:00'::timestamp without time zone))
-(9 rows)
+           Sort push-down: no
+           Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((public.to_timestamp_ms(intcol) > '1970-01-01 01:00:00'::timestamp without time zone))
+(11 rows)
 
 --Testcase 132:
 SELECT date1 FROM s3 WHERE to_timestamp_ms(intcol) > '1970-01-01 1:00:00' ORDER BY 1;
@@ -2411,18 +2527,20 @@ SELECT date1 FROM s3 WHERE to_timestamp_ms(intcol) > '1970-01-01 1:00:00' ORDER 
 --Testcase 134:
 EXPLAIN VERBOSE
 SELECT date1 FROM s3 WHERE intcol < to_epoch_ms(date1) ORDER BY 1;
-                                                  QUERY PLAN                                                   
----------------------------------------------------------------------------------------------------------------
+                                              QUERY PLAN                                               
+-------------------------------------------------------------------------------------------------------
  Sort  (cost=2184.26..2189.95 rows=2276 width=8)
    Output: date1
    Sort Key: s3.date1
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((intcol < to_epoch_ms(date1)))
          Node: pgspider_svr / Status: Alive
-           Remote SQL: SELECT date1, intcol FROM public.s31griddb WHERE ((intcol < public.to_epoch_ms(date1)))
-(9 rows)
+           Sort push-down: no
+           Remote SQL: SELECT date1 FROM public.s31griddb WHERE ((intcol < public.to_epoch_ms(date1)))
+(11 rows)
 
 --Testcase 135:
 SELECT date1 FROM s3 WHERE intcol < to_epoch_ms(date1) ORDER BY 1;
@@ -2468,10 +2586,12 @@ SELECT date2 FROM s3 WHERE to_epoch_ms(date2) < 1000000000000 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=8)
          Output: date2
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((to_epoch_ms(date2) < 1000000000000))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date2 FROM public.s31griddb WHERE ((public.to_epoch_ms(date2) < 1000000000000::bigint))
-(9 rows)
+(11 rows)
 
 -- Test for now() pushdown function of griddb
 -- griddb_now as parameter of timestampdiff()
@@ -2486,10 +2606,12 @@ SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..3763.85 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('YEAR', date, now()) < 0))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((public.timestampdiff('YEAR'::public.time_unit, date, public.griddb_now()) < 0::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 138:
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1;
@@ -2533,10 +2655,12 @@ SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) > 0 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..3763.85 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('YEAR', date, now()) > 0))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((public.timestampdiff('YEAR'::public.time_unit, date, public.griddb_now()) > 0::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 140:
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) > 0 ORDER BY 1;
@@ -2557,10 +2681,12 @@ SELECT * FROM s3 WHERE timestampdiff('HOUR', griddb_now(), '2020-12-04 08:48:00'
    ->  Foreign Scan on public.s3  (cost=200.00..3763.85 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('HOUR', now(), TIMESTAMP('2020-12-04T08:48:00Z')) > 0))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((public.timestampdiff('HOUR'::public.time_unit, public.griddb_now(), '2020-12-04 08:48:00'::timestamp without time zone) > 0::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 142:
 SELECT * FROM s3 WHERE timestampdiff('HOUR', griddb_now(), '2020-12-04 08:48:00') > 0 ORDER BY 1;
@@ -2606,10 +2732,12 @@ SELECT * FROM s3 WHERE timestampdiff('YEAR', griddb_now(), '2032-12-04 08:48:00'
    ->  Foreign Scan on public.s3  (cost=200.00..3763.85 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('YEAR', now(), TIMESTAMP('2032-12-04T08:48:00Z')) < 0))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((public.timestampdiff('YEAR'::public.time_unit, public.griddb_now(), '2032-12-04 08:48:00'::timestamp without time zone) < 0::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 144:
 SELECT * FROM s3 WHERE timestampdiff('YEAR', griddb_now(), '2032-12-04 08:48:00') < 0 ORDER BY 1;
@@ -2656,10 +2784,12 @@ SELECT * FROM s3 WHERE date > timestampadd('YEAR', griddb_now(), -1) ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..3763.85 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((date > timestampadd('YEAR', now(), (-1))))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((date > public.timestampadd('YEAR'::public.time_unit, public.griddb_now(), (-1))))
-(9 rows)
+(11 rows)
 
 --Testcase 146:
 SELECT * FROM s3 WHERE date > timestampadd('YEAR', griddb_now(), -1) ORDER BY 1;
@@ -2680,10 +2810,12 @@ SELECT * FROM s3 WHERE date < timestampadd('YEAR', griddb_now(), -1) ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..3763.85 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((date < timestampadd('YEAR', now(), (-1))))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((date < public.timestampadd('YEAR'::public.time_unit, public.griddb_now(), (-1))))
-(9 rows)
+(11 rows)
 
 --Testcase 148:
 SELECT * FROM s3 WHERE date < timestampadd('YEAR', griddb_now(), -1) ORDER BY 1;
@@ -2728,10 +2860,12 @@ SELECT * FROM s3 WHERE date < griddb_now() ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((date < now()))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((date < public.griddb_now()))
-(9 rows)
+(11 rows)
 
 --Testcase 150:
 SELECT * FROM s3 WHERE date < griddb_now() ORDER BY 1;
@@ -2775,10 +2909,12 @@ SELECT * FROM s3 WHERE date > griddb_now() ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((date > now()))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((date > public.griddb_now()))
-(9 rows)
+(11 rows)
 
 --Testcase 152:
 SELECT * FROM s3 WHERE date > griddb_now() ORDER BY 1;
@@ -2799,10 +2935,12 @@ SELECT * FROM s3 WHERE date <= griddb_now() ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((date <= now()))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((date <= public.griddb_now()))
-(9 rows)
+(11 rows)
 
 --Testcase 154:
 SELECT * FROM s3 WHERE date <= griddb_now() ORDER BY 1;
@@ -2847,10 +2985,12 @@ SELECT * FROM s3 WHERE to_epoch_ms(griddb_now()) > 0 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..3763.85 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((to_epoch_ms(now()) > 0))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((public.to_epoch_ms(public.griddb_now()) > 0))
-(9 rows)
+(11 rows)
 
 --Testcase 156:
 SELECT * FROM s3 WHERE to_epoch_ms(griddb_now()) > 0 ORDER BY 1;
@@ -2897,10 +3037,12 @@ SELECT * FROM s3 WHERE griddb_now() IS NOT NULL ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2130.60 rows=6792 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((now() IS NOT NULL))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((public.griddb_now() IS NOT NULL))
-(9 rows)
+(11 rows)
 
 --Testcase 158:
 SELECT * FROM s3 WHERE griddb_now() IS NOT NULL ORDER BY 1;
@@ -2946,10 +3088,12 @@ SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) > 0 OR timestam
    ->  Foreign Scan on public.s3  (cost=200.00..7224.23 rows=3792 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE (((timestampdiff('YEAR', date, now()) > 0) OR (timestampdiff('YEAR', date, now()) < 0)))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE (((public.timestampdiff('YEAR'::public.time_unit, date, public.griddb_now()) > 0::double precision) OR (public.timestampdiff('YEAR'::public.time_unit, date, public.griddb_now()) < 0::double precision)))
-(9 rows)
+(11 rows)
 
 --Testcase 160:
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) > 0 OR timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1;
@@ -2995,10 +3139,12 @@ SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 
    ->  Foreign Scan on public.s3  (cost=200.00..3763.85 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('YEAR', date, now()) < 0))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((public.timestampdiff('YEAR'::public.time_unit, date, public.griddb_now()) < 0::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 162:
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 ASC;
@@ -3042,10 +3188,12 @@ SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 
    ->  Foreign Scan on public.s3  (cost=200.00..3763.85 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('YEAR', date, now()) < 0))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((public.timestampdiff('YEAR'::public.time_unit, date, public.griddb_now()) < 0::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 164:
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 DESC;
@@ -3089,10 +3237,12 @@ SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 
    ->  Foreign Scan on public.s3  (cost=200.00..3763.85 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('YEAR', date, now()) < 0))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((public.timestampdiff('YEAR'::public.time_unit, date, public.griddb_now()) < 0::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 166:
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 ASC;
@@ -3136,10 +3286,12 @@ SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 
    ->  Foreign Scan on public.s3  (cost=200.00..3763.85 rows=2276 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((timestampdiff('YEAR', date, now()) < 0))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((public.timestampdiff('YEAR'::public.time_unit, date, public.griddb_now()) < 0::double precision))
-(9 rows)
+(11 rows)
 
 --Testcase 168:
 SELECT * FROM s3 WHERE timestampdiff('YEAR', date, griddb_now()) < 0 ORDER BY 1 DESC;
@@ -3187,10 +3339,12 @@ SELECT boolarray FROM s3 WHERE array_length(boolarray) = 3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2012.50 rows=34 width=32)
          Output: boolarray
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((array_length(boolarray) = 3))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT boolarray FROM public.s31griddb WHERE ((public.array_length(boolarray) = 3))
-(9 rows)
+(11 rows)
 
 --Testcase 170:
 SELECT boolarray FROM s3 WHERE array_length(boolarray) = 3 ORDER BY 1;
@@ -3234,10 +3388,12 @@ SELECT stringarray FROM s3 WHERE array_length(stringarray) = 3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2012.50 rows=34 width=32)
          Output: stringarray
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((array_length(stringarray) = 3))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT stringarray FROM public.s31griddb WHERE ((public.array_length(stringarray) = 3))
-(9 rows)
+(11 rows)
 
 --Testcase 172:
 SELECT stringarray FROM s3 WHERE array_length(stringarray) = 3 ORDER BY 1;
@@ -3283,10 +3439,12 @@ SELECT bytearray, shortarray FROM s3 WHERE array_length(bytearray) > array_lengt
    ->  Foreign Scan on public.s3  (cost=200.00..3763.85 rows=2276 width=64)
          Output: bytearray, shortarray
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((array_length(bytearray) > array_length(shortarray)))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT bytearray, shortarray FROM public.s31griddb WHERE ((public.array_length(bytearray) > public.array_length(shortarray)))
-(9 rows)
+(11 rows)
 
 --Testcase 174:
 SELECT bytearray, shortarray FROM s3 WHERE array_length(bytearray) > array_length(shortarray) ORDER BY 1;
@@ -3331,10 +3489,12 @@ SELECT integerarray, longarray FROM s3 WHERE array_length(integerarray) = array_
    ->  Foreign Scan on public.s3  (cost=200.00..3719.01 rows=34 width=64)
          Output: integerarray, longarray
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((array_length(integerarray) = array_length(longarray)))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT integerarray, longarray FROM public.s31griddb WHERE ((public.array_length(integerarray) = public.array_length(longarray)))
-(9 rows)
+(11 rows)
 
 --Testcase 176:
 SELECT integerarray, longarray FROM s3 WHERE array_length(integerarray) = array_length(longarray) ORDER BY 1;
@@ -3380,10 +3540,12 @@ SELECT floatarray, doublearray FROM s3 WHERE array_length(floatarray) - array_le
    ->  Foreign Scan on public.s3  (cost=200.00..3736.07 rows=34 width=64)
          Output: floatarray, doublearray
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE (((array_length(floatarray) - array_length(doublearray)) = 0))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT floatarray, doublearray FROM public.s31griddb WHERE (((public.array_length(floatarray) - public.array_length(doublearray)) = 0))
-(9 rows)
+(11 rows)
 
 --Testcase 178:
 SELECT floatarray, doublearray FROM s3 WHERE array_length(floatarray) - array_length(doublearray) = 0 ORDER BY 1, 2;
@@ -3429,10 +3591,12 @@ SELECT timestamparray FROM s3 WHERE array_length(timestamparray) < 3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=32)
          Output: timestamparray
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((array_length(timestamparray) < 3))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT timestamparray FROM public.s31griddb WHERE ((public.array_length(timestamparray) < 3))
-(9 rows)
+(11 rows)
 
 --Testcase 180:
 SELECT timestamparray FROM s3 WHERE array_length(timestamparray) < 3 ORDER BY 1;
@@ -3477,10 +3641,12 @@ SELECT boolarray FROM s3 WHERE element(1, boolarray) = 'f' ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2085.76 rows=4550 width=32)
          Output: boolarray
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((NOT element(1, boolarray)))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT boolarray FROM public.s31griddb WHERE ((NOT public.element(1, boolarray)))
-(9 rows)
+(11 rows)
 
 --Testcase 182:
 SELECT boolarray FROM s3 WHERE element(1, boolarray) = 'f' ORDER BY 1;
@@ -3526,10 +3692,12 @@ SELECT stringarray FROM s3 WHERE element(1, stringarray) != 'bbb' ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2147.66 rows=6792 width=32)
          Output: stringarray
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((element(1, stringarray) <> 'bbb'))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT stringarray FROM public.s31griddb WHERE ((public.element(1, stringarray) <> 'bbb'::text))
-(9 rows)
+(11 rows)
 
 --Testcase 184:
 SELECT stringarray FROM s3 WHERE element(1, stringarray) != 'bbb' ORDER BY 1;
@@ -3551,10 +3719,12 @@ SELECT bytearray, shortarray FROM s3 WHERE element(0, bytearray) = element(0, sh
    ->  Foreign Scan on public.s3  (cost=200.00..3719.01 rows=34 width=64)
          Output: bytearray, shortarray
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((element(0, bytearray) = element(0, shortarray)))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT bytearray, shortarray FROM public.s31griddb WHERE ((public.element(0, bytearray) = public.element(0, shortarray)))
-(9 rows)
+(11 rows)
 
 --Testcase 186:
 SELECT bytearray, shortarray FROM s3 WHERE element(0, bytearray) = element(0, shortarray) ORDER BY 1;
@@ -3597,10 +3767,12 @@ SELECT integerarray, longarray FROM s3 WHERE element(0, integerarray)*100+44 = e
    ->  Foreign Scan on public.s3  (cost=200.00..3753.14 rows=34 width=64)
          Output: integerarray, longarray
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((((element(0, integerarray) * 100) + 44) = element(0, longarray)))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT integerarray, longarray FROM public.s31griddb WHERE ((((public.element(0, integerarray) * 100) + 44) = public.element(0, longarray)))
-(9 rows)
+(11 rows)
 
 --Testcase 188:
 SELECT integerarray, longarray FROM s3 WHERE element(0, integerarray)*100+44 = element(0,longarray) ORDER BY 1;
@@ -3622,10 +3794,12 @@ SELECT floatarray, doublearray FROM s3 WHERE element(2, floatarray)*10 < element
    ->  Foreign Scan on public.s3  (cost=200.00..3780.91 rows=2276 width=64)
          Output: floatarray, doublearray
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE (((element(2, floatarray) * 10) < element(0, doublearray)))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT floatarray, doublearray FROM public.s31griddb WHERE (((public.element(2, floatarray) * 10::double precision) < public.element(0, doublearray)))
-(9 rows)
+(11 rows)
 
 --Testcase 190:
 SELECT floatarray, doublearray FROM s3 WHERE element(2, floatarray)*10 < element(0,doublearray) ORDER BY 1;
@@ -3651,10 +3825,12 @@ SELECT timestamparray FROM s3 WHERE element(1,timestamparray) > '2020-12-29 04:0
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=32)
          Output: timestamparray
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((element(1, timestamparray) > TIMESTAMP('2020-12-29T04:00:00Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT timestamparray FROM public.s31griddb WHERE ((public.element(1, timestamparray) > '2020-12-29 04:00:00'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 192:
 SELECT timestamparray FROM s3 WHERE element(1,timestamparray) > '2020-12-29 04:00:00' ORDER BY 1;
@@ -3699,27 +3875,19 @@ SELECT timestamparray FROM s3 WHERE element(2,timestamparray) > '2020-12-29 04:0
    ->  Foreign Scan on public.s3  (cost=200.00..2057.35 rows=2276 width=32)
          Output: timestamparray
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((element(2, timestamparray) > TIMESTAMP('2020-12-29T04:00:00Z')))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT timestamparray FROM public.s31griddb WHERE ((public.element(2, timestamparray) > '2020-12-29 04:00:00'::timestamp without time zone))
-(9 rows)
+(11 rows)
 
 --Testcase 194:
 SELECT timestamparray FROM s3 WHERE element(2,timestamparray) > '2020-12-29 04:00:00' ORDER BY 1;
-ERROR:  GridDB-API is failed by 152009
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152009
   [152009:TQ_CONSTRAINT_ARRAY_OUT_OF_RANGE] Specified index is out of range. (address=127.0.0.1:10001, partition=43)
   [152009:TQ_CONSTRAINT_ARRAY_OUT_OF_RANGE] Specified index is out of range.
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-ERROR:  pgspider_fdw fail to get tuples from child process
-{
-ERROR:  GridDB-API is failed by 152009
-  [152009:TQ_CONSTRAINT_ARRAY_OUT_OF_RANGE] Specified index is out of range. (address=127.0.0.1:10001, partition=17)
-  [152009:TQ_CONSTRAINT_ARRAY_OUT_OF_RANGE] Specified index is out of range.
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-}
-CONTEXT:  remote SQL command: SELECT timestamparray FROM public.s31griddb WHERE ((public.element(2, timestamparray) > '2020-12-29 04:00:00'::timestamp without time zone))
 
 --
 --if user selects non-unique functions which Griddb only supports in WHERE clause => do not push down
@@ -3736,10 +3904,12 @@ SELECT char_length(name) FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..441.84 rows=6826 width=4)
          Output: char_length(name)
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT name FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 196:
 SELECT char_length(name) FROM s3 ORDER BY 1;
@@ -3785,10 +3955,12 @@ SELECT concat(name,'abc') FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..441.84 rows=6826 width=32)
          Output: concat(name, 'abc')
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT name FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 198:
 SELECT concat(name,'abc') FROM s3 ORDER BY 1;
@@ -3834,10 +4006,12 @@ SELECT substr(name,2,3) FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..441.84 rows=6826 width=32)
          Output: substr(name, 2, 3)
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT name FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 200:
 SELECT substr(name,2,3) FROM s3 ORDER BY 1;
@@ -3883,27 +4057,19 @@ SELECT element(1, timestamparray) FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=8)
          Output: (element(1, timestamparray))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT element(1, timestamparray) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.element(1, timestamparray) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 202:
 SELECT element(1, timestamparray) FROM s3 ORDER BY 1;
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=43)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-ERROR:  pgspider_fdw fail to get tuples from child process
-{
-ERROR:  GridDB-API is failed by 152502
-  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=17)
-  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-}
-CONTEXT:  remote SQL command: SELECT public.element(1, timestamparray) FROM public.s31griddb
 
 --Testcase 203:
 EXPLAIN VERBOSE
@@ -3916,10 +4082,12 @@ SELECT upper(name) FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..441.84 rows=6826 width=32)
          Output: upper(name)
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT name FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 204:
 SELECT upper(name) FROM s3 ORDER BY 1;
@@ -3965,10 +4133,12 @@ SELECT lower(name) FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..441.84 rows=6826 width=32)
          Output: lower(name)
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT name FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 206:
 SELECT lower(name) FROM s3 ORDER BY 1;
@@ -4014,10 +4184,12 @@ SELECT round(gpa) FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..441.84 rows=6826 width=8)
          Output: round(gpa)
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT gpa FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 208:
 SELECT round(gpa) FROM s3 ORDER BY 1;
@@ -4063,10 +4235,12 @@ SELECT floor(gpa) FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..441.84 rows=6826 width=8)
          Output: floor(gpa)
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT gpa FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 210:
 SELECT floor(gpa) FROM s3 ORDER BY 1;
@@ -4112,10 +4286,12 @@ SELECT ceiling(gpa) FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..441.84 rows=6826 width=8)
          Output: ceiling(gpa)
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT gpa FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 212:
 SELECT ceiling(gpa) FROM s3 ORDER BY 1;
@@ -4161,27 +4337,19 @@ SELECT griddb_timestamp(strcol) FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=8)
          Output: (griddb_timestamp(strcol))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT timestamp(strcol) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.griddb_timestamp(strcol) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 214:
 SELECT griddb_timestamp(strcol) FROM s3 ORDER BY 1;
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=43)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-ERROR:  pgspider_fdw fail to get tuples from child process
-{
-ERROR:  GridDB-API is failed by 152502
-  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=17)
-  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-}
-CONTEXT:  remote SQL command: SELECT public.griddb_timestamp(strcol) FROM public.s31griddb
 
 --Testcase 215:
 EXPLAIN VERBOSE
@@ -4194,27 +4362,19 @@ SELECT timestampadd('YEAR', date1, -1) FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=8)
          Output: (timestampadd('YEAR'::time_unit, date1, '-1'::integer))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT timestampadd('YEAR', date1, (-1)) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.timestampadd('YEAR'::public.time_unit, date1, (-1)) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 216:
 SELECT timestampadd('YEAR', date1, -1) FROM s3 ORDER BY 1;
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=43)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-ERROR:  pgspider_fdw fail to get tuples from child process
-{
-ERROR:  GridDB-API is failed by 152502
-  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=17)
-  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-}
-CONTEXT:  remote SQL command: SELECT public.timestampadd('YEAR'::public.time_unit, date1, (-1)) FROM public.s31griddb
 
 --Testcase 217:
 EXPLAIN VERBOSE
@@ -4227,27 +4387,19 @@ SELECT timestampdiff('YEAR', date1, '2018-01-04 08:48:00') FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=8)
          Output: (timestampdiff('YEAR'::time_unit, date1, '2018-01-04 08:48:00'::timestamp without time zone))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT timestampdiff('YEAR', date1, TIMESTAMP('2018-01-04T08:48:00Z')) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.timestampdiff('YEAR'::public.time_unit, date1, '2018-01-04 08:48:00'::timestamp without time zone) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 218:
 SELECT timestampdiff('YEAR', date1, '2018-01-04 08:48:00') FROM s3 ORDER BY 1;
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=43)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-ERROR:  pgspider_fdw fail to get tuples from child process
-{
-ERROR:  GridDB-API is failed by 152502
-  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=17)
-  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-}
-CONTEXT:  remote SQL command: SELECT public.timestampdiff('YEAR'::public.time_unit, date1, '2018-01-04 08:48:00'::timestamp without time zone) FROM public.s31griddb
 
 --Testcase 219:
 EXPLAIN VERBOSE
@@ -4260,27 +4412,19 @@ SELECT to_timestamp_ms(intcol) FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2148.35 rows=6826 width=8)
          Output: (to_timestamp_ms((intcol)::bigint))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT to_timestamp_ms((intcol)) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.to_timestamp_ms(intcol) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 220:
 SELECT to_timestamp_ms(intcol) FROM s3 ORDER BY 1;
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=43)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-ERROR:  pgspider_fdw fail to get tuples from child process
-{
-ERROR:  GridDB-API is failed by 152502
-  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=17)
-  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-}
-CONTEXT:  remote SQL command: SELECT public.to_timestamp_ms(intcol) FROM public.s31griddb
 
 --Testcase 221:
 EXPLAIN VERBOSE
@@ -4293,27 +4437,19 @@ SELECT to_epoch_ms(date1) FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=8)
          Output: (to_epoch_ms(date1))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT to_epoch_ms(date1) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.to_epoch_ms(date1) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 222:
 SELECT to_epoch_ms(date1) FROM s3 ORDER BY 1;
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=43)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-ERROR:  pgspider_fdw fail to get tuples from child process
-{
-ERROR:  GridDB-API is failed by 152502
-  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=17)
-  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-}
-CONTEXT:  remote SQL command: SELECT public.to_epoch_ms(date1) FROM public.s31griddb
 
 --Testcase 223:
 EXPLAIN VERBOSE
@@ -4326,28 +4462,23 @@ SELECT array_length(boolarray) FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=4)
          Output: (array_length(boolarray))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT array_length(boolarray) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.array_length(boolarray) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 224:
 SELECT array_length(boolarray) FROM s3 ORDER BY 1;
-ERROR:  GridDB-API is failed by 152502
-  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=43)
-  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
 ERROR:  PGSpider fail to iterate tuple from child thread
-ERROR:  pgspider_fdw fail to get tuples from child process
+ DETAIL:pgspider_fdw fail to get tuples from child process
 {
-ERROR:  GridDB-API is failed by 152502
-  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=17)
-  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
 ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
+  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=10.116.42.130:10001, partition=17)
+  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
 }
-CONTEXT:  remote SQL command: SELECT public.array_length(boolarray) FROM public.s31griddb
-
 --Testcase 225:
 EXPLAIN VERBOSE
 SELECT element(1, stringarray) FROM s3 ORDER BY 1;
@@ -4359,27 +4490,19 @@ SELECT element(1, stringarray) FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (element(1, stringarray))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT element(1, stringarray) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.element(1, stringarray) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 226:
 SELECT element(1, stringarray) FROM s3 ORDER BY 1;
-ERROR:  GridDB-API is failed by 152502
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152502
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=43)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-ERROR:  pgspider_fdw fail to get tuples from child process
-{
-ERROR:  GridDB-API is failed by 152502
-  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=17)
-  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-}
-CONTEXT:  remote SQL command: SELECT public.element(1, stringarray) FROM public.s31griddb
 
 --
 --Test for unique functions of GridDB in SELECT clause: time-series functions
@@ -4397,10 +4520,12 @@ SELECT time_next('2018-12-01 10:00:00') FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_next('2018-12-01 10:00:00'::timestamp without time zone))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_next(*, TIMESTAMP('2018-12-01T10:00:00Z')) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_next('2018-12-01 10:00:00'::timestamp without time zone) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 228:
 SELECT time_next('2018-12-01 10:00:00') FROM s3 ORDER BY 1;
@@ -4422,10 +4547,12 @@ SELECT time_next('2018-12-01 10:05:00') FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_next('2018-12-01 10:05:00'::timestamp without time zone))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_next(*, TIMESTAMP('2018-12-01T10:05:00Z')) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_next('2018-12-01 10:05:00'::timestamp without time zone) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 230:
 SELECT time_next('2018-12-01 10:05:00') FROM s3 ORDER BY 1;
@@ -4447,10 +4574,12 @@ SELECT time_next('2018-12-01 10:45:00') FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_next('2018-12-01 10:45:00'::timestamp without time zone))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_next(*, TIMESTAMP('2018-12-01T10:45:00Z')) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_next('2018-12-01 10:45:00'::timestamp without time zone) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 232:
 SELECT time_next('2018-12-01 10:45:00') FROM s3 ORDER BY 1;
@@ -4473,10 +4602,12 @@ SELECT time_next_only('2018-12-01 10:00:00') FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_next_only('2018-12-01 10:00:00'::timestamp without time zone))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_next_only(*, TIMESTAMP('2018-12-01T10:00:00Z')) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_next_only('2018-12-01 10:00:00'::timestamp without time zone) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 234:
 SELECT time_next_only('2018-12-01 10:00:00') FROM s3 ORDER BY 1;
@@ -4498,10 +4629,12 @@ SELECT time_next_only('2018-12-01 10:05:00') FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_next_only('2018-12-01 10:05:00'::timestamp without time zone))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_next_only(*, TIMESTAMP('2018-12-01T10:05:00Z')) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_next_only('2018-12-01 10:05:00'::timestamp without time zone) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 236:
 SELECT time_next_only('2018-12-01 10:05:00') FROM s3 ORDER BY 1;
@@ -4523,10 +4656,12 @@ SELECT time_next_only('2018-12-01 10:45:00') FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_next_only('2018-12-01 10:45:00'::timestamp without time zone))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_next_only(*, TIMESTAMP('2018-12-01T10:45:00Z')) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_next_only('2018-12-01 10:45:00'::timestamp without time zone) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 238:
 SELECT time_next_only('2018-12-01 10:45:00') FROM s3 ORDER BY 1;
@@ -4549,10 +4684,12 @@ SELECT time_prev('2018-12-01 10:10:00') FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_prev('2018-12-01 10:10:00'::timestamp without time zone))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_prev(*, TIMESTAMP('2018-12-01T10:10:00Z')) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_prev('2018-12-01 10:10:00'::timestamp without time zone) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 240:
 SELECT time_prev('2018-12-01 10:10:00') FROM s3 ORDER BY 1;
@@ -4573,10 +4710,12 @@ SELECT time_prev('2018-12-01 10:05:00') FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_prev('2018-12-01 10:05:00'::timestamp without time zone))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_prev(*, TIMESTAMP('2018-12-01T10:05:00Z')) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_prev('2018-12-01 10:05:00'::timestamp without time zone) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 242:
 SELECT time_prev('2018-12-01 10:05:00') FROM s3 ORDER BY 1;
@@ -4597,10 +4736,12 @@ SELECT time_prev('2018-12-01 09:45:00') FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_prev('2018-12-01 09:45:00'::timestamp without time zone))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_prev(*, TIMESTAMP('2018-12-01T09:45:00Z')) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_prev('2018-12-01 09:45:00'::timestamp without time zone) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 244:
 SELECT time_prev('2018-12-01 09:45:00') FROM s3 ORDER BY 1;
@@ -4621,10 +4762,12 @@ SELECT time_prev_only('2018-12-01 10:10:00') FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_prev_only('2018-12-01 10:10:00'::timestamp without time zone))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_prev_only(*, TIMESTAMP('2018-12-01T10:10:00Z')) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_prev_only('2018-12-01 10:10:00'::timestamp without time zone) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 246:
 SELECT time_prev_only('2018-12-01 10:10:00') FROM s3 ORDER BY 1;
@@ -4645,10 +4788,12 @@ SELECT time_prev_only('2018-12-01 10:05:00') FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_prev_only('2018-12-01 10:05:00'::timestamp without time zone))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_prev_only(*, TIMESTAMP('2018-12-01T10:05:00Z')) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_prev_only('2018-12-01 10:05:00'::timestamp without time zone) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 248:
 SELECT time_prev_only('2018-12-01 10:05:00') FROM s3 ORDER BY 1;
@@ -4669,10 +4814,12 @@ SELECT time_prev_only('2018-12-01 09:45:00') FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_prev_only('2018-12-01 09:45:00'::timestamp without time zone))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_prev_only(*, TIMESTAMP('2018-12-01T09:45:00Z')) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_prev_only('2018-12-01 09:45:00'::timestamp without time zone) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 250:
 SELECT time_prev_only('2018-12-01 09:45:00') FROM s3 ORDER BY 1;
@@ -4693,10 +4840,12 @@ SELECT time_interpolated(value1, '2018-12-01 10:10:00') FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_interpolated(value1, '2018-12-01 10:10:00'::timestamp without time zone))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_interpolated(value1, TIMESTAMP('2018-12-01T10:10:00Z')) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_interpolated(value1, '2018-12-01 10:10:00'::timestamp without time zone) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 252:
 SELECT time_interpolated(value1, '2018-12-01 10:10:00') FROM s3 ORDER BY 1;
@@ -4719,10 +4868,12 @@ SELECT time_interpolated(value1, '2018-12-01 10:05:00') FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_interpolated(value1, '2018-12-01 10:05:00'::timestamp without time zone))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_interpolated(value1, TIMESTAMP('2018-12-01T10:05:00Z')) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_interpolated(value1, '2018-12-01 10:05:00'::timestamp without time zone) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 254:
 SELECT time_interpolated(value1, '2018-12-01 10:05:00') FROM s3 ORDER BY 1;
@@ -4743,10 +4894,12 @@ SELECT time_interpolated(value1, '2018-12-01 09:05:00') FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_interpolated(value1, '2018-12-01 09:05:00'::timestamp without time zone))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_interpolated(value1, TIMESTAMP('2018-12-01T09:05:00Z')) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_interpolated(value1, '2018-12-01 09:05:00'::timestamp without time zone) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 256:
 SELECT time_interpolated(value1, '2018-12-01 09:05:00') FROM s3 ORDER BY 1;
@@ -4765,10 +4918,12 @@ SELECT time_interpolated(value1, '2018-12-01 10:45:00') FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_interpolated(value1, '2018-12-01 10:45:00'::timestamp without time zone))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_interpolated(value1, TIMESTAMP('2018-12-01T10:45:00Z')) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_interpolated(value1, '2018-12-01 10:45:00'::timestamp without time zone) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 258:
 SELECT time_interpolated(value1, '2018-12-01 10:45:00') FROM s3 ORDER BY 1;
@@ -4790,10 +4945,12 @@ SELECT time_sampling(value1, '2018-12-01 10:00:00', '2018-12-01 10:20:00', 10, '
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:20:00'::timestamp without time zone, 10, 'MINUTE'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-01T10:00:00Z'), TIMESTAMP('2018-12-01T10:20:00Z'), 10, 'MINUTE') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:20:00'::timestamp without time zone, 10, 'MINUTE'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 260:
 SELECT time_sampling(value1, '2018-12-01 10:00:00', '2018-12-01 10:20:00', 10, 'MINUTE') FROM s3 ORDER BY 1;
@@ -4818,10 +4975,12 @@ SELECT time_sampling(value1, '2018-12-01 10:05:00', '2018-12-01 10:35:00', 10, '
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-01 10:05:00'::timestamp without time zone, '2018-12-01 10:35:00'::timestamp without time zone, 10, 'MINUTE'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-01T10:05:00Z'), TIMESTAMP('2018-12-01T10:35:00Z'), 10, 'MINUTE') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-01 10:05:00'::timestamp without time zone, '2018-12-01 10:35:00'::timestamp without time zone, 10, 'MINUTE'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 262:
 SELECT time_sampling(value1, '2018-12-01 10:05:00', '2018-12-01 10:35:00', 10, 'MINUTE') FROM s3 ORDER BY 1;
@@ -4845,10 +5004,12 @@ SELECT time_sampling(value1, '2018-12-01 10:00:00', '2018-12-01 10:40:00', 10, '
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:40:00'::timestamp without time zone, 10, 'MINUTE'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-01T10:00:00Z'), TIMESTAMP('2018-12-01T10:40:00Z'), 10, 'MINUTE') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:40:00'::timestamp without time zone, 10, 'MINUTE'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 264:
 SELECT time_sampling(value1, '2018-12-01 10:00:00', '2018-12-01 10:40:00', 10, 'MINUTE') FROM s3 ORDER BY 1;
@@ -4873,10 +5034,12 @@ SELECT time_sampling(value1, '2018-12-01 09:30:00', '2018-12-01 11:00:00', 10, '
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-01 09:30:00'::timestamp without time zone, '2018-12-01 11:00:00'::timestamp without time zone, 10, 'MINUTE'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-01T09:30:00Z'), TIMESTAMP('2018-12-01T11:00:00Z'), 10, 'MINUTE') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-01 09:30:00'::timestamp without time zone, '2018-12-01 11:00:00'::timestamp without time zone, 10, 'MINUTE'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 266:
 SELECT time_sampling(value1, '2018-12-01 09:30:00', '2018-12-01 11:00:00', 10, 'MINUTE') FROM s3 ORDER BY 1;
@@ -4910,10 +5073,12 @@ SELECT time_sampling(value1, '2018-12-02 10:00:00', '2018-12-02 12:00:00', 2, 'H
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-02 10:00:00'::timestamp without time zone, '2018-12-02 12:00:00'::timestamp without time zone, 2, 'HOUR'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-02T10:00:00Z'), TIMESTAMP('2018-12-02T12:00:00Z'), 2, 'HOUR') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-02 10:00:00'::timestamp without time zone, '2018-12-02 12:00:00'::timestamp without time zone, 2, 'HOUR'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 268:
 SELECT time_sampling(value1, '2018-12-02 10:00:00', '2018-12-02 12:00:00', 2, 'HOUR') FROM s3 ORDER BY 1;
@@ -4937,10 +5102,12 @@ SELECT time_sampling(value1, '2018-12-02 10:05:00', '2018-12-02 21:00:00', 3, 'H
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-02 10:05:00'::timestamp without time zone, '2018-12-02 21:00:00'::timestamp without time zone, 3, 'HOUR'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-02T10:05:00Z'), TIMESTAMP('2018-12-02T21:00:00Z'), 3, 'HOUR') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-02 10:05:00'::timestamp without time zone, '2018-12-02 21:00:00'::timestamp without time zone, 3, 'HOUR'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 270:
 SELECT time_sampling(value1, '2018-12-02 10:05:00', '2018-12-02 21:00:00', 3, 'HOUR') FROM s3 ORDER BY 1;
@@ -4964,10 +5131,12 @@ SELECT time_sampling(value1, '2018-12-02 10:00:00', '2018-12-02 21:40:00', 2, 'H
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-02 10:00:00'::timestamp without time zone, '2018-12-02 21:40:00'::timestamp without time zone, 2, 'HOUR'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-02T10:00:00Z'), TIMESTAMP('2018-12-02T21:40:00Z'), 2, 'HOUR') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-02 10:00:00'::timestamp without time zone, '2018-12-02 21:40:00'::timestamp without time zone, 2, 'HOUR'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 272:
 SELECT time_sampling(value1, '2018-12-02 10:00:00', '2018-12-02 21:40:00', 2, 'HOUR') FROM s3 ORDER BY 1;
@@ -4993,10 +5162,12 @@ SELECT time_sampling(value1, '2018-12-02 6:00:00', '2018-12-02 23:00:00', 3, 'HO
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-02 06:00:00'::timestamp without time zone, '2018-12-02 23:00:00'::timestamp without time zone, 3, 'HOUR'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-02T06:00:00Z'), TIMESTAMP('2018-12-02T23:00:00Z'), 3, 'HOUR') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-02 06:00:00'::timestamp without time zone, '2018-12-02 23:00:00'::timestamp without time zone, 3, 'HOUR'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 274:
 SELECT time_sampling(value1, '2018-12-02 6:00:00', '2018-12-02 23:00:00', 3, 'HOUR') FROM s3 ORDER BY 1;
@@ -5029,10 +5200,12 @@ SELECT time_sampling(value1, '2018-12-03 11:00:00', '2018-12-04 11:00:00', 1, 'D
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-03 11:00:00'::timestamp without time zone, '2018-12-04 11:00:00'::timestamp without time zone, 1, 'DAY'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-03T11:00:00Z'), TIMESTAMP('2018-12-04T11:00:00Z'), 1, 'DAY') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-03 11:00:00'::timestamp without time zone, '2018-12-04 11:00:00'::timestamp without time zone, 1, 'DAY'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 276:
 SELECT time_sampling(value1, '2018-12-03 11:00:00', '2018-12-04 11:00:00', 1, 'DAY') FROM s3 ORDER BY 1;
@@ -5057,10 +5230,12 @@ SELECT time_sampling(value1, '2018-12-03 09:00:00', '2018-12-05 12:00:00', 1, 'D
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-03 09:00:00'::timestamp without time zone, '2018-12-05 12:00:00'::timestamp without time zone, 1, 'DAY'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-03T09:00:00Z'), TIMESTAMP('2018-12-05T12:00:00Z'), 1, 'DAY') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-03 09:00:00'::timestamp without time zone, '2018-12-05 12:00:00'::timestamp without time zone, 1, 'DAY'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 278:
 SELECT time_sampling(value1, '2018-12-03 09:00:00', '2018-12-05 12:00:00', 1, 'DAY') FROM s3 ORDER BY 1;
@@ -5084,10 +5259,12 @@ SELECT time_sampling(value1, '2018-12-03 11:00:00', '2018-12-05 12:00:00', 1, 'D
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-03 11:00:00'::timestamp without time zone, '2018-12-05 12:00:00'::timestamp without time zone, 1, 'DAY'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-03T11:00:00Z'), TIMESTAMP('2018-12-05T12:00:00Z'), 1, 'DAY') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-03 11:00:00'::timestamp without time zone, '2018-12-05 12:00:00'::timestamp without time zone, 1, 'DAY'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 280:
 SELECT time_sampling(value1, '2018-12-03 11:00:00', '2018-12-05 12:00:00', 1, 'DAY') FROM s3 ORDER BY 1;
@@ -5112,10 +5289,12 @@ SELECT time_sampling(value1, '2018-12-03 09:30:00', '2018-12-03 11:00:00', 1, 'D
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-03 09:30:00'::timestamp without time zone, '2018-12-03 11:00:00'::timestamp without time zone, 1, 'DAY'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-03T09:30:00Z'), TIMESTAMP('2018-12-03T11:00:00Z'), 1, 'DAY') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-03 09:30:00'::timestamp without time zone, '2018-12-03 11:00:00'::timestamp without time zone, 1, 'DAY'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 282:
 SELECT time_sampling(value1, '2018-12-03 09:30:00', '2018-12-03 11:00:00', 1, 'DAY') FROM s3 ORDER BY 1;
@@ -5149,10 +5328,12 @@ SELECT time_sampling(value1, '2018-12-06 10:00:00', '2018-12-06 10:00:20', 10, '
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-06 10:00:00'::timestamp without time zone, '2018-12-06 10:00:20'::timestamp without time zone, 10, 'SECOND'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-06T10:00:00Z'), TIMESTAMP('2018-12-06T10:00:20Z'), 10, 'SECOND') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-06 10:00:00'::timestamp without time zone, '2018-12-06 10:00:20'::timestamp without time zone, 10, 'SECOND'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 285:
 SELECT time_sampling(value1, '2018-12-06 10:00:00', '2018-12-06 10:00:20', 10, 'SECOND') FROM s3 ORDER BY 1;
@@ -5180,10 +5361,12 @@ SELECT time_sampling(value1, '2018-12-06 10:00:03', '2018-12-06 10:00:35', 15, '
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-06 10:00:03'::timestamp without time zone, '2018-12-06 10:00:35'::timestamp without time zone, 15, 'SECOND'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-06T10:00:03Z'), TIMESTAMP('2018-12-06T10:00:35Z'), 15, 'SECOND') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-06 10:00:03'::timestamp without time zone, '2018-12-06 10:00:35'::timestamp without time zone, 15, 'SECOND'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 287:
 SELECT time_sampling(value1, '2018-12-06 10:00:03', '2018-12-06 10:00:35', 15, 'SECOND') FROM s3 ORDER BY 1;
@@ -5209,10 +5392,12 @@ SELECT time_sampling(value1, '2018-12-06 10:00:00', '2018-12-06 11:00:00', 10, '
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-06 10:00:00'::timestamp without time zone, '2018-12-06 11:00:00'::timestamp without time zone, 10, 'SECOND'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-06T10:00:00Z'), TIMESTAMP('2018-12-06T11:00:00Z'), 10, 'SECOND') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-06 10:00:00'::timestamp without time zone, '2018-12-06 11:00:00'::timestamp without time zone, 10, 'SECOND'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 289:
 SELECT time_sampling(value1, '2018-12-06 10:00:00', '2018-12-06 11:00:00', 10, 'SECOND') FROM s3 ORDER BY 1;
@@ -5954,10 +6139,12 @@ SELECT time_sampling(value1, '2018-12-06 08:30:00', '2018-12-06 11:00:00', 20, '
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-06 08:30:00'::timestamp without time zone, '2018-12-06 11:00:00'::timestamp without time zone, 20, 'SECOND'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-06T08:30:00Z'), TIMESTAMP('2018-12-06T11:00:00Z'), 20, 'SECOND') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-06 08:30:00'::timestamp without time zone, '2018-12-06 11:00:00'::timestamp without time zone, 20, 'SECOND'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 291:
 SELECT time_sampling(value1, '2018-12-06 08:30:00', '2018-12-06 11:00:00', 20, 'SECOND') FROM s3 ORDER BY 1;
@@ -6886,27 +7073,19 @@ SELECT time_sampling(value1, '2018-12-07 10:00:00.100', '2018-12-07 10:00:00.140
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-07 10:00:00.1'::timestamp without time zone, '2018-12-07 10:00:00.14'::timestamp without time zone, 20, 'MILLISECOND'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-07T10:00:00.100Z'), TIMESTAMP('2018-12-07T10:00:00.140ZZ'), 20, 'MILLISECOND') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-07 10:00:00.1'::timestamp without time zone, '2018-12-07 10:00:00.14'::timestamp without time zone, 20, 'MILLISECOND'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 293:
 SELECT time_sampling(value1, '2018-12-07 10:00:00.100', '2018-12-07 10:00:00.140', 20, 'MILLISECOND') FROM s3 ORDER BY 1;
-ERROR:  GridDB-API is failed by 152010
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152010
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.140ZZ (address=127.0.0.1:10001, partition=43)
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.140ZZ
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-ERROR:  pgspider_fdw fail to get tuples from child process
-{
-ERROR:  GridDB-API is failed by 152010
-  [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.140ZZ (address=127.0.0.1:10001, partition=17)
-  [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.140ZZ
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-}
-CONTEXT:  remote SQL command: SELECT public.time_sampling(value1, '2018-12-07 10:00:00.1'::timestamp without time zone, '2018-12-07 10:00:00.14'::timestamp without time zone, 20, 'MILLISECOND'::public.time_unit) FROM public.s31griddb
 
 --rows for sampling does not exist => return rows that contains interpolated values.
 --The column which is specified as the 1st parameter will be calculated by linearly interpolating the value of the previous and next rows.
@@ -6922,10 +7101,12 @@ SELECT time_sampling(value1, '2018-12-07 10:00:00.115', '2018-12-07 10:00:00.155
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-07 10:00:00.115'::timestamp without time zone, '2018-12-07 10:00:00.155'::timestamp without time zone, 15, 'MILLISECOND'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-07T10:00:00.115Z'), TIMESTAMP('2018-12-07T10:00:00.155Z'), 15, 'MILLISECOND') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-07 10:00:00.115'::timestamp without time zone, '2018-12-07 10:00:00.155'::timestamp without time zone, 15, 'MILLISECOND'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 295:
 SELECT time_sampling(value1, '2018-12-07 10:00:00.115', '2018-12-07 10:00:00.155', 15, 'MILLISECOND') FROM s3 ORDER BY 1;
@@ -6951,27 +7132,19 @@ SELECT time_sampling(value1, '2018-12-07 10:00:00.100', '2018-12-07 10:00:00.150
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-07 10:00:00.1'::timestamp without time zone, '2018-12-07 10:00:00.15'::timestamp without time zone, 5, 'MILLISECOND'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-07T10:00:00.100Z'), TIMESTAMP('2018-12-07T10:00:00.150ZZ'), 5, 'MILLISECOND') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-07 10:00:00.1'::timestamp without time zone, '2018-12-07 10:00:00.15'::timestamp without time zone, 5, 'MILLISECOND'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 297:
 SELECT time_sampling(value1, '2018-12-07 10:00:00.100', '2018-12-07 10:00:00.150', 5, 'MILLISECOND') FROM s3 ORDER BY 1;
-ERROR:  GridDB-API is failed by 152010
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152010
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.150ZZ (address=127.0.0.1:10001, partition=43)
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.150ZZ
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-ERROR:  pgspider_fdw fail to get tuples from child process
-{
-ERROR:  GridDB-API is failed by 152010
-  [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.150ZZ (address=127.0.0.1:10001, partition=17)
-  [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.150ZZ
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-}
-CONTEXT:  remote SQL command: SELECT public.time_sampling(value1, '2018-12-07 10:00:00.1'::timestamp without time zone, '2018-12-07 10:00:00.15'::timestamp without time zone, 5, 'MILLISECOND'::public.time_unit) FROM public.s31griddb
 
 --In linearly interpolating the value of the previous and next rows, if one of the values does not exist => the sampling row will not be returned
 --Testcase 298:
@@ -6985,27 +7158,19 @@ SELECT time_sampling(value1, '2018-12-07 10:00:00.002', '2018-12-07 10:00:00.500
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (time_sampling(value1, '2018-12-07 10:00:00.002'::timestamp without time zone, '2018-12-07 10:00:00.5'::timestamp without time zone, 20, 'MILLISECOND'::time_unit))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-07T10:00:00.002Z'), TIMESTAMP('2018-12-07T10:00:00.502ZZ'), 20, 'MILLISECOND') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-07 10:00:00.002'::timestamp without time zone, '2018-12-07 10:00:00.5'::timestamp without time zone, 20, 'MILLISECOND'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 299:
 SELECT time_sampling(value1, '2018-12-07 10:00:00.002', '2018-12-07 10:00:00.500', 20, 'MILLISECOND') FROM s3 ORDER BY 1;
-ERROR:  GridDB-API is failed by 152010
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 152010
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.502ZZ (address=127.0.0.1:10001, partition=43)
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.502ZZ
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-ERROR:  pgspider_fdw fail to get tuples from child process
-{
-ERROR:  GridDB-API is failed by 152010
-  [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.502ZZ (address=127.0.0.1:10001, partition=17)
-  [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.502ZZ
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-}
-CONTEXT:  remote SQL command: SELECT public.time_sampling(value1, '2018-12-07 10:00:00.002'::timestamp without time zone, '2018-12-07 10:00:00.5'::timestamp without time zone, 20, 'MILLISECOND'::public.time_unit) FROM public.s31griddb
 
 --if the first parameter is not set, * will be added as the first parameter.
 --When specified time does not exist, all columns (except timestamp key column) will be equal to the values of rows previous to the specified time.
@@ -7025,10 +7190,12 @@ SELECT max_rows(value2) FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (max_rows(value2))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT max_rows(value2) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.max_rows(value2) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 301:
 SELECT max_rows(value2) FROM s3 ORDER BY 1;
@@ -7050,10 +7217,12 @@ SELECT max_rows(date) FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (max_rows(date))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT max_rows(date) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.max_rows(date) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 303:
 SELECT max_rows(date) FROM s3 ORDER BY 1;
@@ -7075,10 +7244,12 @@ SELECT min_rows(value2) FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (min_rows(value2))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT min_rows(value2) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.min_rows(value2) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 305:
 SELECT min_rows(value2) FROM s3 ORDER BY 1;
@@ -7100,10 +7271,12 @@ SELECT min_rows(date) FROM s3 ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..2131.28 rows=6826 width=32)
          Output: (min_rows(date))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT min_rows(date) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.min_rows(date) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 307:
 SELECT min_rows(date) FROM s3 ORDER BY 1;
@@ -7131,10 +7304,12 @@ SELECT * FROM s3 WHERE time_next('2018-12-01 10:00:00') = '"2020-01-05 21:00:00,
                Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
                Filter: (time_next('2018-12-01 10:00:00'::timestamp without time zone) = '"2020-01-05 21:00:00,{t,f,t}"'::text)
                Node: griddb_svr / Status: Alive
+                 Sort push-down: no
                  Remote SQL: SELECT  *  FROM s32
                Node: pgspider_svr / Status: Alive
+                 Sort push-down: no
                  Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb
-(13 rows)
+(15 rows)
 
 --Testcase 309:
 SELECT * FROM s3 WHERE time_next('2018-12-01 10:00:00') = '"2020-01-05 21:00:00,{t,f,t}"' ORDER BY 1;
@@ -7164,10 +7339,12 @@ SELECT * FROM s3 WHERE time_prev('2018-12-01 10:00:00') = '"2020-01-05 21:00:00,
                Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
                Filter: (time_prev('2018-12-01 10:00:00'::timestamp without time zone) = '"2020-01-05 21:00:00,{t,f,t}"'::text)
                Node: griddb_svr / Status: Alive
+                 Sort push-down: no
                  Remote SQL: SELECT  *  FROM s32
                Node: pgspider_svr / Status: Alive
+                 Sort push-down: no
                  Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb
-(13 rows)
+(15 rows)
 
 --Testcase 313:
 SELECT * FROM s3 WHERE time_prev('2018-12-01 10:00:00') = '"2020-01-05 21:00:00,{t,f,t}"' ORDER BY 1;
@@ -7193,27 +7370,19 @@ SELECT * FROM s3 WHERE max_rows(date) = min_rows(value2) ORDER BY 1;
    ->  Foreign Scan on public.s3  (cost=200.00..3719.01 rows=34 width=525)
          Output: date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((max_rows(date) = min_rows(value2)))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((public.max_rows(date) = public.min_rows(value2)))
-(9 rows)
+(11 rows)
 
 --Testcase 317:
 SELECT * FROM s3 WHERE max_rows(date) = min_rows(value2) ORDER BY 1;
-ERROR:  GridDB-API is failed by 150014
+ERROR:  PGSpider fail to iterate tuple from child thread
+ DETAIL:GridDB-API is failed by 150014
   [150014:TQ_FUNCTION_NOT_FOUND] No such function : MAX_ROWS (address=127.0.0.1:10001, partition=43)
   [150014:TQ_FUNCTION_NOT_FOUND] No such function : MAX_ROWS
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-ERROR:  pgspider_fdw fail to get tuples from child process
-{
-ERROR:  GridDB-API is failed by 150014
-  [150014:TQ_FUNCTION_NOT_FOUND] No such function : MAX_ROWS (address=127.0.0.1:10001, partition=17)
-  [150014:TQ_FUNCTION_NOT_FOUND] No such function : MAX_ROWS
-
-ERROR:  PGSpider fail to iterate tuple from child thread
-}
-CONTEXT:  remote SQL command: SELECT date, value1, value2, name, age, location, gpa, date1, date2, strcol, booleancol, bytecol, shortcol, intcol, longcol, floatcol, doublecol, blobcol, stringarray, boolarray, bytearray, shortarray, integerarray, longarray, floatarray, doublearray, timestamparray, __spd_url FROM public.s31griddb WHERE ((public.max_rows(date) = public.min_rows(value2)))
 
 --
 -- Test syntax (xxx()::s3).*
@@ -7229,10 +7398,12 @@ SELECT (time_sampling(value1, '2018-12-01 10:00:00', '2018-12-01 10:50:00', 20, 
    ->  Foreign Scan on public.s3  (cost=200.00..49162.42 rows=6826 width=525)
          Output: (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).date, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).value1, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).value2, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).name, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).age, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).location, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).gpa, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).date1, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).date2, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).strcol, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).booleancol, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).bytecol, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).shortcol, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).intcol, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).longcol, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).floatcol, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).doublecol, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).blobcol, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).stringarray, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).boolarray, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).bytearray, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).shortarray, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).integerarray, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).longarray, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).floatarray, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).doublearray, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).timestamparray, (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).__spd_url
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-01T10:00:00Z'), TIMESTAMP('2018-12-01T10:50:00Z'), 20, 'MINUTE') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 319:
 SELECT (time_sampling(value1, '2018-12-01 10:00:00', '2018-12-01 10:50:00', 20, 'MINUTE')::s3).* FROM s3 ORDER BY 1;
@@ -7254,10 +7425,12 @@ SELECT (time_sampling(value1, '2018-12-01 10:00:00', '2018-12-01 10:50:00', 20, 
    ->  Foreign Scan on public.s3  (cost=200.00..2165.41 rows=6826 width=8)
          Output: (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).date
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-01T10:00:00Z'), TIMESTAMP('2018-12-01T10:50:00Z'), 20, 'MINUTE') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 321:
 SELECT (time_sampling(value1, '2018-12-01 10:00:00', '2018-12-01 10:50:00', 20, 'MINUTE')::s3).date FROM s3 ORDER BY 1;
@@ -7279,10 +7452,12 @@ SELECT (time_sampling(value1, '2018-12-01 10:00:00', '2018-12-01 10:50:00', 20, 
    ->  Foreign Scan on public.s3  (cost=200.00..2165.41 rows=6826 width=4)
          Output: (((time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::time_unit)))::s3).value1
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT time_sampling(value1, TIMESTAMP('2018-12-01T10:00:00Z'), TIMESTAMP('2018-12-01T10:50:00Z'), 20, 'MINUTE') FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Remote SQL: SELECT public.time_sampling(value1, '2018-12-01 10:00:00'::timestamp without time zone, '2018-12-01 10:50:00'::timestamp without time zone, 20, 'MINUTE'::public.time_unit) FROM public.s31griddb
-(9 rows)
+(11 rows)
 
 --Testcase 323:
 SELECT (time_sampling(value1, '2018-12-01 10:00:00', '2018-12-01 10:50:00', 20, 'MINUTE')::s3).value1 FROM s3 ORDER BY 1;
@@ -7301,19 +7476,21 @@ EXPLAIN VERBOSE
 SELECT time_avg(value1) FROM s3 ORDER BY 1;
                                  QUERY PLAN                                 
 ----------------------------------------------------------------------------
- Sort  (cost=0.01..0.02 rows=1 width=8)
+ Sort  (cost=145.17..145.17 rows=1 width=8)
    Output: (time_avg(value1))
    Sort Key: (time_avg(s3.value1))
-   ->  Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+   ->  Foreign Scan  (cost=101.00..145.16 rows=1 width=8)
          Output: (time_avg(value1))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Remote SQL: SELECT time_avg(value1) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Relations: Aggregate on (public.s3)
            Remote SQL: SELECT public.time_avg(value1) FROM public.s31griddb
-(12 rows)
+(14 rows)
 
 --Testcase 325:
 SELECT time_avg(value1) FROM s3 ORDER BY 1;
@@ -7327,19 +7504,21 @@ EXPLAIN VERBOSE
 SELECT time_avg(value2) FROM s3 ORDER BY 1;
                                  QUERY PLAN                                 
 ----------------------------------------------------------------------------
- Sort  (cost=0.01..0.02 rows=1 width=8)
+ Sort  (cost=145.17..145.17 rows=1 width=8)
    Output: (time_avg(value2))
    Sort Key: (time_avg(s3.value2))
-   ->  Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+   ->  Foreign Scan  (cost=101.00..145.16 rows=1 width=8)
          Output: (time_avg(value2))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Remote SQL: SELECT time_avg(value2) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Relations: Aggregate on (public.s3)
            Remote SQL: SELECT public.time_avg(value2) FROM public.s31griddb
-(12 rows)
+(14 rows)
 
 --Testcase 327:
 SELECT time_avg(value2) FROM s3 ORDER BY 1;
@@ -7354,19 +7533,21 @@ EXPLAIN VERBOSE
 SELECT time_avg(value1), time_avg(value2) FROM s3 ORDER BY 1;
                                              QUERY PLAN                                              
 -----------------------------------------------------------------------------------------------------
- Sort  (cost=0.01..0.02 rows=1 width=16)
+ Sort  (cost=144.17..144.17 rows=1 width=16)
    Output: (time_avg(value1)), (time_avg(value2))
    Sort Key: (time_avg(s3.value1))
-   ->  Foreign Scan  (cost=0.00..0.00 rows=1 width=16)
+   ->  Foreign Scan  (cost=100.00..144.16 rows=1 width=16)
          Output: (time_avg(value1)), (time_avg(value2))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: no
            Remote SQL: SELECT  *  FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Relations: Aggregate on (public.s3)
            Remote SQL: SELECT public.time_avg(value1), public.time_avg(value2) FROM public.s31griddb
-(12 rows)
+(14 rows)
 
 --SELECT time_avg(value1), time_avg(value2) FROM s3 ORDER BY 1;
 -- Do not push down when expected type is not correct, raise stub function error
@@ -7375,19 +7556,21 @@ EXPLAIN VERBOSE
 SELECT time_avg(date) FROM s3 ORDER BY 1;
                                 QUERY PLAN                                
 --------------------------------------------------------------------------
- Sort  (cost=0.01..0.02 rows=1 width=8)
+ Sort  (cost=144.17..144.17 rows=1 width=8)
    Output: (time_avg(date))
    Sort Key: (time_avg(s3.date))
-   ->  Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+   ->  Foreign Scan  (cost=100.00..144.16 rows=1 width=8)
          Output: (time_avg(date))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: no
            Remote SQL: SELECT  *  FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Relations: Aggregate on (public.s3)
            Remote SQL: SELECT public.time_avg(date) FROM public.s31griddb
-(12 rows)
+(14 rows)
 
 --SELECT time_avg(date) FROM s3 ORDER BY 1;
 --Testcase 330:
@@ -7395,19 +7578,21 @@ EXPLAIN VERBOSE
 SELECT time_avg(blobcol) FROM s3 ORDER BY 1;
                                  QUERY PLAN                                  
 -----------------------------------------------------------------------------
- Sort  (cost=0.01..0.02 rows=1 width=8)
+ Sort  (cost=144.17..144.17 rows=1 width=8)
    Output: (time_avg(blobcol))
    Sort Key: (time_avg(s3.blobcol))
-   ->  Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+   ->  Foreign Scan  (cost=100.00..144.16 rows=1 width=8)
          Output: (time_avg(blobcol))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: no
            Remote SQL: SELECT  *  FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Relations: Aggregate on (public.s3)
            Remote SQL: SELECT public.time_avg(blobcol) FROM public.s31griddb
-(12 rows)
+(14 rows)
 
 --SELECT time_avg(blobcol) FROM s3 ORDER BY 1;
 --
@@ -7418,19 +7603,21 @@ EXPLAIN VERBOSE
 SELECT min(age) FROM s3 ORDER BY 1;
                          QUERY PLAN                          
 -------------------------------------------------------------
- Sort  (cost=0.01..0.02 rows=1 width=4)
+ Sort  (cost=145.17..145.17 rows=1 width=4)
    Output: (min(age))
    Sort Key: (min(s3.age))
-   ->  Foreign Scan  (cost=0.00..0.00 rows=1 width=4)
+   ->  Foreign Scan  (cost=101.00..145.16 rows=1 width=4)
          Output: (min(age))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Remote SQL: SELECT min(age) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Relations: Aggregate on (public.s3)
            Remote SQL: SELECT min(age) FROM public.s31griddb
-(12 rows)
+(14 rows)
 
 --Testcase 332:
 SELECT min(age) FROM s3 ORDER BY 1;
@@ -7444,19 +7631,21 @@ EXPLAIN VERBOSE
 SELECT max(gpa) FROM s3 ORDER BY 1;
                          QUERY PLAN                          
 -------------------------------------------------------------
- Sort  (cost=0.01..0.02 rows=1 width=8)
+ Sort  (cost=145.17..145.17 rows=1 width=8)
    Output: (max(gpa))
    Sort Key: (max(s3.gpa))
-   ->  Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+   ->  Foreign Scan  (cost=101.00..145.16 rows=1 width=8)
          Output: (max(gpa))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Remote SQL: SELECT max(gpa) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Relations: Aggregate on (public.s3)
            Remote SQL: SELECT max(gpa) FROM public.s31griddb
-(12 rows)
+(14 rows)
 
 --Testcase 334:
 SELECT max(gpa) FROM s3 ORDER BY 1;
@@ -7470,19 +7659,21 @@ EXPLAIN VERBOSE
 SELECT count(*) FROM s3 ORDER BY 1;
                          QUERY PLAN                          
 -------------------------------------------------------------
- Sort  (cost=0.01..0.02 rows=1 width=8)
+ Sort  (cost=145.17..145.17 rows=1 width=8)
    Output: (count(*))
    Sort Key: (count(*))
-   ->  Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+   ->  Foreign Scan  (cost=101.00..145.16 rows=1 width=8)
          Output: (count(*))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Remote SQL: SELECT count(*) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Relations: Aggregate on (public.s3)
            Remote SQL: SELECT count(*) FROM public.s31griddb
-(12 rows)
+(14 rows)
 
 --Testcase 336:
 SELECT count(*) FROM s3 ORDER BY 1;
@@ -7496,19 +7687,21 @@ EXPLAIN VERBOSE
 SELECT count(*) FROM s3 WHERE gpa < 3.5 OR age < 42 ORDER BY 1;
                                                     QUERY PLAN                                                     
 -------------------------------------------------------------------------------------------------------------------
- Sort  (cost=0.01..0.02 rows=1 width=8)
+ Sort  (cost=162.23..162.24 rows=1 width=8)
    Output: (count(*))
    Sort Key: (count(*))
-   ->  Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+   ->  Foreign Scan  (cost=101.00..162.22 rows=1 width=8)
          Output: (count(*))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Remote SQL: SELECT count(*) FROM s32 WHERE (((gpa < 3.5) OR (age < 42)))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Relations: Aggregate on (public.s3)
            Remote SQL: SELECT count(*) FROM public.s31griddb WHERE (((gpa < 3.5::double precision) OR (age < 42)))
-(12 rows)
+(14 rows)
 
 --Testcase 338:
 SELECT count(*) FROM s3 WHERE gpa < 3.5 OR age < 42 ORDER BY 1;
@@ -7522,19 +7715,21 @@ EXPLAIN VERBOSE
 SELECT sum(age) FROM s3 ORDER BY 1;
                          QUERY PLAN                          
 -------------------------------------------------------------
- Sort  (cost=0.01..0.02 rows=1 width=8)
+ Sort  (cost=145.17..145.17 rows=1 width=8)
    Output: (sum(age))
    Sort Key: (sum(s3.age))
-   ->  Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+   ->  Foreign Scan  (cost=101.00..145.16 rows=1 width=8)
          Output: (sum(age))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Remote SQL: SELECT sum(age) FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Relations: Aggregate on (public.s3)
            Remote SQL: SELECT sum(age) FROM public.s31griddb
-(12 rows)
+(14 rows)
 
 --Testcase 340:
 SELECT sum(age) FROM s3 ORDER BY 1;
@@ -7548,19 +7743,21 @@ EXPLAIN VERBOSE
 SELECT sum(age) FROM s3 WHERE round(gpa) > 3.5 ORDER BY 1;
                                                 QUERY PLAN                                                
 ----------------------------------------------------------------------------------------------------------
- Sort  (cost=0.01..0.02 rows=1 width=8)
+ Sort  (cost=162.23..162.24 rows=1 width=8)
    Output: (sum(age))
    Sort Key: (sum(s3.age))
-   ->  Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+   ->  Foreign Scan  (cost=101.00..162.22 rows=1 width=8)
          Output: (sum(age))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Remote SQL: SELECT sum(age) FROM s32 WHERE ((round(gpa) > 3.5))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Relations: Aggregate on (public.s3)
            Remote SQL: SELECT sum(age) FROM public.s31griddb WHERE ((round(gpa) > 3.5::double precision))
-(12 rows)
+(14 rows)
 
 --Testcase 342:
 SELECT sum(age) FROM s3 WHERE round(gpa) > 3.5 ORDER BY 1;
@@ -7574,19 +7771,21 @@ EXPLAIN VERBOSE
 SELECT avg(gpa) FROM s3 ORDER BY 1;
                                QUERY PLAN                                
 -------------------------------------------------------------------------
- Sort  (cost=0.01..0.02 rows=1 width=8)
+ Sort  (cost=144.17..144.17 rows=1 width=8)
    Output: (avg(gpa))
    Sort Key: (avg(s3.gpa))
-   ->  Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+   ->  Foreign Scan  (cost=100.00..144.16 rows=1 width=8)
          Output: (avg(gpa))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: no
            Remote SQL: SELECT  *  FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Relations: Aggregate on (public.s3)
            Remote SQL: SELECT count(gpa), sum(gpa) FROM public.s31griddb
-(12 rows)
+(14 rows)
 
 --Testcase 344:
 SELECT avg(gpa) FROM s3 ORDER BY 1;
@@ -7600,19 +7799,21 @@ EXPLAIN VERBOSE
 SELECT avg(gpa) FROM s3 WHERE lower(name) = 'george' ORDER BY 1;
                                                    QUERY PLAN                                                   
 ----------------------------------------------------------------------------------------------------------------
- Sort  (cost=0.01..0.02 rows=1 width=8)
+ Sort  (cost=161.23..161.24 rows=1 width=8)
    Output: (avg(gpa))
    Sort Key: (avg(s3.gpa))
-   ->  Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+   ->  Foreign Scan  (cost=100.00..161.22 rows=1 width=8)
          Output: (avg(gpa))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((lower(name) = 'george'))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Relations: Aggregate on (public.s3)
            Remote SQL: SELECT count(gpa), sum(gpa) FROM public.s31griddb WHERE ((lower(name) = 'george'::text))
-(12 rows)
+(14 rows)
 
 --Testcase 346:
 SELECT avg(gpa) FROM s3 WHERE lower(name) = 'george' ORDER BY 1;
@@ -7626,19 +7827,21 @@ EXPLAIN VERBOSE
 SELECT variance(gpa) FROM s3 ORDER BY 1;
                                         QUERY PLAN                                         
 -------------------------------------------------------------------------------------------
- Sort  (cost=0.01..0.02 rows=1 width=8)
+ Sort  (cost=144.17..144.17 rows=1 width=8)
    Output: (variance(gpa))
    Sort Key: (variance(s3.gpa))
-   ->  Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+   ->  Foreign Scan  (cost=100.00..144.16 rows=1 width=8)
          Output: (variance(gpa))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: no
            Remote SQL: SELECT  *  FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Relations: Aggregate on (public.s3)
            Remote SQL: SELECT count(gpa), sum(gpa), sum((gpa * gpa)) FROM public.s31griddb
-(12 rows)
+(14 rows)
 
 --Testcase 348:
 SELECT variance(gpa) FROM s3 ORDER BY 1;
@@ -7652,19 +7855,21 @@ EXPLAIN VERBOSE
 SELECT variance(gpa) FROM s3 WHERE gpa > 3.5 ORDER BY 1;
                                                            QUERY PLAN                                                            
 ---------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=0.01..0.02 rows=1 width=8)
+ Sort  (cost=152.70..152.71 rows=1 width=8)
    Output: (variance(gpa))
    Sort Key: (variance(s3.gpa))
-   ->  Foreign Scan  (cost=0.00..0.00 rows=1 width=8)
+   ->  Foreign Scan  (cost=100.00..152.69 rows=1 width=8)
          Output: (variance(gpa))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((gpa > 3.5))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Relations: Aggregate on (public.s3)
            Remote SQL: SELECT count(gpa), sum(gpa), sum((gpa * gpa)) FROM public.s31griddb WHERE ((gpa > 3.5::double precision))
-(12 rows)
+(14 rows)
 
 --Testcase 350:
 SELECT variance(gpa) FROM s3 WHERE gpa > 3.5 ORDER BY 1;
@@ -7678,19 +7883,21 @@ EXPLAIN VERBOSE
 SELECT stddev(age) FROM s3 ORDER BY 1;
                                         QUERY PLAN                                         
 -------------------------------------------------------------------------------------------
- Sort  (cost=0.01..0.02 rows=1 width=32)
+ Sort  (cost=144.17..144.17 rows=1 width=32)
    Output: (stddev(age))
    Sort Key: (stddev(s3.age))
-   ->  Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+   ->  Foreign Scan  (cost=100.00..144.16 rows=1 width=32)
          Output: (stddev(age))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: no
            Remote SQL: SELECT  *  FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Relations: Aggregate on (public.s3)
            Remote SQL: SELECT count(age), sum(age), sum((age * age)) FROM public.s31griddb
-(12 rows)
+(14 rows)
 
 --Testcase 352:
 SELECT stddev(age) FROM s3 ORDER BY 1;
@@ -7704,19 +7911,21 @@ EXPLAIN VERBOSE
 SELECT stddev(age) FROM s3 WHERE char_length(name) > 4 ORDER BY 1;
                                                         QUERY PLAN                                                         
 ---------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=0.01..0.02 rows=1 width=32)
+ Sort  (cost=161.23..161.24 rows=1 width=32)
    Output: (stddev(age))
    Sort Key: (stddev(s3.age))
-   ->  Foreign Scan  (cost=0.00..0.00 rows=1 width=32)
+   ->  Foreign Scan  (cost=100.00..161.22 rows=1 width=32)
          Output: (stddev(age))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: no
            Remote SQL: SELECT  *  FROM s32 WHERE ((char_length(name) > 4))
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Relations: Aggregate on (public.s3)
            Remote SQL: SELECT count(age), sum(age), sum((age * age)) FROM public.s31griddb WHERE ((char_length(name) > 4))
-(12 rows)
+(14 rows)
 
 --Testcase 354:
 SELECT stddev(age) FROM s3 WHERE char_length(name) > 4 ORDER BY 1;
@@ -7730,19 +7939,21 @@ EXPLAIN VERBOSE
 SELECT max(gpa), min(age) FROM s3 ORDER BY 1;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Sort  (cost=0.01..0.02 rows=1 width=12)
+ Sort  (cost=144.17..144.17 rows=1 width=12)
    Output: (max(gpa)), (min(age))
    Sort Key: (max(s3.gpa))
-   ->  Foreign Scan  (cost=0.00..0.00 rows=1 width=12)
+   ->  Foreign Scan  (cost=100.00..144.16 rows=1 width=12)
          Output: (max(gpa)), (min(age))
          Node: griddb_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: no
            Remote SQL: SELECT  *  FROM s32
          Node: pgspider_svr / Status: Alive
+           Sort push-down: no
            Agg push-down: yes
            Relations: Aggregate on (public.s3)
            Remote SQL: SELECT max(gpa), min(age) FROM public.s31griddb
-(12 rows)
+(14 rows)
 
 --Testcase 356:
 SELECT max(gpa), min(age) FROM s3 ORDER BY 1;

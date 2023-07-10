@@ -87,10 +87,12 @@
  * ----------------
  */
 #ifdef PGSPIDER
+#include "commands/defrem.h"
 __thread const char *debug_query_string;	/* client-supplied query string */
 bool		is_child_thread_running = false;	/* Flag to mark child thread
 												 * is running of PGSpider */
 List	   *skipped_memory_checking_context = NIL;		/* List of skipped memory checking contexts */
+static void exec_simple_query(const char *query_string);
 #else
 const char *debug_query_string; /* client-supplied query string */
 #endif
@@ -1050,6 +1052,90 @@ pg_plan_queries(List *querytrees, const char *query_string, int cursorOptions,
 	return stmt_list;
 }
 
+#ifdef PGSPIDER
+/**
+ * @brief Run list clean-up query when error occured
+ *
+ * @param cmds
+ * @param idx
+ * @param err_msg
+ */
+static void
+spd_run_cleanup_query(List *cmds, int idx)
+{
+	int				i;
+	MemoryContext	ccxt = CurrentMemoryContext;
+	List		   *cmd_errors = NIL;
+
+	if (idx > list_length(cmds))
+		elog(ERROR, "Invalid index of command in the list");
+
+	for (i = idx; i >= 0; i--)
+	{
+		char *cmd = (char *) list_nth(cmds, i);
+
+		/* ignore empty query */
+		if (strcmp(cmd, ";") == 0)
+			continue;
+
+		/* try to run all cleanup query list even if there is an error */
+		PG_TRY();
+		{
+			exec_simple_query(cmd);
+		}
+		PG_CATCH();
+		{
+			ErrorData  *edata;
+			char	   *err_msg;
+
+			MemoryContextSwitchTo(ccxt);
+			edata = CopyErrorData();
+			FlushErrorState();
+			/* Save error info. It will be raised as a WARNING after executing all queries */
+			err_msg = psprintf("CLEAN UP QUERY: %s\n ERROR: %s", cmd, edata->message);
+			cmd_errors = lappend(cmd_errors, err_msg);
+		}
+		PG_END_TRY();
+	}
+
+	if (cmd_errors != NIL)
+	{
+		ListCell	   *lc;
+
+		elog(WARNING, "The MIGRATE command's resources could not be cleaned up.");
+		foreach(lc, cmd_errors)
+		{
+			elog(WARNING, "%s", (char *) lfirst(lc));
+		}
+	}
+}
+
+/**
+ * @brief Get the remain cmd which need run manually when error
+ *
+ * @param cmds
+ * @param idx
+ * @return char*
+ */
+static char *
+spd_get_remain_cmd(List *cmds, int idx)
+{
+	StringInfoData cmd_list;
+	int i;
+
+	initStringInfo(&cmd_list);
+	if (idx > list_length(cmds))
+		idx = list_length(cmds);
+
+	for (i = idx; i >= 0; i--)
+	{
+		char *cmd = (char *) list_nth(cmds, i);
+		appendStringInfo(&cmd_list, "\t%s\n", cmd);
+	}
+
+	return cmd_list.data;
+}
+#endif /* PGSPIDER */
 
 /*
  * exec_simple_query
@@ -1123,6 +1209,72 @@ exec_simple_query(const char *query_string)
 				 errdetail_execute(parsetree_list)));
 		was_logged = true;
 	}
+#ifdef PGSPIDER
+	if (list_length(parsetree_list) == 1)
+	{
+		RawStmt    *parsetree = lfirst_node(RawStmt, list_head(parsetree_list));
+		ListCell   *lc;
+		List	   *cmds;
+		List	   *c_cmds; /* clean up query */
+
+		if (IsA(parsetree->stmt, MigrateTableStmt))
+		{
+			int volatile	cmd_idx = 0;
+			MemoryContext	execute_cxt = CurrentMemoryContext;
+
+			CreateMigrateCommands((MigrateTableStmt *) parsetree->stmt, &cmds, &c_cmds);
+
+			/* end transaction here to make sub query in non-auto-commit mode */
+			finish_xact_command();
+
+			/* If we still in non-auto commit mode, we has already in a transaction block */
+			if (SpdIsInAutoCommitMode())
+				elog(ERROR, "MIGRATE command can not be run in a transaction block!");
+
+			PG_TRY();
+			{
+				foreach(lc, cmds)
+				{
+					char *cmd = (char *) lfirst(lc);
+
+					/* execute query by call exec_simple_query recusively */
+					exec_simple_query(cmd);
+					cmd_idx++;
+				}
+			}
+			PG_CATCH();
+			{
+				ErrorData  *edata;
+
+				MemoryContextSwitchTo(execute_cxt);
+				edata = CopyErrorData();
+				FlushErrorState();
+
+				/* run clean up command */
+				AbortCurrentTransaction();
+				/* There is no transaction now */
+				xact_started = false;
+
+				spd_run_cleanup_query(c_cmds, cmd_idx - 1);
+				ReThrowError(edata);
+			}
+			PG_END_TRY();
+			start_xact_command();
+		}
+	}
+	else
+	{
+		foreach(parsetree_item, parsetree_list)
+		{
+			RawStmt    *parsetree = lfirst_node(RawStmt, parsetree_item);
+
+			if (IsA(parsetree->stmt, MigrateTableStmt))
+			{
+				elog(ERROR, "MIGRATE statement can not be run on multiple SQL.");
+			}
+		}
+	}
+#endif	/* PGSPIDER */
 
 	/*
 	 * Switch back to transaction context to enter the loop.

@@ -96,12 +96,12 @@ void
 spdExecuteFunction(Oid funcoid, Oid tableoid,
 				   List *args, bool async, void **private)
 {
-	dist_func_state *func_state;
+    dist_func_state *func_state;
 	ListCell   *lc;
 
 	ExecFunction pgExecFunc;
 
-	func_state = init_func_state(tableoid, args);
+    func_state = init_func_state(tableoid, args);
 
 	pgExecFunc = (ExecFunction) load_external_function("postgres_fdw", "postgresExecuteFunction", true, NULL);
 
@@ -124,7 +124,7 @@ bool
 spdGetFunctionResultOne(void *private, AttInMetadata *attinmeta,
 						Datum *values, bool *nulls)
 {
-	dist_func_state *func_state = (dist_func_state *) private;
+    dist_func_state *func_state = (dist_func_state *) private;
 	int			num_child;
 	int			i;
 	bool		fetched = false;
@@ -142,9 +142,9 @@ spdGetFunctionResultOne(void *private, AttInMetadata *attinmeta,
 		ret = func_state->pgFetchFunc(state->fdw_private, attinmeta, values, nulls);
 		if (ret == true)
 		{
-			func_state->next_child = id;
-			fetched = true;
-			break;
+            func_state->next_child = id;
+            fetched = true;
+            break;
 		}
 
 		state->finished = true;
@@ -156,7 +156,7 @@ spdGetFunctionResultOne(void *private, AttInMetadata *attinmeta,
 void
 spdFinalizeFunction(void *private)
 {
-	dist_func_state *func_state = (dist_func_state *) private;
+    dist_func_state *func_state = (dist_func_state *) private;
 	int			num_child;
 	int			i;
 

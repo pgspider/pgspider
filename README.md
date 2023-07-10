@@ -10,9 +10,15 @@ Usage of PGSpider is the same as PostgreSQL except its program name is `pgspider
 
 * Modification  
     User can modify data at Multi-Tenant table by using INSERT/UPDATE/DELETE query.  
-    For INSERT feature, PGSpider will choose 1 alive node that supports INSERT feature to INSERT data.  
+    For INSERT feature, PGSpider will use round robin method to choose 1 alive node that supports INSERT feature and is the next to the previous target as rotation to INSERT data.  
     For UPDATE/DELETE feature, PGSpider will execute UPDATE/DELETE at all alive nodes that support UPDATE/DELETE feature.  
-    PGSpider can support both Direct and Foreign Modification.
+    PGSpider supports both Direct and Foreign Modification.  
+    PGSpider supports bulk INSERT by using batch_size option.  
+    - If user specifies batch size option, we can get batch size from foreign table or foreign server option.
+    - If batch_size is 1, tell child nodes to execute simple insert. Otherwise, execute batch insert if child node can do.
+    - If batch_size is not specified by user on multi-tenant table, automatically calculation based on batch size of child tables and the number of child nodes using LCM method (Least Common Multiple).  
+      If batch size is too large, we use the limited value (6553500) as batch size.  
+      PGSpider distributes records to data sources evenly, not only for one query but also for many queries.
 
 * Parallel processing  
     PGSpider executes queries and fetches results from child nodes in parallel.  
@@ -22,7 +28,7 @@ Usage of PGSpider is the same as PostgreSQL except its program name is `pgspider
     WHERE clause and aggregation functions are pushed down to child nodes.  
     Pushdown to Multi-tenant tables occur error when AVG, STDDEV and VARIANCE are used.  
     PGSPider improves this error, PGSpider can execute them.
-
+  
 ## How to build PGSpider
 
 Clone PGSpider source code.
@@ -211,7 +217,6 @@ SELECT * FROM t1;
 
 ### Modify Multi-Tenant table using node filter
 You can choose modifying node with 'IN' clause after table name.
-Currently, INSERT query does not support IN clause.
 
 <pre>
 SELECT * FROM t1;
@@ -222,14 +227,14 @@ SELECT * FROM t1;
 (2 rows)
 
 INSERT INTO t1 IN ('/postgres_svr/') VALUES (4, 'c');
-ERROR:  Can not use INSERT with IN
 
 SELECT * FROM t1;
   i |  t  | __spd_url 
 ----+-----+----------------
   1 | aaa | /sqlite_svr/
+  4 | c   | /postgres_svr/
  11 | b   | /postgres_svr/
-(2 rows)
+(3 rows)
 
 UPDATE t1 IN ('/postgres_svr/') SET i = 5;
 UPDATE 1
@@ -238,17 +243,19 @@ SELECT * FROM t1;
  i |  t  | __spd_url 
 ---+-----+----------------
  1 | aaa | /sqlite_svr/
+ 5 | c   | /postgres_svr/
  5 | b   | /postgres_svr/
-(2 rows)
+(3 rows)
 
 DELETE FROM t1 IN ('/sqlite_svr/');
 DELETE 1
 
 SELECT * FROM t1;
- i | t | __spd_url
+ i | t | __spd_url 
 ---+---+----------------
+ 5 | c | /postgres_svr/
  5 | b | /postgres_svr/
-(1 rows)
+(2 rows)
 </pre>
 
 ## Tree Structure
@@ -317,6 +324,68 @@ SELECT * FROM t1;
 (4 rows)
 </pre>
 
+### Create/Drop datasource table
+According to the information of a foreign table, you can create/drop a table on remote database.   
+  - The query syntax:
+    <pre>
+    CREATE DATASOURCE TABLE [ IF NOT EXISTS ] table_name;
+    DROP DATASOURCE TABLE [ IF EXISTS ] table_name;
+    </pre>
+  - Parameters:
+    - IF NOT EXISTS (in CREATE DATASOURCE TABLE)   
+      Do not throw any error if a relation/table with the same name with datasource table already exists in remote server. Note that there is no guarantee that the existing datasouce table is anything like the one that would have been created.
+    - IF EXISTS (in DROP DATASOURCE TABLE)   
+      Do not throw any error if the datasource table does not exist.
+    - table_name   
+      The name (optionally schema-qualified) of the foreign table that we can derive the datasource table need to be created.
+
+  - Examples:
+    ```sql
+    CREATE FOREIGN TABLE ft1(i int, t text) SERVER postgres_svr OPTIONS (table_name 't1');
+    CREATE DATASOURCE TABLE ft1; -- new datasource table `t1` is created in remote server
+    DROP DATASOURCE TABLE ft1 -- datasource table `t1` is dropped in remote server
+    ```
+
+### Migrate table
+You can migrate data from source tables to destination tables.   
+Source table can be local table, foreign table or multi-tenant table. Destination table can be foreign table or multi-tenant table.
+
+  - The query syntax:
+    <pre>
+    MIGRATE TABLE source_table
+    [REPLACE|TO dest_table OPTIONS (USE_MULTITENANT_SERVER <multitenant_server_name>)]
+    SERVER [dest_server OPTIONS ( option 'value' [, ...] ), dest_server OPTIONS ( option 'value' [, ...] ),...]
+    </pre>
+  - Parameters:
+    - source_table   
+      The name (optionally schema-qualified) of the source table. Source table can be local table, foreign table or multi-tenant table.
+    - REPLACE (optional)   
+      If this option is specified, destination table must not be specified, source table will be replaced by a new foreign table/multi-tenant table (with the name sane as source table) remoting to a new data source table. It means source table no longer exists.
+    - TO (optional)   
+      If it is specified, destination table must be specified. And the name of destination table must be different from the name of source table. After migration, source table is kept, new destination foreign table will be created to remoting to new data source table.   
+      - dest_table   
+        The name (optionally schema-qualified) of destination table. If destination table already exists, an error will be reported.
+        Destination table can be specified with option `USE_MULTITENANT_SERVER`, a multi-tenant destination table will be created same as the destination table.
+    - dest_server   
+      Foreign server of destination server. If there are many destination servers or there is a signle destination server with `USE_MULTITENANT_SERVER` option is specified, a multi-tenant destination table will be created same as the destination table name.
+      - OPTIONS ( option 'value' [, ...] )   
+        destination server options, foreign table will be created with these options and datasource table will be created in remote server based on these options.
+
+  - Examples:
+    ```sql
+    MIGRATE TABLE t1 SERVER postgres_svr;
+
+    MIGRATE TABLE t1 REPLACE SERVER postgres_svr;
+
+    MIGRATE TABLE t1 REPLACE SERVER postgres_svr, postgres_svr;
+
+    MIGRATE TABLE t1 TO t2 SERVER postgres_svr;
+
+    MIGRATE TABLE t1 TO t2 SERVER postgres_svr, postgres_svr;
+
+    MIGRATE TABLE t1 to t2 OPTIONS (USE_MULTITENANT_SERVER 'pgspider_core_svr') SERVER postgres_svr;
+    ```
+
 ## Note
 When a query to foreign tables fails, you can find why it fails by seeing a query executed in PGSpider with `EXPLAIN (VERBOSE)`.  
 PGSpider has a table option: `disable_transaction_feature_check`:  
@@ -329,7 +398,6 @@ PGSpider has a table option: `disable_transaction_feature_check`:
 Limitation with modification and transaction:
 - Sometimes, PGSpider cannot read modified data in a transaction.
 - It is recommended to execute a modify query(INSERT/UPDATE/DELETE) in auto-commit mode. If not, a warning "Modification query is executing in non-autocommit mode. PGSpider might get inconsistent data." is shown.
-- Can not execute INSERT query with IN clause.
 - RETURNING, WITH CHECK OPTION and ON CONFLICT are not supported with Modification.
 
 ## Contributing

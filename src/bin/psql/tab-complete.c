@@ -1210,6 +1210,9 @@ static const pgsql_thing_t words_after_create[] = {
 	{"CONFIGURATION", NULL, NULL, &Query_for_list_of_ts_configurations, NULL, THING_NO_SHOW},
 	{"CONVERSION", "SELECT conname FROM pg_catalog.pg_conversion WHERE conname LIKE '%s'"},
 	{"DATABASE", Query_for_list_of_databases},
+#ifdef PGSPIDER
+	{"DATASOURCE TABLE", NULL, NULL, NULL},
+#endif
 	{"DEFAULT PRIVILEGES", NULL, NULL, NULL, NULL, THING_NO_CREATE | THING_NO_DROP},
 	{"DICTIONARY", NULL, NULL, &Query_for_list_of_ts_dictionaries, NULL, THING_NO_SHOW},
 	{"DOMAIN", NULL, NULL, &Query_for_list_of_domains},
@@ -1673,7 +1676,7 @@ psql_completion(const char *text, int start, int end)
 		"COMMENT", "COMMIT", "COPY", "CREATE", "DEALLOCATE", "DECLARE",
 		"DELETE FROM", "DISCARD", "DO", "DROP", "END", "EXECUTE", "EXPLAIN",
 		"FETCH", "GRANT", "IMPORT FOREIGN SCHEMA", "INSERT INTO", "LISTEN", "LOAD", "LOCK",
-		"MERGE INTO", "MOVE", "NOTIFY", "PREPARE",
+		"MERGE INTO", "MIGRATE TABLE", "MOVE", "NOTIFY", "PREPARE",
 		"REASSIGN", "REFRESH MATERIALIZED VIEW", "REINDEX", "RELEASE",
 		"RESET", "REVOKE", "ROLLBACK",
 		"SAVEPOINT", "SECURITY LABEL", "SELECT", "SET", "SHOW", "START",
@@ -2836,6 +2839,14 @@ psql_completion(const char *text, int start, int end)
 	else if (Matches("CREATE", "DOMAIN", MatchAny, "COLLATE"))
 		COMPLETE_WITH_SCHEMA_QUERY(Query_for_list_of_collations);
 
+#ifdef PGSPIDER
+	/* CREATE DATASOURCE TABLE*/
+	else if (Matches("CREATE", "DATASOURCE"))
+		COMPLETE_WITH("TABLE");
+	else if (Matches("CREATE", "DATASOURCE", "TABLE"))
+		COMPLETE_WITH_SCHEMA_QUERY(Query_for_list_of_foreign_tables);
+#endif
+
 	/* CREATE EXTENSION */
 	/* Complete with available extensions rather than installed ones. */
 	else if (Matches("CREATE", "EXTENSION"))
@@ -3564,6 +3575,14 @@ psql_completion(const char *text, int start, int end)
 	else if (HeadMatches("DROP", "DATABASE") && (ends_with(prev_wd, '(')))
 		COMPLETE_WITH("FORCE");
 
+#ifdef PGSPIDER
+	/* DROP DATASOURCE TABLE*/
+	else if (Matches("DROP", "DATASOURCE"))
+		COMPLETE_WITH("TABLE");
+	else if (Matches("DROP", "DATASOURCE", "TABLE"))
+		COMPLETE_WITH_SCHEMA_QUERY(Query_for_list_of_foreign_tables);
+#endif
+
 	/* DROP INDEX */
 	else if (Matches("DROP", "INDEX"))
 		COMPLETE_WITH_SCHEMA_QUERY_PLUS(Query_for_list_of_indexes,
@@ -4199,6 +4218,32 @@ psql_completion(const char *text, int start, int end)
 	/* Complete ... WHEN NOT MATCHED THEN with INSERT/DO NOTHING */
 	else if (TailMatches("WHEN", "NOT", "MATCHED", "THEN"))
 		COMPLETE_WITH("INSERT", "DO NOTHING");
+
+#ifdef PGSPIDER
+	/* MIGRATE TABLE <table> REPLACE|TO <dest_table> OPTIONS (...) SERVER <dest_server> OPTIONS (...), <dest_server> OPTIONS (...) */
+	else if (Matches("MIGRATE"))
+		COMPLETE_WITH("TABLE");
+	else if (Matches("MIGRATE", "TABLE"))
+		COMPLETE_WITH_SCHEMA_QUERY(Query_for_list_of_selectables);
+	else if (Matches("MIGRATE", "TABLE", MatchAny))
+		COMPLETE_WITH("REPLACE", "TO", "SERVER");
+	else if (Matches("MIGRATE", "TABLE", MatchAny, "REPLACE"))
+		COMPLETE_WITH("SERVER");
+	else if (Matches("MIGRATE", "TABLE", MatchAny, "REPLACE", "SERVER", MatchAny))
+		COMPLETE_WITH("OPTIONS");
+	else if (Matches("MIGRATE", "TABLE", MatchAny, "TO"))
+		COMPLETE_WITH_SCHEMA_QUERY(Query_for_list_of_selectables);
+	else if (Matches("MIGRATE", "TABLE", MatchAny, "TO", MatchAny))
+		COMPLETE_WITH("OPTIONS", "SERVER");
+	else if (Matches("MIGRATE", "TABLE", MatchAny, "TO", MatchAny, "OPTIONS", MatchAny))
+		COMPLETE_WITH("SERVER");
+	else if (Matches("MIGRATE", "TABLE", MatchAny, "TO", MatchAny, "OPTIONS", MatchAny, "SERVER", MatchAny))
+		COMPLETE_WITH("OPTIONS");
+	else if (Matches("MIGRATE", "TABLE", MatchAny, "TO", MatchAny))
+		COMPLETE_WITH("SERVER");
+	else if (Matches("MIGRATE", "TABLE", MatchAny, "TO", MatchAny, "SERVER", MatchAny))
+		COMPLETE_WITH("OPTIONS");
+#endif
 
 /* NOTIFY --- can be inside EXPLAIN, RULE, etc */
 	else if (TailMatches("NOTIFY"))

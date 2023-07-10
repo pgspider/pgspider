@@ -139,6 +139,10 @@ preprocess_aggref(Aggref *aggref, PlannerInfo *root)
 	int16		transtypeLen;
 	Oid			inputTypes[FUNC_MAX_ARGS];
 	int			numArguments;
+#ifdef PD_STORED
+	Oid			aggparentfn;
+	Oid			aggchildfn;
+#endif
 
 	Assert(aggref->agglevelsup == 0);
 
@@ -160,6 +164,12 @@ preprocess_aggref(Aggref *aggref, PlannerInfo *root)
 	aggdeserialfn = aggform->aggdeserialfn;
 	aggtranstype = aggform->aggtranstype;
 	aggtransspace = aggform->aggtransspace;
+#ifdef PD_STORED
+	aggparentfn = AggregateGetFunctionFromTuple(aggTuple,
+												Anum_pg_aggregate_aggparentfn);
+	aggchildfn = AggregateGetFunctionFromTuple(aggTuple,
+												Anum_pg_aggregate_aggchildfn);
+#endif
 
 	/*
 	 * Resolve the possibly-polymorphic aggregate transition type.
@@ -281,6 +291,10 @@ preprocess_aggref(Aggref *aggref, PlannerInfo *root)
 			transinfo->aggtransspace = aggtransspace;
 			transinfo->initValue = initValue;
 			transinfo->initValueIsNull = initValueIsNull;
+#ifdef PD_STORED
+			transinfo->parentfn_oid = aggparentfn;
+			transinfo->childfn_oid = aggchildfn;
+#endif
 
 			transno = list_length(root->aggtransinfos);
 			root->aggtransinfos = lappend(root->aggtransinfos, transinfo);
@@ -553,6 +567,13 @@ get_agg_clause_costs(PlannerInfo *root, AggSplit aggsplit, AggClauseCosts *costs
 			add_function_cost(root, transinfo->combinefn_oid, NULL,
 							  &costs->transCost);
 		}
+#ifdef PD_STORED
+		else if (OidIsValid(transinfo->parentfn_oid))
+		{
+			add_function_cost(root, transinfo->parentfn_oid, NULL, &costs->transCost);
+			add_function_cost(root, transinfo->childfn_oid, NULL, &costs->transCost);
+		}
+#endif
 		else
 			add_function_cost(root, transinfo->transfn_oid, NULL,
 							  &costs->transCost);

@@ -8951,7 +8951,7 @@ spd_ConfigureChildForeignModifyMemoryContext(ModifyThreadInfo *mtThrdInfo, int n
 	/* Create context for per-tuple temp workspace */
 	pmtThrdInfo->temp_cxt = AllocSetContextCreate(es_query_cxt,
 												  "modify thread temporary data",
-												  ALLOCSET_SMALL_SIZES);
+											 	  ALLOCSET_SMALL_SIZES);
 
 	/*
 	 * memory context tree: parent es_query_cxt -> threadMemoryContext ->
@@ -15714,7 +15714,7 @@ spd_find_em_expr_for_input_target(PlannerInfo *root,
  * spd_is_orderby_pushdown_safe.
  *
  * Determine ORDER BY safety: whether pgspider_core_fdw can pushdown ORDER BY or not.
-	If ORDER BY is safe, pgspider_core can create a foreign path with pathkeys.
+ 	If ORDER BY is safe, pgspider_core can create a foreign path with pathkeys.
  * Determine whether pgspider_core_fdw should gives ORDER BY information to child or not.
  */
 static bool

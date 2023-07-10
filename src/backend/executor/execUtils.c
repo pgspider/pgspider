@@ -163,6 +163,10 @@ CreateExecutorState(void)
 #endif
 	estate->es_use_parallel_mode = false;
 
+#ifdef PD_STORED
+	estate->is_dist_func = false;
+#endif
+
 	estate->es_jit_flags = 0;
 	estate->es_jit = NULL;
 

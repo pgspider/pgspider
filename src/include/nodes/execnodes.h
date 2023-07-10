@@ -685,6 +685,9 @@ typedef struct EState
 #ifdef PGSPIDER
 	bool		agg_query;		/* To Indicate the type of the query, */
 	bool		es_drop_table;	/* To indicate temp table need to be dropped */
+#ifdef PD_STORED
+	bool		is_dist_func;	/* true if it is a distributed function mode */
+#endif
 #endif
 	/* The per-query shared memory area to use for parallel execution. */
 	struct dsa_area *es_query_dsa;

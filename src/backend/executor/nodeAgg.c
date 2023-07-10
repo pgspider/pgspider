@@ -258,6 +258,9 @@
 #include "executor/execExpr.h"
 #include "executor/executor.h"
 #include "executor/nodeAgg.h"
+#ifdef PD_STORED
+#include "executor/nodeDist.h"
+#endif
 #include "lib/hyperloglog.h"
 #include "miscadmin.h"
 #include "nodes/makefuncs.h"
@@ -2158,6 +2161,11 @@ ExecAgg(PlanState *pstate)
 				break;
 			case AGG_PLAIN:
 			case AGG_SORTED:
+#ifdef PD_STORED
+				if (node->numaggs > 0 && OidIsValid(node->peragg->parentfn_oid))
+					result = agg_retrieve_distributed_func(node);
+				else
+#endif
 				result = agg_retrieve_direct(node);
 				break;
 		}
@@ -3284,6 +3292,9 @@ ExecInitAgg(Agg *node, EState *estate, int eflags)
 	if (node->aggstrategy == AGG_HASHED)
 		eflags &= ~EXEC_FLAG_REWIND;
 	outerPlan = outerPlan(node);
+#ifdef PD_STORED
+	estate->is_dist_func = is_distributed_function(&aggstate->ss.ps);
+#endif
 	outerPlanState(aggstate) = ExecInitNode(outerPlan, estate, eflags);
 
 	/*
@@ -3645,6 +3656,16 @@ ExecInitAgg(Agg *node, EState *estate, int eflags)
 		Oid			aggOwner;
 		Expr	   *finalfnexpr;
 		Oid			aggtranstype;
+#ifdef PD_STORED
+		HeapTuple	aggTupleParent = NULL;
+		HeapTuple	fTupleChild = NULL;
+		Oid			parentfn;
+		Oid			childfn;
+		Oid			transfn_oid_parent;
+		Oid			finalfn_oid_parent;
+		Oid			rettypechild = InvalidOid;
+		char		prokindparent;
+#endif
 
 		/* Planner should have assigned aggregate to correct level */
 		Assert(aggref->agglevelsup == 0);
@@ -3678,13 +3699,82 @@ ExecInitAgg(Agg *node, EState *estate, int eflags)
 
 		/* planner recorded transition state type in the Aggref itself */
 		aggtranstype = aggref->aggtranstype;
+#ifdef PD_STORED
+		parentfn = AggregateGetFunctionFromTuple(aggTuple,
+												 Anum_pg_aggregate_aggparentfn);
+		childfn = AggregateGetFunctionFromTuple(aggTuple,
+												Anum_pg_aggregate_aggchildfn);
+		peragg->parentfn_oid  = parentfn;
+		peragg->childfn_oid = childfn;
+
+		if (OidIsValid(parentfn))
+		{
+			/*
+			 * ***** Async support (start) *****
+			 * We specially deal with the case that a parent function has no argument.
+			 * In this case, the child function is executed by async mode. It means that
+			 * the parent function is called before the child function finished. It is
+			 * realized by regarding the parent function as final function and no trans
+			 * function. 
+			 */
+			HeapTuple	fTupleParent;
+			Form_pg_proc pformparent;
+
+			fTupleParent = SearchSysCache1(PROCOID,
+										   ObjectIdGetDatum(parentfn));
+			if (!HeapTupleIsValid(fTupleParent))	/* should not happen */
+				elog(ERROR, "cache lookup failed for function %u", parentfn);
+			pformparent = (Form_pg_proc) GETSTRUCT(fTupleParent);
+			prokindparent = pformparent->prokind;
+			ReleaseSysCache(fTupleParent);
+
+			if (prokindparent == PROKIND_FUNCTION)
+			{
+				finalfn_oid_parent = parentfn;
+			}
+			else
+			/* ***** Async support (end) ***** */
+			{
+				/* Get transfn, finalfn and transtype of parent function. */
+				Form_pg_aggregate aggformparent;
+
+				Assert (prokindparent == PROKIND_AGGREGATE);
+				aggTupleParent = SearchSysCache1(AGGFNOID,
+												 ObjectIdGetDatum(parentfn));
+				aggformparent = (Form_pg_aggregate) GETSTRUCT(aggTupleParent);
+				aggtranstype = aggformparent->aggtranstype;
+				transfn_oid_parent = aggformparent->aggtransfn;
+				finalfn_oid_parent = aggformparent->aggfinalfn;
+				Assert(OidIsValid(aggtranstype));
+			}
+		}
+
+		if (OidIsValid(childfn))
+		{
+			Form_pg_proc pformchild;
+
+			fTupleChild = SearchSysCache1(PROCOID,
+										  ObjectIdGetDatum(childfn));
+			if (!HeapTupleIsValid(fTupleChild))	/* should not happen */
+				elog(ERROR, "cache lookup failed for function %u", childfn);
+			pformchild = (Form_pg_proc) GETSTRUCT(fTupleChild);
+			rettypechild = pformchild->prorettype;
+		}
+		peragg->rettypechild = rettypechild;
+#else
 		Assert(OidIsValid(aggtranstype));
+#endif
 
 		/* Final function only required if we're finalizing the aggregates */
 		if (DO_AGGSPLIT_SKIPFINAL(aggstate->aggsplit))
 			peragg->finalfn_oid = finalfn_oid = InvalidOid;
 		else
 			peragg->finalfn_oid = finalfn_oid = aggform->aggfinalfn;
+#ifdef PD_STORED
+		/* Use value of parent function. */
+		if (OidIsValid(parentfn))
+			peragg->finalfn_oid = finalfn_oid = finalfn_oid_parent;
+#endif
 
 		serialfn_oid = InvalidOid;
 		deserialfn_oid = InvalidOid;
@@ -3768,6 +3858,13 @@ ExecInitAgg(Agg *node, EState *estate, int eflags)
 		 * could be different from the agg's declared input types, when the
 		 * agg accepts ANY or a polymorphic type.
 		 */
+#ifdef PD_STORED
+		if (OidIsValid(childfn))
+		{
+			/* Argument of a parent trans function is that of child function. */
+			aggref->aggargtypes = list_make1_oid(rettypechild);
+		}
+#endif
 		numAggTransFnArgs = get_aggregate_argtypes(aggref,
 												   aggTransFnInputTypes);
 
@@ -3775,10 +3872,29 @@ ExecInitAgg(Agg *node, EState *estate, int eflags)
 		numDirectArgs = list_length(aggref->aggdirectargs);
 
 		/* Detect how many arguments to pass to the finalfn */
+#ifdef PD_STORED
+		/* ***** Async support (start) ***** */
+		if (prokindparent == PROKIND_FUNCTION)
+			peragg->numFinalArgs = 0;
+		else
+		/* ***** Async support (end) ***** */
+#endif
 		if (aggform->aggfinalextra)
 			peragg->numFinalArgs = numAggTransFnArgs + 1;
 		else
 			peragg->numFinalArgs = numDirectArgs + 1;
+
+#ifdef PD_STORED
+		/*
+		 * ***** Async support (start) *****
+		 * If a parent function has no argument, execute a child function by async mode.
+		 */
+		if (peragg->numFinalArgs == 0)
+			peragg->async = true;
+		else
+			peragg->async = false;
+		/* ***** Async support (end) ***** */
+#endif
 
 		/* Initialize any direct-argument expressions */
 		peragg->aggdirectargs = ExecInitExprList(aggref->aggdirectargs,
@@ -3831,6 +3947,11 @@ ExecInitAgg(Agg *node, EState *estate, int eflags)
 				if (!OidIsValid(transfn_oid))
 					elog(ERROR, "combinefn not set for aggregate function");
 			}
+#ifdef PD_STORED
+			/* Use value of parent function. */
+			else if (OidIsValid(parentfn))
+				transfn_oid = transfn_oid_parent;
+#endif
 			else
 				transfn_oid = aggform->aggtransfn;
 
@@ -3844,6 +3965,18 @@ ExecInitAgg(Agg *node, EState *estate, int eflags)
 			 * initval is potentially null, so don't try to access it as a
 			 * struct field. Must do it the hard way with SysCacheGetAttr.
 			 */
+#ifdef PD_STORED
+			if (OidIsValid(parentfn))
+				/* ***** Async support (start) ***** */
+				if (prokindparent == PROKIND_FUNCTION)
+					initValueIsNull = true;
+				else
+				/* ***** Async support (end) ***** */
+				textInitVal = SysCacheGetAttr(AGGFNOID, aggTupleParent,
+										  	  Anum_pg_aggregate_agginitval,
+										 	  &initValueIsNull);
+			else
+#endif
 			textInitVal = SysCacheGetAttr(AGGFNOID, aggTuple,
 										  Anum_pg_aggregate_agginitval,
 										  &initValueIsNull);
@@ -3852,6 +3985,19 @@ ExecInitAgg(Agg *node, EState *estate, int eflags)
 			else
 				initValue = GetAggInitVal(textInitVal, aggtranstype);
 
+#ifdef PD_STORED
+			/* ***** Async support (start) ***** */
+			if (prokindparent == PROKIND_FUNCTION)
+			{
+				int			numGroupingSets = Max(aggstate->maxsets, 1);
+
+				pertrans->sortstates = (Tuplesortstate **)
+					palloc0(sizeof(Tuplesortstate *) * numGroupingSets);
+				pertrans->transtypeByVal = true;
+			}
+			else
+			/* ***** Async support (end) ***** */
+#endif
 			if (DO_AGGSPLIT_COMBINE(aggstate->aggsplit))
 			{
 				Oid			combineFnInputTypes[] = {aggtranstype,
@@ -3922,6 +4068,12 @@ ExecInitAgg(Agg *node, EState *estate, int eflags)
 		else
 			pertrans->aggshared = true;
 		ReleaseSysCache(aggTuple);
+#ifdef PD_STORED
+		if (aggTupleParent)
+			ReleaseSysCache(aggTupleParent);
+		if (fTupleChild)
+			ReleaseSysCache(fTupleChild);
+#endif
 	}
 
 	/*
@@ -4746,4 +4898,69 @@ ExecDirectAgg(AggState *node)
 {
 	return ExecAgg(node);
 }
+
+#ifdef PD_STORED
+/* Followings are functions to be called from nodeDist.c. */
+void
+InitializePhase(AggState *aggstate, int newphase)
+{
+	return initialize_phase(aggstate, newphase);
+}
+
+void
+SelectCurrentSet(AggState *aggstate, int setno, bool is_hash)
+{
+	return select_current_set(aggstate, setno, is_hash);
+}
+
+TupleTableSlot *
+AggRetrieveHashTable(AggState *aggstate)
+{
+	return agg_retrieve_hash_table(aggstate);
+}
+
+void
+InitializeAggregates(AggState *aggstate,
+						  AggStatePerGroup *pergroups,
+						  int numReset)
+{
+	return initialize_aggregates(aggstate, pergroups, numReset);
+}
+
+void
+LookupHashEntries(AggState *aggstate)
+{
+	return lookup_hash_entries(aggstate);
+}
+
+void
+AdvanceAggregates(AggState *aggstate)
+{
+	return advance_aggregates(aggstate);
+}
+
+void
+PrepareProjectionSlot(AggState *aggstate,
+							TupleTableSlot *slot,
+							int currentSet)
+{
+	return prepare_projection_slot(aggstate, slot, currentSet);
+}
+
+void
+FinalizeAggregates(AggState *aggstate,
+						AggStatePerAgg peragg,
+						AggStatePerGroup pergroup)
+{
+	return finalize_aggregates(aggstate, peragg, pergroup);
+}
+
+TupleTableSlot *
+ProjectAggregates(AggState *aggstate)
+{
+	return project_aggregates(aggstate);
+}
+
 #endif
+#endif
+

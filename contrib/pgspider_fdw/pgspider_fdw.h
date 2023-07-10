@@ -3,7 +3,7 @@
  * pgspider_fdw.h
  *		  Foreign-data wrapper for remote PGSpider servers
  *
- * Portions Copyright (c) 2012-2023, PostgreSQL Global Development Group
+ * Portions Copyright (c) 2012-2021, PostgreSQL Global Development Group
  * Portions Copyright (c) 2018, TOSHIBA CORPORATION
  *
  * IDENTIFICATION
@@ -15,11 +15,13 @@
 #define PGSPIDER_FDW_H
 
 #include "foreign/foreign.h"
+#include "funcapi.h"
 #include "lib/stringinfo.h"
 #include "libpq-fe.h"
 #include "nodes/execnodes.h"
 #include "nodes/pathnodes.h"
 #include "utils/relcache.h"
+
 
 /*
  * FDW-specific planner information kept in RelOptInfo.fdw_private for a
@@ -130,7 +132,6 @@ typedef struct PGSpiderFdwRelationInfo
 	bool		is_tlist_func_pushdown;
 }			PGSpiderFdwRelationInfo;
 
-
 /*
  * Extra control information relating to a connection.
  */
@@ -138,6 +139,51 @@ typedef struct PGSpiderFdwConnState
 {
 	AsyncRequest *pendingAreq;	/* pending async request */
 }			PGSpiderFdwConnState;
+
+/*
+ * Execution state of a foreign insert/update/delete operation.
+ */
+typedef struct PGSpiderFdwModifyState
+{
+	SocketThreadInfo socketThreadInfo;	/* shared socket thread info */
+
+	Relation	rel;			/* relcache entry for the foreign table */
+	AttInMetadata *attinmeta;	/* attribute datatype conversion metadata */
+
+	/* for remote query execution */
+	PGconn	   *conn;			/* connection for the scan */
+	PGSpiderFdwConnState *conn_state;	/* extra per-connection state */
+	char	   *p_name;			/* name of prepared statement, if created */
+
+	/* extracted fdw_private data */
+	char	   *query;			/* text of INSERT/UPDATE/DELETE command */
+	char	   *orig_query;		/* original text of INSERT command */
+	List	   *target_attrs;	/* list of target attribute numbers */
+	int			values_end;		/* length up to the end of VALUES */
+	int			batch_size;		/* value of FDW option "batch_size" */
+	bool		has_returning;	/* is there a RETURNING clause? */
+	List	   *retrieved_attrs;	/* attr numbers retrieved by RETURNING */
+
+	/* info about parameters for prepared statement */
+	AttrNumber	ctidAttno;		/* attnum of input resjunk ctid column */
+	int			p_nums;			/* number of parameters to transmit */
+	FmgrInfo   *p_flinfo;		/* output conversion functions for them */
+
+	/* batch operation stuff */
+	int			num_slots;		/* number of slots to insert */
+
+	/* working memory context */
+	MemoryContext temp_cxt;		/* context for per-tuple temporary data */
+
+	/* for update row movement if subplan result rel */
+	struct PGSpiderFdwModifyState *aux_fmstate; /* foreign-insert state, if
+												 * created */
+	int			socket_port;		/* port of socket server */
+	int			function_timeout;	/* timeout to rest API request */
+	pthread_t	socket_thread;	/* child thread to send insertion data */
+	bool		data_compression_transfer_enabled;	/* true if data compression transfer
+											 * feature is used */
+}			PGSpiderFdwModifyState;
 
 /* in pgspider_fdw.c */
 extern int	pgspider_set_transmission_modes(void);
@@ -251,4 +297,10 @@ extern bool pgspider_is_foreign_function_tlist(PlannerInfo *root,
 											   RelOptInfo *baserel,
 											   List *tlist);
 extern List *pgspider_pull_func_clause(Node *node);
+
+extern int	ExecForeignDDL(Oid serverOid,
+						   Relation rel,
+						   int operation,
+						   bool if_not_exists);
+
 #endif							/* PGSPIDER_FDW_H */

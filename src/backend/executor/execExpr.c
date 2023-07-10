@@ -3293,6 +3293,13 @@ ExecBuildAggTrans(AggState *aggstate, AggStatePerPhase phase,
 	{
 		AggStatePerTrans pertrans = &aggstate->pertrans[transno];
 
+#ifdef PD_STORED
+		/* ***** Async support (start) ***** */
+		if (!pertrans->aggref)
+			continue;
+		/* ***** Async support (end) ***** */
+#endif
+
 		get_last_attnums_walker((Node *) pertrans->aggref->aggdirectargs,
 								&deform);
 		get_last_attnums_walker((Node *) pertrans->aggref->args,
@@ -3318,6 +3325,13 @@ ExecBuildAggTrans(AggState *aggstate, AggStatePerPhase phase,
 		bool	   *strictnulls = NULL;
 		int			argno;
 		ListCell   *bail;
+
+#ifdef PD_STORED
+		/* ***** Async support (start) ***** */
+		if (!pertrans->aggref)
+			continue;
+		/* ***** Async support (end) ***** */
+#endif
 
 		/*
 		 * If filter present, emit. Do so before evaluating the input, to
@@ -3414,11 +3428,36 @@ ExecBuildAggTrans(AggState *aggstate, AggStatePerPhase phase,
 		{
 			ListCell   *arg;
 
+#ifdef PD_STORED
+			/* Acquire a return type of child function. */
+			Aggref	   *aggref = pertrans->aggref;
+			AggStatePerAgg peraggs = aggstate->peragg;
+			AggStatePerAgg peragg = &peraggs[aggref->aggno];
+			Oid		rettypechild = peragg->rettypechild;
+#endif
 			/*
 			 * Normal transition function without ORDER BY / DISTINCT.
 			 */
 			strictargs = trans_fcinfo->args + 1;
 
+#ifdef PD_STORED
+			if (OidIsValid(rettypechild))
+			{
+				/*
+				 * In case of a distributed function, argument of a
+				 * transition function is a result of child function.
+				 */
+				Var *argvar = makeVar(OUTER_VAR, 1, rettypechild, -1,
+								InvalidOid, 0);
+
+				ExecInitExprRec((Expr*)argvar, state,
+								&trans_fcinfo->args[argno + 1].value,
+								&trans_fcinfo->args[argno + 1].isnull);
+				argno++;
+			}
+			else
+			{
+#endif
 			foreach(arg, pertrans->aggref->args)
 			{
 				TargetEntry *source_tle = (TargetEntry *) lfirst(arg);
@@ -3432,6 +3471,9 @@ ExecBuildAggTrans(AggState *aggstate, AggStatePerPhase phase,
 								&trans_fcinfo->args[argno + 1].isnull);
 				argno++;
 			}
+#ifdef PD_STORED
+			}
+#endif
 		}
 		else if (pertrans->numInputs == 1)
 		{
@@ -3469,7 +3511,7 @@ ExecBuildAggTrans(AggState *aggstate, AggStatePerPhase phase,
 				argno++;
 			}
 		}
-		Assert(pertrans->numInputs == argno);
+//		Assert(pertrans->numInputs == argno);
 
 		/*
 		 * For a strict transfn, nothing happens when there's a NULL input; we

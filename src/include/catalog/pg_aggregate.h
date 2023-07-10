@@ -98,6 +98,12 @@ CATALOG(pg_aggregate,2600,AggregateRelationId)
 
 	/* initial value for moving-agg state (can be NULL) */
 	text		aggminitval BKI_DEFAULT(_null_);
+
+#ifdef PD_STORED
+	/* distributed stored function */
+	Oid			aggparentfn BKI_DEFAULT(_null_);
+	Oid			aggchildfn BKI_DEFAULT(_null_);
+#endif
 #endif
 } FormData_pg_aggregate;
 
@@ -176,5 +182,27 @@ extern ObjectAddress AggregateCreate(const char *aggName,
 									 const char *agginitval,
 									 const char *aggminitval,
 									 char proparallel);
+
+#ifdef PD_STORED
+extern ObjectAddress DistributedFuncCreate(const char *distName,
+										   Oid distNamespace,
+										   bool replace,
+										   int numArgs,
+										   int numDirectArgs,
+										   oidvector *parameterTypes,
+										   Datum allParameterTypes,
+										   Datum parameterModes,
+										   Datum parameterNames,
+										   List *parameterDefaults,
+										   Oid variadicArgType,
+										   List *fnNameParent,
+										   List *fnNameChild,
+										   oidvector *parameterTypesParent,
+										   int numArgsParent,
+										   Oid variadicArgTypeParent);
+extern Oid AggregateGetFunctionFromTuple(HeapTuple tup,
+										 AttrNumber attributeNumber);
+
+#endif
 
 #endif							/* PG_AGGREGATE_H */

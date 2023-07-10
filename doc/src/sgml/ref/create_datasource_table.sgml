@@ -1,0 +1,102 @@
+<!--
+doc/src/sgml/ref/create_datasource_table.sgml
+PostgreSQL documentation
+-->
+
+<refentry id="sql-createdatasourcetable">
+ <indexterm zone="sql-createdatasourcetable">
+  <primary>CREATE DATASOURCE TABLE</primary>
+ </indexterm>
+
+ <refmeta>
+  <refentrytitle>CREATE DATASOURCE TABLE</refentrytitle>
+  <manvolnum>7</manvolnum>
+  <refmiscinfo>SQL - Language Statements</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CREATE DATASOURCE TABLE</refname>
+  <refpurpose>define a new datasource table</refpurpose>
+ </refnamediv>
+
+ <refsynopsisdiv>
+<synopsis>
+CREATE DATASOURCE TABLE [ IF NOT EXISTS ] <replaceable class="parameter">table_name</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1 id="sql-createdatasourcetable-description">
+  <title>Description</title>
+
+  <para>
+   <command>CREATE DATASOURCE TABLE</command> creates a new datasource table
+   in the remote database using a foreign table. The table will be owned by the user issuing the
+   command.
+  </para>
+
+  <para>
+   If table_name option is specified when creating a foreign table, that name will be used when
+   creating datasource table. If not, name of datasource table is same as name of foreign table.
+   The name of the datasource table must be distinct from the name of any other table, table, sequence, index,
+   view, or materialized view in the datasource.
+  </para>
+
+ </refsect1>
+
+ <refsect1>
+  <title>Parameters</title>
+
+  <variablelist>
+
+   <varlistentry>
+    <term><literal>IF NOT EXISTS</literal></term>
+    <listitem>
+     <para>
+      Do not throw an error if a relation with the same name already exists.
+      A notice is issued in this case.  Note that there is no guarantee that
+      the existing relation is anything like the one that would have been
+      created.
+     </para>
+    </listitem>
+   </varlistentry>
+
+  </variablelist>
+
+ </refsect1>
+ 
+ <refsect1 id="sql-createdatasourcetable-examples">
+  <title>Examples</title>
+
+  <para>
+   Create foreign table <structname>ftfilms</structname>, which will be accessed through
+   the server <structname>film_server</structname>:
+
+<programlisting>
+CREATE FOREIGN TABLE ftfilms (
+    code        char(5) NOT NULL,
+    title       varchar(40) NOT NULL,
+    did         integer NOT NULL,
+    date_prod   date,
+    kind        varchar(10),
+    len         interval hour to minute
+)
+SERVER film_server OPTIONS (table_name 'films');
+</programlisting></para>
+
+  <para>
+   Create datasource table <structname>films</structname> using the foreign table:
+
+<programlisting>
+CREATE DATASOURCE TABLE ftfilms;
+</programlisting></para>
+
+ </refsect1>
+
+ <refsect1>
+  <title>See Also</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-dropdatasourceforeigntable"/></member>
+  </simplelist>
+ </refsect1>
+</refentry>

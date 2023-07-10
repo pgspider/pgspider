@@ -1,0 +1,96 @@
+<!--
+doc/src/sgml/ref/drop_datasource_table.sgml
+PostgreSQL documentation
+-->
+
+<refentry id="sql-dropdatasourcetable">
+ <indexterm zone="sql-dropdatasourcetable">
+  <primary>DROP DATASOURCE TABLE</primary>
+ </indexterm>
+
+ <refmeta>
+  <refentrytitle>DROP DATASOURCE TABLE</refentrytitle>
+  <manvolnum>7</manvolnum>
+  <refmiscinfo>SQL - Language Statements</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>DROP DATASOURCE TABLE</refname>
+  <refpurpose>remove a foreign table</refpurpose>
+ </refnamediv>
+
+ <refsynopsisdiv>
+<synopsis>
+DROP DATASOURCE TABLE [ IF EXISTS ] <replaceable class="parameter">name</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Description</title>
+
+  <para>
+   <command>DROP DATASOURCE TABLE</command> removes a table from datasource.
+   Only the owner of a foreign table mapping to a datasource table can remove it.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parameters</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><literal>IF EXISTS</literal></term>
+    <listitem>
+     <para>
+      Do not throw an error if the datasource table does not exist.
+      A notice is issued in this case.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">name</replaceable></term>
+    <listitem>
+     <para>
+      The name (optionally schema-qualified) of the foreign table mapping to datasource table to drop.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Examples</title>
+
+  <para>
+   To destroy a datasource table, <literal>films</literal>:
+
+<programlisting>
+CREATE FOREIGN TABLE ftfilms SERVER postgres_svr OPTIONS (table_name 'films');
+</programlisting>
+
+<programlisting>
+DROP DATASOURCE TABLE ftfilms;
+</programlisting></para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibility</title>
+
+  <para>
+   This command conforms to ISO/IEC 9075-9 (SQL/MED), except that the
+   standard only allows one datasource table to be dropped per command, and apart
+   from the <literal>IF EXISTS</literal> option, which is a <productname>PostgreSQL</productname>
+   extension.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>See Also</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-createdatasourcetable"/></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>

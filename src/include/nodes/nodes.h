@@ -434,7 +434,11 @@ typedef enum NodeTag
 	T_AlterCollationStmt,
 	T_CallStmt,
 	T_AlterStatsStmt,
-
+#ifdef PGSPIDER
+	T_MigrateTableStmt,
+	T_CreateDatasourceTableStmt,
+	T_DropDatasourceTableStmt,
+#endif
 	/*
 	 * TAGS FOR PARSE TREE NODES (parsenodes.h)
 	 */

@@ -95,7 +95,14 @@ ProcedureCreate(const char *procedureName,
 				Datum proconfig,
 				Oid prosupport,
 				float4 procost,
-				float4 prorows)
+#ifdef PD_STORED
+				float4 prorows,
+				Oid childfn,
+				Oid parentfn
+#else
+				float4 prorows
+#endif
+				)
 {
 	Oid			retval;
 	int			parameterCount;
@@ -318,6 +325,16 @@ ProcedureCreate(const char *procedureName,
 	values[Anum_pg_proc_pronargdefaults - 1] = UInt16GetDatum(list_length(parameterDefaults));
 	values[Anum_pg_proc_prorettype - 1] = ObjectIdGetDatum(returnType);
 	values[Anum_pg_proc_proargtypes - 1] = PointerGetDatum(parameterTypes);
+#ifdef PD_STORED
+	if (OidIsValid(childfn))
+		values[Anum_pg_proc_prochildfn - 1] = ObjectIdGetDatum(childfn);
+	else
+		nulls[Anum_pg_proc_prochildfn - 1] = true;
+	if (OidIsValid(parentfn))
+		values[Anum_pg_proc_proparentfn - 1] = ObjectIdGetDatum(parentfn);
+	else
+		nulls[Anum_pg_proc_proparentfn - 1] = true;
+#endif
 	if (allParameterTypes != PointerGetDatum(NULL))
 		values[Anum_pg_proc_proallargtypes - 1] = allParameterTypes;
 	else

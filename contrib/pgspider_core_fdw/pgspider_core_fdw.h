@@ -405,7 +405,7 @@ extern bool throwCandidateError;
 #ifdef PD_STORED
 /* in pgspider_core_remotefunc.c */
 void spdExecuteFunction(Oid funcoid, Oid tableoid, List *args,
-						bool async, void **private);
+					    bool async, void **private);
 bool spdGetFunctionResultOne(void *private, AttInMetadata *attinmeta,
 							 Datum *values, bool *nulls);
 void spdFinalizeFunction(void *private);

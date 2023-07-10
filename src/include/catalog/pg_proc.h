@@ -125,6 +125,12 @@ CATALOG(pg_proc,1255,ProcedureRelationId) BKI_BOOTSTRAP BKI_ROWTYPE_OID(81,Proce
 
 	/* access permissions */
 	aclitem		proacl[1] BKI_DEFAULT(_null_);
+
+#ifdef PD_STORED
+	/* distributed stored function */
+	Oid			proparentfn BKI_DEFAULT(0);
+	Oid			prochildfn BKI_DEFAULT(0);
+#endif
 #endif
 } FormData_pg_proc;
 
@@ -211,7 +217,13 @@ extern ObjectAddress ProcedureCreate(const char *procedureName,
 									 Datum proconfig,
 									 Oid prosupport,
 									 float4 procost,
+#ifdef PD_STORED
+									 float4 prorows,
+									 Oid childfn,
+									 Oid parentfn);
+#else
 									 float4 prorows);
+#endif
 
 extern bool function_parse_error_transpose(const char *prosrc);
 

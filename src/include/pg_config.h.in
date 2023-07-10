@@ -1022,3 +1022,5 @@
 #undef typeof
 
 #define PGSPIDER 1
+#define PD_STORED 1
+

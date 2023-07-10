@@ -3,7 +3,7 @@
  * option.c
  *		  FDW and GUC option handling for pgspider_fdw
  *
- * Portions Copyright (c) 2012-2023, PostgreSQL Global Development Group
+ * Portions Copyright (c) 2012-2021, PostgreSQL Global Development Group
  * Portions Copyright (c) 2018, TOSHIBA CORPORATION
  *
  * IDENTIFICATION
@@ -13,6 +13,8 @@
  */
 #include "postgres.h"
 
+#include <curl/curl.h>
+
 #include "access/reloptions.h"
 #include "catalog/pg_foreign_server.h"
 #include "catalog/pg_foreign_table.h"
@@ -21,6 +23,7 @@
 #include "commands/extension.h"
 #include "libpq/libpq-be.h"
 #include "pgspider_fdw.h"
+#include "storage/ipc.h"
 #include "utils/builtins.h"
 #include "utils/guc.h"
 #include "utils/varlena.h"
@@ -63,6 +66,7 @@ void		_PG_init(void);
 static void InitPgFdwOptions(void);
 static bool is_valid_option(const char *keyword, Oid context);
 static bool is_libpq_option(const char *keyword);
+static void pgspider_fdw_exit(int code, Datum arg);
 
 #include "miscadmin.h"
 
@@ -213,6 +217,28 @@ pgspider_fdw_validator(PG_FUNCTION_ARGS)
 						 errmsg("sslcert and sslkey are superuser-only"),
 						 errhint("User mappings with the sslcert or sslkey options set may only be created or modified by the superuser.")));
 		}
+		/* Support Data Compression Transfer feature */
+		else if (strcmp(def->defname, "serverid") == 0 ||
+				 strcmp(def->defname, "userid") == 0)
+		{
+			char	   *value;
+			int			int_val;
+			bool		is_parsed;
+
+			value = defGetString(def);
+			is_parsed = parse_int(value, &int_val, 0, NULL);
+
+			if (!is_parsed)
+				ereport(ERROR,
+						(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+						 errmsg("invalid value for integer option \"%s\": %s",
+								def->defname, value)));
+			if (int_val <= 0)
+				ereport(ERROR,
+						(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+						 errmsg("\"%s\" must be an integer value greater than zero",
+								def->defname)));
+		}
 	}
 
 	PG_RETURN_VOID();
@@ -267,6 +293,13 @@ InitPgFdwOptions(void)
 		 */
 		{"sslcert", UserMappingRelationId, true},
 		{"sslkey", UserMappingRelationId, true},
+
+		/* Options support Data Compression Transfer feature. */
+		{"endpoint", ForeignServerRelationId, false},
+		{"proxy", ForeignServerRelationId, false},
+		{"function_timeout", ForeignServerRelationId, false},
+		{"serverid", ForeignTableRelationId, false},
+		{"userid", ForeignTableRelationId, false},
 
 		{NULL, InvalidOid, false}
 	};
@@ -353,6 +386,28 @@ is_valid_option(const char *keyword, Oid context)
 
 	for (opt = pgspider_fdw_options; opt->keyword; opt++)
 	{
+		/*
+		 * MySQL FDW uses dbname option in foreign table but Postgres FDW uses dbname
+		 * option in foreign server.
+		 * Oracle FDW uses table option instead of table_name option.
+		 *
+		 * Different FDWs have different ways to map foreign table name and remote table name.
+		 * And pgspider_fdw has to validate those options which may not belong to pgspider_fdw.
+		 */
+		if (strcmp(keyword, "dbname") == 0 || strcmp(keyword, "table") == 0)
+			return true;
+		
+		/*
+		 * InfluxDB FDW does not support org option now, it is specified by user
+		 * through MIGRATE command.
+		 * InfluxDB support tags option to indicates this column as containing values
+		 * of tags in InfluxDB measurement.
+		 *
+		 * Ignore its validation in pgspider_fdw.
+		 */
+		if (strcmp(keyword, "org") == 0 || strcmp(keyword, "tags") == 0)
+			return true;
+
 		if (context == opt->optcontext && strcmp(opt->keyword, keyword) == 0)
 			return true;
 	}
@@ -549,4 +604,24 @@ _PG_init(void)
 							   NULL);
 
 	MarkGUCPrefixReserved("pgspider_fdw");
+
+	/*
+	 * Library load-time initialization, sets on_proc_exit() callback for
+	 * backend shutdown.
+	 */
+	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
+		elog(ERROR, "pgspider_fdw: curl libary initialization error");
+
+	on_proc_exit(&pgspider_fdw_exit, PointerGetDatum(NULL));
+}
+
+/*
+ * redmine_fdw_exit
+ * 		Exit callback function.
+ */
+static void
+pgspider_fdw_exit(int code, Datum arg)
+{
+	/* Releases resources acquired by curl_global_init. */
+	curl_global_cleanup();
 }

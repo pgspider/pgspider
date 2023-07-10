@@ -1292,7 +1292,13 @@ CreateFunction(ParseState *pstate, CreateFunctionStmt *stmt)
 						   PointerGetDatum(proconfig),
 						   prosupport,
 						   procost,
+#ifdef PD_STORED
+						   prorows,
+						   InvalidOid,
+						   InvalidOid);
+#else
 						   prorows);
+#endif
 }
 
 /*

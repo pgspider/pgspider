@@ -445,6 +445,7 @@ extern void GUC_check_errcode(int sqlerrcode);
 #ifdef PGSPIDER
 extern void build_guc_variables_child_thread(void);
 extern void copy_main_guc_variables(void);
+extern void free_guc_variables_child_thread(void);
 #endif
 
 /*

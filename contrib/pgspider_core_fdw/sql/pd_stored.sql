@@ -143,3 +143,4 @@ SELECT upsert(val1) FROM tbl_upsert;
 SELECT * FROM tbl_upsert ORDER BY __spd_url;
 SELECT upsert(val1) FROM tbl_upsert;
 SELECT * FROM tbl_upsert ORDER BY __spd_url;
+

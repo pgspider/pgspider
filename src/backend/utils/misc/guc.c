@@ -695,7 +695,11 @@ int			huge_page_size;
 static char *syslog_ident_str;
 static double phony_random_seed;
 static char *client_encoding_string;
+#ifdef PGSPIDER
+static __thread char *datestyle_string;
+#else
 static char *datestyle_string;
+#endif
 static char *locale_collate;
 static char *locale_ctype;
 static char *server_encoding_string;
@@ -3041,7 +3045,12 @@ static struct config_int ConfigureNamesInt[] =
 						 "number of digits (FLT_DIG or DBL_DIG as appropriate). "
 						 "Any value greater than zero selects precise output mode.")
 		},
+
+#ifdef PGSPIDER
+		NULL,
+#else
 		&extra_float_digits,
+#endif
 		1, -15, 3,
 		NULL, NULL, NULL
 	},
@@ -4138,7 +4147,12 @@ static struct config_string ConfigureNamesString[] =
 						 "date inputs."),
 			GUC_LIST_INPUT | GUC_REPORT
 		},
+
+#ifdef PGSPIDER
+		NULL,
+#else
 		&datestyle_string,
+#endif
 		"ISO, MDY",
 		check_datestyle, assign_datestyle, NULL
 	},
@@ -4840,7 +4854,11 @@ static struct config_enum ConfigureNamesEnum[] =
 			NULL,
 			GUC_REPORT
 		},
+#ifdef PGSPIDER
+		NULL,
+#else
 		&IntervalStyle,
+#endif
 		INTSTYLE_POSTGRES, intervalstyle_options,
 		NULL, NULL, NULL
 	},
@@ -5479,7 +5497,10 @@ build_guc_variables(void)
 	for (i = 0; ConfigureNamesInt[i].gen.name; i++)
 	{
 		struct config_int *conf = &ConfigureNamesInt[i];
-
+		if (strcmp(conf->gen.name, "extra_float_digits") == 0)
+		{
+			conf->variable = &extra_float_digits;
+		}
 		conf->gen.vartype = PGC_INT;
 		num_vars++;
 	}
@@ -5500,6 +5521,11 @@ build_guc_variables(void)
 		{
 			conf->variable = &namespace_search_path;
 		}
+		else if (strcmp(conf->gen.name, "DateStyle") == 0)
+		{
+			conf->variable = &datestyle_string;
+		}
+
 		conf->gen.vartype = PGC_STRING;
 		num_vars++;
 	}
@@ -5508,6 +5534,10 @@ build_guc_variables(void)
 	{
 		struct config_enum *conf = &ConfigureNamesEnum[i];
 
+		if(strcmp(conf->gen.name, "IntervalStyle") == 0)
+		{
+			conf->variable = &IntervalStyle;
+		}
 		conf->gen.vartype = PGC_ENUM;
 		num_vars++;
 	}
@@ -13119,62 +13149,134 @@ copy_guc_variables(void)
 			case PGC_BOOL:
 			{
 				struct config_bool *conf = (struct config_bool *) gconf;
-				bool		newval = *(((struct config_bool *) *main_gconf)->variable);
+				bool		reset_val = ((struct config_bool *) *main_gconf)->reset_val;
 				void	   *extra = ((struct config_bool *) *main_gconf)->gen.extra;
+				void	   *reset_extra = ((struct config_bool *) *main_gconf)->reset_extra;
 
-				*conf->variable = conf->reset_val = newval;
-				conf->gen.extra = conf->reset_extra = extra;
+				conf->reset_val = reset_val;
+				conf->gen.extra = extra;
+				conf->reset_extra = reset_extra;
 				break;
 			}
-		case PGC_INT:
+			case PGC_INT:
 			{
 				struct config_int *conf = (struct config_int *) gconf;
-				int		newval = *(((struct config_int *) *main_gconf)->variable);
+				int			reset_val = ((struct config_int *) *main_gconf)->reset_val;
 				void	   *extra = ((struct config_int *) *main_gconf)->gen.extra;
+				void	   *reset_extra = ((struct config_int *) *main_gconf)->reset_extra;
 
-				*conf->variable = conf->reset_val = newval;
-				conf->gen.extra = conf->reset_extra = extra;
+				if (strcmp(conf->gen.name, "extra_float_digits") == 0)
+				{
+					int		newval = *(((struct config_int *) *main_gconf)->variable);
+
+					*conf->variable = newval;
+				}
+
+				conf->reset_val = reset_val;
+				conf->gen.extra = extra;
+				conf->reset_extra = reset_extra;
 				break;
 			}
-		case PGC_REAL:
+			case PGC_REAL:
 			{
 				struct config_real *conf = (struct config_real *) gconf;
-				double		newval = *(((struct config_real *) *main_gconf)->variable);
+				double		reset_val = ((struct config_real *) *main_gconf)->reset_val;
 				void	   *extra = ((struct config_real *) *main_gconf)->gen.extra;
+				void	   *reset_extra = ((struct config_real *) *main_gconf)->reset_extra;
 
-				*conf->variable = conf->reset_val = newval;
-				conf->gen.extra = conf->reset_extra = extra;
+				conf->reset_val = reset_val;
+				conf->gen.extra = extra;
+				conf->reset_extra = reset_extra;
 				break;
 			}
-		case PGC_STRING:
+			case PGC_STRING:
 			{
 				struct config_string *conf = (struct config_string *) gconf;
-				char	   *newval;
+				char	   *reset_val = ((struct config_string *) *main_gconf)->reset_val;
 				void	   *extra = ((struct config_string *) *main_gconf)->gen.extra;
+				void	   *reset_extra = ((struct config_string *) *main_gconf)->reset_extra;
 
-				if (conf->boot_val != NULL)
-					newval = guc_strdup(FATAL, *(((struct config_string *) *main_gconf)->variable));
-				else
-					newval = NULL;
+				/*
+				 * "search_path" and "DateStyle" are thread variables, duplicate values to avoid
+				 * race condition between threads.
+				 */
+				if (strcmp(conf->gen.name, "search_path") == 0 ||
+					strcmp(conf->gen.name, "DateStyle") == 0)
+				{
+					char   *newval = guc_strdup(FATAL, *(((struct config_string *) *main_gconf)->variable));
 
-				*conf->variable = conf->reset_val = newval;
-				conf->gen.extra = conf->reset_extra = extra;
+					*conf->variable = newval;
+				}
+
+				conf->reset_val = reset_val;
+				conf->gen.extra = extra;
+				conf->reset_extra = reset_extra;
 				break;
 			}
-		case PGC_ENUM:
+			case PGC_ENUM:
 			{
 				struct config_enum *conf = (struct config_enum *) gconf;
-				int			newval = *(((struct config_enum *) *main_gconf)->variable);
+				int			reset_val = ((struct config_enum *) *main_gconf)->reset_val;
 				void	   *extra = ((struct config_enum *) *main_gconf)->gen.extra;
+				void	   *reset_extra = ((struct config_enum *) *main_gconf)->reset_extra;
 
-				*conf->variable = conf->reset_val = newval;
-				conf->gen.extra = conf->reset_extra = extra;
+				if (strcmp(conf->gen.name, "IntervalStyle") == 0)
+				{
+					int		newval = *(((struct config_enum *) *main_gconf)->variable);
+
+					*conf->variable = newval;
+				}
+
+				conf->reset_val = reset_val;
+				conf->gen.extra = extra;
+				conf->reset_extra = reset_extra;
 				break;
 			}
 		}
 	}
 
 	SPD_UNLOCK_CATCH(&guc_mutex);
+}
+
+/*
+ * free_guc_variables_child_thread
+ * 		Free guc_variables for child thread.
+ */
+void
+free_guc_variables_child_thread(void)
+{
+	int i;
+
+	for (i = 0; i < num_guc_variables; i++)
+	{
+		struct config_generic *gconf = guc_variables[i];
+
+		switch (gconf->vartype)
+		{
+			case PGC_STRING:
+				{
+					struct config_string *conf = (struct config_string *) gconf;
+
+					if ((*conf->variable) == NULL)
+						break;
+
+					/*
+					 * In copy_guc_variables, new value is created by guc_strdup(),
+					 * free it to avoid memory leak.
+					 */
+					if (strcmp(conf->gen.name, "search_path") == 0 ||
+						strcmp(conf->gen.name, "DateStyle") == 0)
+						free(*conf->variable);
+
+					break;
+				}
+			default:
+				break;
+		}
+	}
+
+	if (guc_variables)
+		free(guc_variables);
 }
 
 /* Build a guc_variables for child thread */

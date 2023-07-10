@@ -307,6 +307,13 @@ ExecInitForeignScan(ForeignScan *node, EState *estate, int eflags)
 #endif
 	}
 	else
+#ifdef PD_STORED
+	/*
+	 * Don't call BeginForeignScan in case of distributed function mode
+	 * because the outerplan is unnecessary to be executed.
+	 */
+	if (!estate->is_dist_func)
+#endif
 		fdwroutine->BeginForeignScan(scanstate, eflags);
 	return scanstate;
 }

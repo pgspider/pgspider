@@ -7,7 +7,8 @@ OBJS = \
 	deparse.o \
 	option.o \
 	postgres_fdw.o \
-	shippable.o
+	shippable.o \
+	remoteproc.o
 PGFILEDESC = "postgres_fdw - foreign data wrapper for PostgreSQL"
 
 PG_CPPFLAGS = -I$(libpq_srcdir)

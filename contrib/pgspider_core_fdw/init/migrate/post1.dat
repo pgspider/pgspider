@@ -25,3 +25,4 @@ CREATE TABLE "S 2"."T 3" (
     c6 varchar(10),
     c7 char(10)
 );
+

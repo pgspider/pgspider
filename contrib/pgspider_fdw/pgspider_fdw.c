@@ -3,7 +3,7 @@
  * pgspider_fdw.c
  *		  Foreign-data wrapper for remote PGSpider servers
  *
- * Portions Copyright (c) 2012-2023, PostgreSQL Global Development Group
+ * Portions Copyright (c) 2012-2021, PostgreSQL Global Development Group
  * Portions Copyright (c) 2018, TOSHIBA CORPORATION
  *
  * IDENTIFICATION
@@ -25,7 +25,6 @@
 #include "commands/vacuum.h"
 #include "executor/execAsync.h"
 #include "foreign/fdwapi.h"
-#include "funcapi.h"
 #include "miscadmin.h"
 #include "nodes/makefuncs.h"
 #include "nodes/nodeFuncs.h"
@@ -41,6 +40,7 @@
 #include "optimizer/tlist.h"
 #include "parser/parsetree.h"
 #include "pgspider_fdw.h"
+#include "pgspider_data_compression_transfer.h"
 #include "storage/latch.h"
 #include "utils/builtins.h"
 #include "utils/float.h"
@@ -96,6 +96,8 @@ enum FdwScanPrivateIndex
  *	  (-1 for a DELETE/UPDATE)
  * 4) Boolean flag showing if the remote query has a RETURNING clause
  * 5) Integer list of attribute numbers retrieved by RETURNING, if any
+ * 6) Port of socket for DATA COMPRESSION TRANSFER, if any
+ * 7) Function timeout of Rest request for DATA COMPRESSION TRANSFER, if any
  */
 enum FdwModifyPrivateIndex
 {
@@ -108,7 +110,11 @@ enum FdwModifyPrivateIndex
 	/* has-returning flag (as a Boolean node) */
 	FdwModifyPrivateHasReturning,
 	/* Integer list of attribute numbers retrieved by RETURNING */
-	FdwModifyPrivateRetrievedAttrs
+	FdwModifyPrivateRetrievedAttrs,
+	/* Port of socket for DATA COMPRESSION TRANSFER */
+	FdwModifyPrivateSocketPort,
+	/* Function timeout of Rest request for DATA COMPRESSION TRANSFER */
+	FdwModifyPrivateFunctionTimeout
 };
 
 /*
@@ -174,44 +180,6 @@ typedef struct PGSpiderFdwScanState
 
 	int			fetch_size;		/* number of tuples per fetch */
 }			PGSpiderFdwScanState;
-
-/*
- * Execution state of a foreign insert/update/delete operation.
- */
-typedef struct PGSpiderFdwModifyState
-{
-	Relation	rel;			/* relcache entry for the foreign table */
-	AttInMetadata *attinmeta;	/* attribute datatype conversion metadata */
-
-	/* for remote query execution */
-	PGconn	   *conn;			/* connection for the scan */
-	PGSpiderFdwConnState *conn_state;	/* extra per-connection state */
-	char	   *p_name;			/* name of prepared statement, if created */
-
-	/* extracted fdw_private data */
-	char	   *query;			/* text of INSERT/UPDATE/DELETE command */
-	char	   *orig_query;		/* original text of INSERT command */
-	List	   *target_attrs;	/* list of target attribute numbers */
-	int			values_end;		/* length up to the end of VALUES */
-	int			batch_size;		/* value of FDW option "batch_size" */
-	bool		has_returning;	/* is there a RETURNING clause? */
-	List	   *retrieved_attrs;	/* attr numbers retrieved by RETURNING */
-
-	/* info about parameters for prepared statement */
-	AttrNumber	ctidAttno;		/* attnum of input resjunk ctid column */
-	int			p_nums;			/* number of parameters to transmit */
-	FmgrInfo   *p_flinfo;		/* output conversion functions for them */
-
-	/* batch operation stuff */
-	int			num_slots;		/* number of slots to insert */
-
-	/* working memory context */
-	MemoryContext temp_cxt;		/* context for per-tuple temporary data */
-
-	/* for update row movement if subplan result rel */
-	struct PGSpiderFdwModifyState *aux_fmstate; /* foreign-insert state, if
-												 * created */
-}			PGSpiderFdwModifyState;
 
 /*
  * Execution state of a foreign scan that modifies a foreign table directly.
@@ -474,7 +442,10 @@ static PGSpiderFdwModifyState * create_foreign_modify(EState *estate,
 													  List *target_attrs,
 													  int len,
 													  bool has_returning,
-													  List *retrieved_attrs);
+													  List *retrieved_attrs,
+													  int socket_port,
+													  int function_timeout,
+													  bool data_compression_transfer_enabled);
 static TupleTableSlot **execute_foreign_modify(EState *estate,
 											   ResultRelInfo *resultRelInfo,
 											   CmdType operation,
@@ -1962,6 +1933,9 @@ pgspiderBeginForeignModify(ModifyTableState *mtstate,
 	bool		has_returning;
 	int			values_end_len;
 	List	   *retrieved_attrs;
+	int			function_timeout = 0,
+				socket_port = 0;
+	bool		data_compression_transfer_enabled = false;
 	RangeTblEntry *rte;
 
 	/*
@@ -1983,6 +1957,13 @@ pgspiderBeginForeignModify(ModifyTableState *mtstate,
 	retrieved_attrs = (List *) list_nth(fdw_private,
 										FdwModifyPrivateRetrievedAttrs);
 
+	data_compression_transfer_enabled = check_data_compression_transfer_option(resultRelInfo->ri_RelationDesc);
+	if (data_compression_transfer_enabled)
+	{
+		socket_port = intVal(list_nth(fdw_private, FdwModifyPrivateSocketPort));
+		function_timeout = intVal(list_nth(fdw_private, FdwModifyPrivateFunctionTimeout));
+	}
+
 	/* Find RTE. */
 	rte = exec_rt_fetch(resultRelInfo->ri_RangeTableIndex,
 						mtstate->ps.state);
@@ -1997,7 +1978,10 @@ pgspiderBeginForeignModify(ModifyTableState *mtstate,
 									target_attrs,
 									values_end_len,
 									has_returning,
-									retrieved_attrs);
+									retrieved_attrs,
+									socket_port,
+									function_timeout,
+									data_compression_transfer_enabled);
 
 	resultRelInfo->ri_FdwState = fmstate;
 }
@@ -2044,6 +2028,99 @@ pgspiderExecForeignBatchInsert(EState *estate,
 {
 	PGSpiderFdwModifyState *fmstate = (PGSpiderFdwModifyState *) resultRelInfo->ri_FdwState;
 	TupleTableSlot **rslot;
+
+	if (fmstate->data_compression_transfer_enabled == true)
+	{
+		InsertData	insertData;
+		char	   *compressedData,
+				   *sizeInfos;
+		int			err;
+		SocketInfo *socketInfo;
+		sigset_t	old_mask;
+		AuthenticationData authData;
+		ConnectionURLData connData;
+		int			compressedlength;
+		DataCompressionTransferOption dct_option;
+		MemoryContext oldcontext;
+
+		MemoryContextReset(fmstate->temp_cxt);
+		oldcontext = MemoryContextSwitchTo(fmstate->temp_cxt);
+
+		init_DataCompressionTransferOption(&dct_option);
+
+		/* get information to send request to function */
+		get_data_compression_transfer_option(BATCH_INSERT, fmstate->rel, &dct_option);
+
+		init_InsertData(&insertData);
+
+		/* Set tablename */
+		insertData.tableName = dct_option.table_name;
+
+		/* Set ColumnInfo */
+		insertData.columnInfos = create_column_info_array(fmstate->rel, fmstate->target_attrs, dct_option.tagsList);
+
+		/* Set TransferValue */
+		insertData.values = create_values_array(fmstate, slots, *numSlots);
+
+		/* Set numColumn */
+		insertData.numColumn = list_length(fmstate->target_attrs);
+
+		/* Set numSlot */
+		insertData.numSlot = (int) *numSlots;
+
+		compressedData = pgspiderCompressData(fmstate, &insertData, &sizeInfos, &compressedlength);
+
+		/* reset socket thread info state to each BatchInsert */
+		fmstate->socketThreadInfo.socket_id = 0;
+		fmstate->socketThreadInfo.childThreadState = DCT_MDF_STATE_BEGIN;
+		pthread_mutex_init(&fmstate->socketThreadInfo.socket_thread_info_mutex, NULL);
+
+		socketInfo = (SocketInfo *) palloc0(sizeof(SocketInfo));
+		socketInfo->socketThreadInfo = &fmstate->socketThreadInfo;
+		socketInfo->compressedData = compressedData;
+		socketInfo->sizeInfos = sizeInfos;
+		socketInfo->compressedlength = compressedlength;
+		socketInfo->function_timeout = fmstate->function_timeout;
+		socketInfo->result = NULL;
+
+		socketInfo->send_insert_data_ctx = fmstate->temp_cxt;
+
+		/* Launch child thread to send insert data to Cloud Function */
+		/* Block signal when creating child thread for safety */
+		SPD_SIGBLOCK_TRY(old_mask);
+		err = pthread_create(&fmstate->socket_thread,
+							 NULL,
+							 &send_insert_data_thread,
+							 (void *) socketInfo);
+		if (err != 0)
+			ereport(ERROR, (errmsg("pgspider_fdw: Cannot create thread! error=%d", err)));
+		SPD_SIGBLOCK_END_TRY(old_mask);
+
+		init_AuthenticationData(&authData);
+		init_ConnectionURLData(&connData);
+
+		pgspiderPrepareAuthenticationData(&authData, &dct_option);
+		pgspiderPrepareConnectionURLData(&connData, fmstate->rel, &dct_option);
+
+		dct_option.function_timeout = fmstate->function_timeout;
+
+		/* Send request to Function */
+		PGSpiderRequestFunctionStart(BATCH_INSERT, &dct_option, fmstate, &authData, &connData, NULL);
+
+		err = pthread_join(fmstate->socket_thread, NULL);
+		if (err != 0)
+			elog(ERROR, "pgspider_fdw: Failed to join thread in pgspiderExecForeignBatchInsert. Returned %d.", err);
+
+		/* check result */
+		if (socketInfo->result == NULL)
+			elog(ERROR, "pgspider_fdw: %s", "Can not get result message from the Function.");
+		else if (strcmp(socketInfo->result, FUNCTION_SUCCESS) != 0)
+			/* Report error message from Function */
+			elog(ERROR, "pgspider_fdw: Function returned error: %s", socketInfo->result);
+
+		MemoryContextSwitchTo(oldcontext);
+		return slots;
+	}
 
 	/*
 	 * If the fmstate has aux_fmstate set, use the aux_fmstate (see
@@ -2293,7 +2370,8 @@ pgspiderBeginForeignInsert(ModifyTableState *mtstate,
 									targetAttrs,
 									values_end_len,
 									retrieved_attrs != NIL,
-									retrieved_attrs);
+									retrieved_attrs,
+									0, 0, false);
 
 	/*
 	 * If the given resultRelInfo already has PGSpiderFdwModifyState set, it
@@ -4012,7 +4090,10 @@ create_foreign_modify(EState *estate,
 					  List *target_attrs,
 					  int values_end,
 					  bool has_returning,
-					  List *retrieved_attrs)
+					  List *retrieved_attrs,
+					  int socket_port,
+					  int function_timeout,
+					  bool data_compression_transfer_enabled)
 {
 	PGSpiderFdwModifyState *fmstate;
 	Relation	rel = resultRelInfo->ri_RelationDesc;
@@ -4039,8 +4120,25 @@ create_foreign_modify(EState *estate,
 	table = GetForeignTable(RelationGetRelid(rel));
 	user = GetUserMapping(userid, table->serverid);
 
-	/* Open connection; report that we'll create a prepared statement. */
-	fmstate->conn = PGSpiderGetConnection(user, true, &fmstate->conn_state);
+	if (data_compression_transfer_enabled)
+	{
+		if (operation == CMD_INSERT)
+		{
+			fmstate->socketThreadInfo.serveroid = table->serverid;
+			fmstate->socketThreadInfo.tableoid = table->relid;
+			fmstate->socket_port = socket_port;
+			fmstate->function_timeout = function_timeout;
+			fmstate->data_compression_transfer_enabled = data_compression_transfer_enabled;
+		}
+		else
+			elog(ERROR, "Data Compression Transfer Feature only supports INSERT");
+	}
+	else
+	{
+		/* Open connection; report that we'll create a prepared statement. */
+		fmstate->conn = PGSpiderGetConnection(user, true, &fmstate->conn_state);
+	}
+
 	fmstate->p_name = NULL;		/* prepared statement not made yet */
 
 	/* Set up remote query information. */
@@ -7799,6 +7897,62 @@ escape_single_quote(char *str)
 	}
 
 	return buf;
+}
+
+/*
+ * ExecForeignDDL is a public function that is called by core code.
+ * It executes DDL command on Cloud Function.
+ *
+ * serverOid: remote server to get connected
+ * rel: relation to be created
+ * operation: create or drop
+ * exists_flag:
+ *		in CREATE DDL 0: true if `IF NOT EXISTS` is specified
+ *		in DROP DDL 1: true if `IF EXISTS` is specified
+ */
+int
+ExecForeignDDL(Oid serverOid,
+			   Relation rel,
+			   int operation,
+			   bool exists_flag)
+{
+	bool		data_compression_transfer_enabled;
+	AuthenticationData authData;
+	ConnectionURLData connData;
+	DDLData		ddlData;
+	PGSpiderExecuteMode mode;
+	DataCompressionTransferOption *dct_option = (DataCompressionTransferOption *) palloc0(sizeof(DataCompressionTransferOption));
+
+	data_compression_transfer_enabled = check_data_compression_transfer_option(rel);
+
+	if (!data_compression_transfer_enabled)
+		elog(ERROR, "Endpoint option is required.");
+
+	/* get information to send request to Function */
+	get_data_compression_transfer_option(DDL_CREATE, rel, dct_option);
+
+	/* Send request to Function */
+	init_AuthenticationData(&authData);
+	init_ConnectionURLData(&connData);
+	init_DDLData(&ddlData);
+
+	pgspiderPrepareAuthenticationData(&authData, dct_option);
+	pgspiderPrepareConnectionURLData(&connData, rel, dct_option);
+	pgspiderPrepareDDLData(&ddlData, rel, exists_flag, dct_option);
+
+	/* create query */
+	if (operation == 0)
+		mode = DDL_CREATE;
+	/* drop query */
+	else
+		mode = DDL_DROP;
+
+	/* set default timeout for execute DDL request */
+	dct_option->function_timeout = CURL_TIMEOUT_GCP;
+	PGSpiderRequestFunctionStart(mode, dct_option, NULL,
+								 &authData, &connData, &ddlData);
+
+	return 0;
 }
 
 /*

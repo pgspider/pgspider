@@ -4977,6 +4977,31 @@ _copyDropSubscriptionStmt(const DropSubscriptionStmt *from)
 	return newnode;
 }
 
+#ifdef PGSPIDER
+static CreateDatasourceTableStmt *
+_copyCreateDatasourceTableStmt(const CreateDatasourceTableStmt *from)
+{
+	CreateDatasourceTableStmt	   *newnode = makeNode(CreateDatasourceTableStmt);
+
+	COPY_NODE_FIELD(relation);
+	COPY_SCALAR_FIELD(if_not_exists);
+
+	return newnode;
+}
+
+static DropDatasourceTableStmt *
+_copyDropDatasourceTableStmt(const DropDatasourceTableStmt *from)
+{
+	DropDatasourceTableStmt	   *newnode = makeNode(DropDatasourceTableStmt);
+
+	COPY_NODE_FIELD(relation);
+	COPY_SCALAR_FIELD(missing_ok);
+
+	return newnode;
+}
+#endif /* PGSPIDER */
+
+
 /* ****************************************************************
  *					extensible.h copy functions
  * ****************************************************************
@@ -6016,6 +6041,15 @@ copyObjectImpl(const void *from)
 		case T_ForeignKeyCacheInfo:
 			retval = _copyForeignKeyCacheInfo(from);
 			break;
+
+#ifdef PGSPIDER
+		case T_CreateDatasourceTableStmt:
+			retval = _copyCreateDatasourceTableStmt(from);
+			break;
+		case T_DropDatasourceTableStmt:
+			retval = _copyDropDatasourceTableStmt(from);
+			break;
+#endif /* PGSPIDER */
 
 		default:
 			elog(ERROR, "unrecognized node type: %d", (int) nodeTag(from));

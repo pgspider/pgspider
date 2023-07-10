@@ -3817,4 +3817,58 @@ typedef struct DropSubscriptionStmt
 	DropBehavior behavior;		/* RESTRICT or CASCADE behavior */
 } DropSubscriptionStmt;
 
+#ifdef PGSPIDER
+
+/* ----------------------
+ *		MIGRATE TABLE Statement
+ * ----------------------
+ */
+
+typedef enum MigrateTableType
+{
+	MIGRATE_NONE = 0,        /* Don't use REPLACE/TO keyword */
+	MIGRATE_REPLACE,         /* Use REPLACE keyword */
+	MIGRATE_TO               /* Use TO keyword */
+} MigrateTableType;
+
+typedef struct MigrateServerItem
+{
+	char	*dest_server_name;
+	List	*dest_server_options;
+}MigrateServerItem;
+
+typedef struct MigrateTableStmt
+{
+	NodeTag		type;
+	RangeVar	*source_relation;        /* the source relation to get migrate data from */
+	MigrateTableType	migrate_type;
+	RangeVar	*dest_relation;          /* the destination relation to migrate data to */
+	List		*dest_table_options;
+	List		*dest_server_list;
+} MigrateTableStmt;
+
+/* ----------------------
+ *		CREATE DATASOURCE TABLE Statement
+ * ----------------------
+ */
+typedef struct CreateDatasourceTableStmt
+{
+	NodeTag		type;
+	RangeVar   *relation;		/* the relation name to create */
+	bool		if_not_exists;	/* just do nothing if datasource table already exists on remote side */
+} CreateDatasourceTableStmt;
+
+/* ----------------------
+ *		DROP DATASOURCE TABLE Statement
+ * ----------------------
+ */
+typedef struct DropDatasourceTableStmt
+{
+	NodeTag		type;
+	RangeVar   *relation;		/* the relation name to drop */
+	bool        missing_ok;     /* skip error if datasource table missing on remote side */
+} DropDatasourceTableStmt;
+
+#endif
+
 #endif							/* PARSENODES_H */

@@ -1,0 +1,27 @@
+DROP SCHEMA IF EXISTS "S 1" CASCADE;
+DROP SCHEMA IF EXISTS "S 2" CASCADE;
+DROP SCHEMA IF EXISTS "S 3" CASCADE;
+
+CREATE SCHEMA "S 1";
+CREATE SCHEMA "S 2";
+CREATE SCHEMA "S 3";
+
+CREATE TABLE "S 2"."T 2" (
+    c1 int NOT NULL,
+    c2 int NOT NULL,
+    c3 text,
+    c4 timestamptz,
+    c5 timestamp,
+    c6 varchar(10),
+    c7 char(10)
+);
+
+CREATE TABLE "S 2"."T 3" (
+    c1 int NOT NULL,
+    c2 int NOT NULL,
+    c3 text,
+    c4 timestamptz,
+    c5 timestamp,
+    c6 varchar(10),
+    c7 char(10)
+);

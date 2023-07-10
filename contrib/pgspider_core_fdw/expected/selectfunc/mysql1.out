@@ -46245,7 +46245,7 @@ SELECT sum(id),json_extract(json_build_array('{"id": 1, "b": {"c": 30}}', sum(id
 --Testcase 3693:
 SELECT json_extract(c1, '$.a')::int FROM s8;  -- should fail
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:invalid input syntax for type integer: ""10""
+ DETAIL: invalid input syntax for type integer: ""10""
 -- select json_extract with normal cast
 --Testcase 3694:
 SELECT json_extract('{"a": "2000-01-01"}', '$.a')::timestamp, json_extract('{"a": "2000-01-01"}', '$.a')::date , json_extract('{"a": 1234}', '$.a')::bigint, json_extract('{"a": "b"}', '$.a')::text FROM s8;
@@ -53846,7 +53846,7 @@ SELECT mysql_json_value(c1, '$.a')::date FROM s8;
 --Testcase 4275:
 SELECT mysql_json_value(c1, '$.a')::date FROM s8; -- should fail
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:invalid input syntax for type date: "10"
+ DETAIL: invalid input syntax for type date: "10"
 -- select mysql_json_value (stub function, abnormal cast, explain)
 --Testcase 4276:
 EXPLAIN VERBOSE
@@ -53890,7 +53890,7 @@ SELECT mysql_json_value(c1, '$.a', 'returning date', 'error on error')::date FRO
 --Testcase 4279:
 SELECT mysql_json_value(c1, '$.a', 'returning date', 'error on error')::date FROM s8; -- should fail
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:failed to execute the MySQL query: 
+ DETAIL:  mysql_fdw: failed to execute the MySQL query: 
 DATE value is out of range in 'json_value'
 -- select mysql_json_value with normal cast
 --Testcase 4280:

@@ -2558,7 +2558,7 @@ SELECT (cumulative_sum_all()::s3).*, (cumulative_sum('/value[1,4]/')::s3).* from
 --Testcase 179:
 SELECT (cumulative_sum_all()::s3).*, (cumulative_sum('/value[1,4]/')::s3).* from s3 ORDER BY 1;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub cumulative_sum_all() is called
 CONTEXT:  PL/pgSQL function public.cumulative_sum_all() line 3 at RAISE
@@ -7676,7 +7676,7 @@ SELECT bottom(value1, 1), bottom(value2, 1), bottom(value3, 1), bottom(value4, 1
 --Testcase 531:
 SELECT bottom(value1, 1), bottom(value2, 1), bottom(value3, 1), bottom(value4, 1) FROM s3 ORDER BY 1;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:influxdb_fdw : selector function bottom() cannot be combined with other functions
+ DETAIL: influxdb_fdw : selector function bottom() cannot be combined with other functions
 -- select influx_max(*) (stub agg function, explain)
 --Testcase 532:
 EXPLAIN VERBOSE
@@ -8643,7 +8643,7 @@ SELECT top(value1, 1), top(value2, 1), top(value3, 1), top(value4, 1) FROM s3 OR
 --Testcase 599:
 SELECT top(value1, 1), top(value2, 1), top(value3, 1), top(value4, 1) FROM s3 ORDER BY 1;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:influxdb_fdw : selector function top() cannot be combined with other functions
+ DETAIL: influxdb_fdw : selector function top() cannot be combined with other functions
 -- select acos (builtin function, explain)
 --Testcase 600:
 EXPLAIN VERBOSE

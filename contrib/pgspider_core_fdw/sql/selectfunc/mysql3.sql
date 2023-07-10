@@ -10502,7 +10502,7 @@ SELECT c1 FROM time_tbl WHERE second(utc_time()) > 10 ORDER BY 1;
 
 -- utc_time as parameter of second(stub function, result)
 --Testcase 2437:
-SELECT c1 FROM time_tbl WHERE (60-second(utc_time())) >= 0 ORDER BY c1;;
+SELECT c1 FROM time_tbl WHERE (60-second(utc_time())) >= 0 ORDER BY c1;
 
 -- select utc_time and agg (pushdown, explain)
 --Testcase 2438:

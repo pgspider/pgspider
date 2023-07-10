@@ -3883,14 +3883,13 @@ SELECT timestamparray FROM s3 WHERE element(2,timestamparray) > '2020-12-29 04:0
 
 SELECT timestamparray FROM s3 WHERE element(2,timestamparray) > '2020-12-29 04:00:00' ORDER BY 1;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:GridDB-API is failed by 152009
+ DETAIL: GridDB-API is failed by 152009
   [152009:TQ_CONSTRAINT_ARRAY_OUT_OF_RANGE] Specified index is out of range. (address=127.0.0.1:10001, partition=17)
   [152009:TQ_CONSTRAINT_ARRAY_OUT_OF_RANGE] Specified index is out of range.
 }
-
 --
 --if user selects non-unique functions which Griddb only supports in WHERE clause => do not push down
 --if user selects unique functions which Griddb only supports in WHERE clause => still push down, return error of Griddb
@@ -7106,14 +7105,13 @@ SELECT time_sampling(value1, '2018-12-07 10:00:00.002', '2018-12-07 10:00:00.500
 
 SELECT time_sampling(value1, '2018-12-07 10:00:00.002', '2018-12-07 10:00:00.500', 20, 'MILLISECOND') FROM s3 ORDER BY 1;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:GridDB-API is failed by 152010
+ DETAIL: GridDB-API is failed by 152010
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.502ZZ (address=127.0.0.1:10001, partition=17)
   [152010:TQ_CONSTRAINT_INVALID_ARGUMENT_TYPE] Cannot parse argument as Timestamp,2018-12-07T10:00:00.502ZZ
 }
-
 --if the first parameter is not set, * will be added as the first parameter.
 --When specified time does not exist, all columns (except timestamp key column) will be equal to the values of rows previous to the specified time.
 --DELETE FROM time_series__griddb_svr__0 WHERE value1 = 4;
@@ -7261,11 +7259,11 @@ CONTEXT:  PL/pgSQL function time_next(timestamp without time zone) line 3 at RAI
 EXPLAIN VERBOSE
 SELECT date FROM s3 WHERE time_next_only('2018-12-01 10:00:00') = time_interpolated(value1, '2018-12-01 10:10:00') ORDER BY 1;
 WARNING:  GetForeignRelSize of child[0] failed.
-ERROR:  PGSpider can not get data from child node : pgspider_svr1
+ERROR:  PGSpider can not execute query from child node : pgspider_svr1
 --Testcase 298:
 SELECT date FROM s3 WHERE time_next_only('2018-12-01 10:00:00') = time_interpolated(value1, '2018-12-01 10:10:00') ORDER BY 1;
 WARNING:  GetForeignRelSize of child[0] failed.
-ERROR:  PGSpider can not get data from child node : pgspider_svr1
+ERROR:  PGSpider can not execute query from child node : pgspider_svr1
 --Testcase 299:
 EXPLAIN VERBOSE
 SELECT * FROM s3 WHERE time_prev('2018-12-01 10:00:00') = '"2020-01-05 21:00:00,{t,f,t}"' ORDER BY 1;
@@ -7296,11 +7294,11 @@ CONTEXT:  PL/pgSQL function time_prev(timestamp without time zone) line 3 at RAI
 EXPLAIN VERBOSE
 SELECT date FROM s3 WHERE time_prev_only('2018-12-01 10:00:00') = time_sampling(value1, '2018-12-01 10:00:00', '2018-12-01 10:40:00', 10, 'MINUTE') ORDER BY 1;
 WARNING:  GetForeignRelSize of child[0] failed.
-ERROR:  PGSpider can not get data from child node : pgspider_svr1
+ERROR:  PGSpider can not execute query from child node : pgspider_svr1
 --Testcase 302:
 SELECT date FROM s3 WHERE time_prev_only('2018-12-01 10:00:00') = time_sampling(value1, '2018-12-01 10:00:00', '2018-12-01 10:40:00', 10, 'MINUTE') ORDER BY 1;
 WARNING:  GetForeignRelSize of child[0] failed.
-ERROR:  PGSpider can not get data from child node : pgspider_svr1
+ERROR:  PGSpider can not execute query from child node : pgspider_svr1
 --Testcase 303:
 EXPLAIN VERBOSE
 SELECT * FROM s3 WHERE max_rows(date) = min_rows(value2) ORDER BY 1;

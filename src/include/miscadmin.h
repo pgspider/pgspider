@@ -247,7 +247,12 @@ extern PGDLLIMPORT Oid MyDatabaseTableSpace;
 #define DATEORDER_DMY			1
 #define DATEORDER_MDY			2
 
+#ifdef PGSPIDER
+extern PGDLLIMPORT __thread int DateStyle;
+#else
 extern PGDLLIMPORT int DateStyle;
+#endif
+
 extern PGDLLIMPORT int DateOrder;
 
 /*
@@ -262,7 +267,11 @@ extern PGDLLIMPORT int DateOrder;
 #define INTSTYLE_SQL_STANDARD		2
 #define INTSTYLE_ISO_8601			3
 
+#ifdef PGSPIDER
+extern PGDLLIMPORT __thread int IntervalStyle;
+#else
 extern PGDLLIMPORT int IntervalStyle;
+#endif
 
 #define MAXTZLEN		10		/* max TZ name len, not counting tr. null */
 

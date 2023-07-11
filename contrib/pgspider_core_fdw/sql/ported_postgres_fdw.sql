@@ -161,7 +161,7 @@ CREATE FOREIGN TABLE ft1__postgres_srv__0 (
 	c6 varchar(10),
 	c7 char(10) default 'ft1',
 	c8 user_enum
-) SERVER postgres_srv OPTIONS (schema_name 'S 1', table_name 'T 1');;
+) SERVER postgres_srv OPTIONS (schema_name 'S 1', table_name 'T 1');
 --Testcase 21:
 ALTER FOREIGN TABLE ft1__postgres_srv__0 DROP COLUMN c0;
 
@@ -2335,7 +2335,7 @@ DROP FOREIGN TABLE foreign_tbl__postgres_srv__0 CASCADE;
 --Testcase 574:
 SELECT dblink_exec('DROP TRIGGER row_before_insupd_trigger ON child_tbl;');
 --Testcase 575:
-DROP TABLE parent_tbl CASCADE;;
+DROP TABLE parent_tbl CASCADE;
 
 --Testcase 576:
 DROP FUNCTION row_before_insupd_trigfunc;
@@ -4148,11 +4148,11 @@ CREATE FOREIGN TABLE fpagg_tab_p1__postgres_srv__0
 --Testcase 1086:
 CREATE FOREIGN TABLE fpagg_tab_p2__postgres_srv__0
   PARTITION OF pagg_tab FOR VALUES FROM (10) TO (20)
-  SERVER postgres_srv OPTIONS (table_name 'pagg_tab_p2');;
+  SERVER postgres_srv OPTIONS (table_name 'pagg_tab_p2');
 --Testcase 1087:
 CREATE FOREIGN TABLE fpagg_tab_p3__postgres_srv__0
   PARTITION OF pagg_tab FOR VALUES FROM (20) TO (30)
-  SERVER postgres_srv OPTIONS (table_name 'pagg_tab_p3');;
+  SERVER postgres_srv OPTIONS (table_name 'pagg_tab_p3');
 
 ANALYZE pagg_tab;
 --ANALYZE fpagg_tab_p1;

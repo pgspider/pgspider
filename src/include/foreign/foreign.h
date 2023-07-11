@@ -57,6 +57,26 @@ typedef struct ForeignTable
 	List	   *options;		/* ftoptions as DefElem list */
 } ForeignTable;
 
+#ifdef PGSPIDER
+/* State of Data compression transfer */
+typedef enum
+{
+	DCT_MDF_STATE_BEGIN,
+	DCT_MDF_STATE_EXEC_BATCH_INSERT,
+	DCT_MDF_STATE_END,
+	DCT_MDF_STATE_FINISH
+}			SocketThreadState;
+
+typedef struct SocketThreadInfo
+{
+	Oid					serveroid;			/* server id of child thread */
+	Oid					tableoid;			/* table id of child thread */
+	int					socket_id;			/* socket id of child thread */
+	SocketThreadState	childThreadState;	/* flags to determine to exit thread */
+	pthread_mutex_t		socket_thread_info_mutex; /* Mutex lock to protect socket thread info */
+} SocketThreadInfo;
+#endif
+
 /* Flags for GetForeignServerExtended */
 #define FSV_MISSING_OK	0x01
 

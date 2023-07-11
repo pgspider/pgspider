@@ -7601,3 +7601,57 @@ get_batch_size_option(Relation rel)
 
 	return batch_size;
 }
+
+#ifdef PGSPIDER
+/*
+ * ExecForeignDDL is a public function that is called by core code.
+ * It executes DDL command on remote server.
+ *
+ * serverOid: remote server to get connected
+ * rel: relation to be created
+ * operation: create or drop
+ * exists_flag:
+ *		in CREATE DDL 0: true if `IF NOT EXIST` is specified
+ *		in DROP DDL 1: true if `IF EXIST` is specified
+ */
+int
+ExecForeignDDL(Oid serverOid,
+			   Relation rel,
+			   int operation,
+			   bool exists_flag)
+{
+	UserMapping *user = NULL;
+	PGconn	   *conn = NULL;
+	StringInfoData sql;
+
+	elog(DEBUG1, "postgres_fdw: %s", __func__);
+
+	if (operation != 0 && operation != 1)
+	{
+		elog(ERROR, "Only support CREATE/DROP DATASOURCE");
+	}
+
+	initStringInfo(&sql);
+	/* create query */
+	if (operation == 0)
+		deparseCreateTableSql(&sql, rel, exists_flag);
+	else
+		/* operation == CMD_DROP */
+		deparseDropTableSql(&sql, rel, exists_flag);
+
+	/*
+	 * Get connection to the foreign server.  Connection manager will
+	 * establish new connection if necessary.
+	 */
+	user = GetUserMapping(GetUserId(), serverOid);
+	conn = GetConnection(user, false, NULL);
+
+	/* execute query to create dest table, PQexec */
+	do_sql_command(conn, sql.data);
+	ReleaseConnection(conn);
+
+	pfree(sql.data);
+	return 0;
+}
+
+#endif /* PGSPIDER */

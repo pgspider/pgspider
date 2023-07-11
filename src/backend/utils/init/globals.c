@@ -126,9 +126,18 @@ bool		IsBackgroundWorker = false;
 
 bool		ExitOnAnyError = false;
 
+#ifdef PGSPIDER
+__thread int			DateStyle = USE_ISO_DATES;
+#else
 int			DateStyle = USE_ISO_DATES;
+#endif
 int			DateOrder = DATEORDER_MDY;
+
+#ifdef PGSPIDER
+__thread int			IntervalStyle = INTSTYLE_POSTGRES;
+#else
 int			IntervalStyle = INTSTYLE_POSTGRES;
+#endif
 
 bool		enableFsync = true;
 bool		allowSystemTableMods = false;

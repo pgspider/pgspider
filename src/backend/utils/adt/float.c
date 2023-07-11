@@ -40,7 +40,11 @@
  * get round-trip-accurate results. If 0 or less, then use the old, slow,
  * decimal rounding method.
  */
+#ifdef PGSPIDER
+__thread int			extra_float_digits = 1;
+#else
 int			extra_float_digits = 1;
+#endif
 
 /* Cached constants for degree-based trig functions */
 static bool degree_consts_set = false;

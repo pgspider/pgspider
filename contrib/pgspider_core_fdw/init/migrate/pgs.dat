@@ -1,0 +1,104 @@
+DROP EXTENSION IF EXISTS pgspider_core_fdw CASCADE;
+DROP EXTENSION IF EXISTS postgres_fdw CASCADE;
+
+CREATE EXTENSION pgspider_core_fdw;
+CREATE EXTENSION postgres_fdw;
+
+CREATE SERVER pgspider_core_srv FOREIGN DATA WRAPPER pgspider_core_fdw;
+DO $d$
+    BEGIN
+        EXECUTE $$CREATE SERVER postgres_srv1 FOREIGN DATA WRAPPER postgres_fdw
+            OPTIONS (host '127.0.0.1',
+                     port '15432',
+                     dbname 'postgres'
+            )$$;
+        EXECUTE $$CREATE SERVER postgres_srv2 FOREIGN DATA WRAPPER postgres_fdw
+            OPTIONS (host '127.0.0.1',
+                     port '25432',
+                     dbname 'postgres'
+            )$$;
+    END;
+$d$;
+
+CREATE USER MAPPING FOR public SERVER postgres_srv1
+    OPTIONS (user 'postgres', password 'postgres');
+CREATE USER MAPPING FOR public SERVER postgres_srv2
+    OPTIONS (user 'postgres', password 'postgres');
+----------------------------------------------------------
+-- source structure tbl2
+-- PGSpider Top Node -> 1 posgres data source
+----------------------------------------------------------
+CREATE FOREIGN TABLE tbl2 (
+	c1 int NOT NULL,
+	c2 int NOT NULL,
+	c3 text,
+	c4 timestamptz,
+	c5 timestamp,
+	c6 varchar(10),
+	c7 char(10) default 'tbl2',
+	__spd_url text
+) SERVER pgspider_core_srv;
+
+CREATE FOREIGN TABLE tbl2__postgres_srv1__0 (
+    c1 int NOT NULL,
+    c2 int NOT NULL,
+    c3 text,
+    c4 timestamptz,
+    c5 timestamp,
+    c6 varchar(10),
+    c7 char(10) default 'tbl2__0'
+) SERVER postgres_srv1 OPTIONS (schema_name 'S 2', table_name 'T 2');
+
+-- Insert data to 'S 2'.'T 2' of postgres1
+INSERT INTO tbl2__postgres_srv1__0
+    SELECT id,
+            id % 10,
+            to_char(id, 'FM00000'),
+            '1970-01-01'::timestamptz + ((id % 100) || ' days')::interval,
+            '1970-01-01'::timestamp + ((id % 100) || ' days')::interval,
+            id % 10,
+            id % 10
+    FROM generate_series(1, 10) id;
+
+----------------------------------------------------------
+-- source structure tbl3
+-- PGSpider Top Node -> 1 posgres data source
+----------------------------------------------------------
+CREATE FOREIGN TABLE tbl3 (
+	c1 int NOT NULL,
+	c2 int NOT NULL,
+	c3 text,
+	c4 timestamptz,
+	c5 timestamp,
+	c6 varchar(10),
+	c7 char(10) default 'tbl3',
+	__spd_url text
+) SERVER pgspider_core_srv;
+
+CREATE FOREIGN TABLE tbl3__postgres_srv1__0 (
+    c1 int NOT NULL,
+    c2 int NOT NULL,
+    c3 text,
+    c4 timestamptz,
+    c5 timestamp,
+    c6 varchar(10),
+    c7 char(10) default 'tbl3_1'
+) SERVER postgres_srv1 OPTIONS (schema_name 'S 2', table_name 'T 3');
+
+-- Insert data to 'S 2'.'T 3' of postgres1
+INSERT INTO tbl3__postgres_srv1__0 VALUES (20, 0, 'foo', '2022/10/10 12:00:00 +08', '2022/10/10 12:00:00', '20', DEFAULT);
+INSERT INTO tbl3__postgres_srv1__0 VALUES (21, 1, 'bar', '2022/10/11 12:00:00 +08', '2022/10/11 12:00:00', '21', DEFAULT);
+
+CREATE FOREIGN TABLE tbl3__postgres_srv2__0 (
+    c1 int NOT NULL,
+    c2 int NOT NULL,
+    c3 text,
+    c4 timestamptz,
+    c5 timestamp,
+    c6 varchar(10),
+    c7 char(10) default 'tbl3_2'
+) SERVER postgres_srv2 OPTIONS (schema_name 'S 2', table_name 'T 3');
+
+-- Insert data to 'S 2'.'T 3' of postgres2
+INSERT INTO tbl3__postgres_srv2__0 VALUES (30, 0, 'foo1', '2022/10/20 12:00:00 +08', '2022/10/20 12:00:00', '20', DEFAULT);
+INSERT INTO tbl3__postgres_srv2__0 VALUES (31, 1, 'bar1', '2022/10/21 12:00:00 +08', '2022/10/21 12:00:00', '21', DEFAULT);

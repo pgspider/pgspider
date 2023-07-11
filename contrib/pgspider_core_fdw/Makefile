@@ -1,7 +1,7 @@
 # contrib/pgspider_core_fdw/Makefile
 
 MODULE_big = pgspider_core_fdw
-OBJS = deparse.o pgspider_core_fdw.o pgspider_core_option.o pgspider_core_timemeasure.o $(WIN32RES)
+OBJS = deparse.o pgspider_core_fdw.o pgspider_core_option.o pgspider_core_routing.o pgspider_core_timemeasure.o pgspider_core_remoteproc.o pgspider_core_compression_transfer.o $(WIN32RES)
 PGFILEDESC = "pgspider_core_fdw - PGSpider core module"
 
 PG_CPPFLAGS = -I$(libpq_srcdir) -I../ -lpthread -lpq -lm -lpgspider_keepalive -z defs
@@ -17,7 +17,7 @@ endif
 EXTENSION = pgspider_core_fdw
 DATA = pgspider_core_fdw--1.0.sql
 
-REGRESS = ported_postgres_fdw
+REGRESS = ported_postgres_fdw pd_stored
 
 EXTRA_INSTALL = contrib/pgspider_keepalive
 
@@ -40,9 +40,9 @@ OUTFILES=$(FILES:%=$(DSTDIR)/%)
 
 check: temp-install
 
-temp-install: EXTRA_INSTALL=contrib/pgspider_core_fdw contrib/pgspider_fdw contrib/pgspider_keepalive 
+temp-install: EXTRA_INSTALL+=contrib/postgres_fdw contrib/pgspider_core_fdw contrib/pgspider_keepalive contrib/pgspider_fdw
 
-checkprep: EXTRA_INSTALL+=contrib/postgres_fdw contrib/pgspider_core_fdw contrib/file_fdw contrib/pgspider_keepalive contrib/pgspider_fdw contrib/dblink contrib/influxdb_fdw contrib/tinybrace_fdw contrib/sqlite_fdw contrib/mysql_fdw contrib/griddb_fdw
+checkprep: EXTRA_INSTALL+=contrib/postgres_fdw contrib/pgspider_core_fdw contrib/pgspider_keepalive contrib/pgspider_fdw contrib/dblink
 
 #check: copyfdw
 copyfdw:

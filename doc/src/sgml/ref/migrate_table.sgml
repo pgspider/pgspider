@@ -1,0 +1,197 @@
+<!--
+doc/src/sgml/ref/migrate_table.sgml
+PostgreSQL documentation
+-->
+
+<refentry id="sql-migratetable">
+ <indexterm zone="sql-migratetable">
+  <primary>MIGRATE TABLE</primary>
+ </indexterm>
+
+ <refmeta>
+  <refentrytitle>MIGRATE TABLE</refentrytitle>
+  <manvolnum>7</manvolnum>
+  <refmiscinfo>SQL - Language Statements</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>MIGRATE TABLE</refname>
+  <refpurpose>Copy data from a source table to other datasource's tables.
+  Including table creation on the datasource and table creation on PGSpider</refpurpose>
+ </refnamediv>
+
+ <refsynopsisdiv>
+<synopsis>
+MIGRATE TABLE <replaceable class="parameter">source_name</replaceable>
+[REPLACE | TO dest_table [OPTIONS (<replaceable class="parameter">option1</replaceable> '<replaceable class="parameter">value1</replaceable>' [, ... ])]]
+SERVER [dest_server [OPTIONS (<replaceable class="parameter">option2</replaceable> '<replaceable class="parameter">value2</replaceable>' [, ... ])]]
+       [, dest_server [OPTIONS (<replaceable class="parameter">option3</replaceable> '<replaceable class="parameter">value3</replaceable>' [, ... ])]]
+       [, ...] 
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1 id="sql-migratetable-description">
+  <title>Description</title>
+
+  <para>
+   <command>MIGRATE TABLE</command> In case of single child node,
+   create a destination foreign table for a child node, then create a datasource table
+   which is mapped to the destination foreign table. Copy data from source table to
+   datasource table through the destination foreign table.
+   In case of multiple child nodes, create a multi-tenant table on PGSpider,
+   then create foreign table and datasource table for each child node.
+   Copy data from source table to datasource tables through foreign tables,
+   ensuring even distribution of data.
+  </para>
+
+  <para>
+   If a schema name is given (for example, <literal>MIGRATE TABLE
+   myschema.mytable ...</literal>) then data is copied in the specified
+   schema.  Otherwise it is created in the current schema.
+   The name of the destination foreign table must be
+   distinct from the name of any other foreign table, table, sequence, index,
+   view, or materialized view in the same schema.
+  </para>
+
+  <para>
+   If <literal>REPLACE</literal> This is optional. If it is specified, the source table
+   will be dropped after data migration finished.
+  </para>
+
+  <para>
+   If <literal>TO</literal> This is optional. If it is specified, the destination table
+   must be specified. And the name of destination table must be different from the name of
+   source table. After migration, source table is kept.
+  </para>
+
+  <para>
+   Destination table can be specified with <literal>OPTIONS (USE_MULTITENANT_SERVER <server_name>)</literal>
+   to force multi-tenant table must be created on that server.
+  </para>
+
+  <para>
+   In case of single node, a destination server is specified. If <literal>OPTIONS (table_name <name>)</literal>
+   also is specified, that is the name of datasource table will be created. Otherwise, using the same name as
+   the destination table for creating datasource table.
+   In case of multiple node, multi destination servers are specified.
+  </para>
+
+ </refsect1>
+
+ <refsect1>
+  <title>Parameters</title>
+
+  <variablelist>
+
+   <varlistentry>
+    <term><literal>REPLACE|TO</literal></term>
+    <listitem>
+     <para>
+      This is optional.
+      For REPLACE, source table is dropped, no destination table after migration.
+      For TO, source table is kept, destination table is created after migration.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">table_name</replaceable></term>
+    <listitem>
+     <para>
+      The name (optionally schema-qualified) of the datasource table to be created.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">USE_MULTITENANT_SERVER</replaceable></term>
+    <listitem>
+     <para>
+      The name of multi-tenant server.
+     </para>
+    </listitem>
+   </varlistentry>
+   
+  </variablelist>
+
+ </refsect1>
+
+ <refsect1 id="sql-migratetable-examples">
+  <title>Examples</title>
+
+  <para>
+   Create a foreign table <structname>ft1</structname> on postgres server 1 and insert data
+
+  <programlisting>
+   CREATE FOREIGN TABLE ft1 (
+    id          integer NOT NULL,
+   )
+   SERVER postgres_svr1 OPTIONS (table_name 't1');
+
+   INSERT INTO ft1
+	  SELECT id	FROM generate_series(1, 1000) id;
+
+  </programlisting></para>
+
+  <para>
+   Example 1: Copy data from table <structname>ft1</structname> on postgres server 1 to datasource table on
+   the postgres server 2;
+  
+  <programlisting>
+   MIGRATE TABLE ft1 SERVER postgres_svr2;
+
+  </programlisting></para>
+
+  <para>
+   Example 2: Copy data from the source table to the destination table on the datasource
+   and change the foreign table to the migration destination server
+
+  <programlisting>
+
+   MIGRATE TABLE ft1 REPLACE SERVER postgres_svr2;
+
+  </programlisting></para>
+
+  <para>
+   Example 3: Copy data from the source table to the destination table on the datasource
+   and retain both the source and destination foreign tables. Datasource table is created
+   with name same as destination table.
+
+  <programlisting>
+
+    MIGRATE TABLE ft1 TO ft2 postgres_svr2;
+
+  </programlisting></para>
+
+  <para>
+   Example 4: Copy data from the source table to the destination table on the datasource
+   and retain both the source and destination foreign tables. Specify table_name option
+   for datasource table name.
+
+  <programlisting>
+
+   MIGRATE TABLE ft1 TO ft2 postgres_svr2 OPTIONS (table_name 't1');
+
+  </programlisting></para>
+
+  <para>
+   Example 5: Copy data from the source table to the destination table on multiple datasource
+   and retain both the source and destination foreign tables.
+
+  <programlisting>
+
+   MIGRATE TABLE ft1 TO ft2 postgres_svr2, postgres_svr3;
+
+  </programlisting></para>
+
+ </refsect1>
+
+ <refsect1>
+  <title>See Also</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-createdatasourcetable"/></member>
+   <member><xref linkend="sql-dropdatasourcetable"/></member>
+  </simplelist>
+ </refsect1>
+</refentry>

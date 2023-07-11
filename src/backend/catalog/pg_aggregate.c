@@ -640,7 +640,13 @@ AggregateCreate(const char *aggName,
 							 PointerGetDatum(NULL), /* proconfig */
 							 InvalidOid,	/* no prosupport */
 							 1, /* procost */
+#ifdef PD_STORED
+							 0,				/* prorows */
+							 InvalidOid,	/* parentfn */
+							 InvalidOid);	/* childfn */
+#else
 							 0);	/* prorows */
+#endif
 	procOid = myself.objectId;
 
 	/*
@@ -676,6 +682,10 @@ AggregateCreate(const char *aggName,
 	values[Anum_pg_aggregate_aggtransspace - 1] = Int32GetDatum(aggTransSpace);
 	values[Anum_pg_aggregate_aggmtranstype - 1] = ObjectIdGetDatum(aggmTransType);
 	values[Anum_pg_aggregate_aggmtransspace - 1] = Int32GetDatum(aggmTransSpace);
+#ifdef PD_STORED
+	values[Anum_pg_aggregate_aggparentfn - 1] = ObjectIdGetDatum(InvalidOid);
+	values[Anum_pg_aggregate_aggchildfn - 1] = ObjectIdGetDatum(InvalidOid);
+#endif
 	if (agginitval)
 		values[Anum_pg_aggregate_agginitval - 1] = CStringGetTextDatum(agginitval);
 	else
@@ -823,11 +833,20 @@ AggregateCreate(const char *aggName,
  * NB: must not scribble on input_types[], as we may re-use those
  */
 static Oid
+#ifdef PD_STORED
+lookup_agg_function_common(List *fnName,
+					int nargs,
+					Oid *input_types,
+					Oid variadicArgType,
+					Oid *rettype,
+					bool acceptAgg)
+#else
 lookup_agg_function(List *fnName,
 					int nargs,
 					Oid *input_types,
 					Oid variadicArgType,
 					Oid *rettype)
+#endif
 {
 	Oid			fnOid;
 	bool		retset;
@@ -852,7 +871,13 @@ lookup_agg_function(List *fnName,
 							   &true_oid_array, NULL);
 
 	/* only valid case is a normal function not returning a set */
+#ifdef PD_STORED
+	if (fdresult != FUNCDETAIL_NORMAL &&
+		(fdresult != FUNCDETAIL_AGGREGATE || !acceptAgg)
+		|| !OidIsValid(fnOid))
+#else
 	if (fdresult != FUNCDETAIL_NORMAL || !OidIsValid(fnOid))
+#endif
 		ereport(ERROR,
 				(errcode(ERRCODE_UNDEFINED_FUNCTION),
 				 errmsg("function %s does not exist",
@@ -912,3 +937,385 @@ lookup_agg_function(List *fnName,
 
 	return fnOid;
 }
+
+#ifdef PD_STORED
+static Oid
+lookup_agg_function(List *fnName,
+					int nargs,
+					Oid *input_types,
+					Oid variadicArgType,
+					Oid *rettype)
+{
+	return lookup_agg_function_common(fnName, nargs, input_types,
+									  variadicArgType, rettype,
+									  false);	
+}
+
+static Oid
+lookup_dist_function(List *fnName,
+					int nargs,
+					Oid *input_types,
+					Oid variadicArgType,
+					Oid *rettype,
+					Oid *transtype)
+{
+	Oid		funcid;
+	
+	funcid = lookup_agg_function_common(fnName, nargs, input_types,
+										variadicArgType, rettype,
+										true);
+	if (transtype)
+	{
+		HeapTuple		aggTuple;
+		Form_pg_aggregate aggform;
+		
+		aggTuple = SearchSysCache1(AGGFNOID,
+								   ObjectIdGetDatum(funcid));
+		aggform = (Form_pg_aggregate) GETSTRUCT(aggTuple);
+		*transtype = aggform->aggtranstype;
+		ReleaseSysCache(aggTuple);
+	}
+
+	return funcid;
+}
+
+static void
+parentfunc_validator(Oid funcid)
+{
+	HeapTuple	tup;
+	Form_pg_proc proc;
+
+	tup = SearchSysCache1(PROCOID, ObjectIdGetDatum(funcid));
+	if (!HeapTupleIsValid(tup))
+		elog(ERROR, "cache lookup failed for function %u", funcid);
+	proc = (Form_pg_proc) GETSTRUCT(tup);
+
+	if (proc->prokind == PROKIND_AGGREGATE)
+	{
+		HeapTuple		aggTuple;
+		Form_pg_aggregate aggform;
+		
+		aggTuple = SearchSysCache1(AGGFNOID,
+								   ObjectIdGetDatum(funcid));
+		aggform = (Form_pg_aggregate) GETSTRUCT(aggTuple);
+
+		if (aggform->aggnumdirectargs > 0)
+			elog(ERROR, "direct argument is not supported for parent function");
+		if (OidIsValid(aggform->aggcombinefn))
+			elog(ERROR, "combine function is not supported for parent function");
+		if (OidIsValid(aggform->aggserialfn))
+			elog(ERROR, "serialize function is not supported for parent function");
+		if (OidIsValid(aggform->aggdeserialfn))
+			elog(ERROR, "deserialize function is not supported for parent function");
+		if (OidIsValid(aggform->aggmtransfn))
+			elog(ERROR, "forward function for moving-aggregate is not supported for parent function");
+		if (OidIsValid(aggform->aggminvtransfn))
+			elog(ERROR, "inverse function for moving-aggregate is not supported for parent function");
+		if (OidIsValid(aggform->aggmfinalfn))
+			elog(ERROR, "final function for moving-aggregate is not supported for parent function");
+		if (OidIsValid(aggform->aggsortop))
+			elog(ERROR, "sort operator is not supported for parent function");
+
+		ReleaseSysCache(aggTuple);
+	}
+	else if (proc->prokind == PROKIND_FUNCTION || proc->prokind == PROKIND_PROCEDURE)
+	{
+		if (proc->pronargs != 0)
+			ereport(ERROR,
+					(errcode(ERRCODE_TOO_MANY_ARGUMENTS),
+					errmsg("argument of parent function is not acceptable"),
+					errdetail_internal("aggregate function can accept arguments")));
+	}
+	else
+		elog(ERROR, "parent function must be function or aggregate");
+
+	ReleaseSysCache(tup);
+}
+
+/*
+ * DistributedFuncCreate
+ */
+ObjectAddress
+DistributedFuncCreate(const char *distName,
+					  Oid distNamespace,
+					  bool replace,
+					  int numArgs,
+					  int numDirectArgs,
+					  oidvector *parameterTypes,
+					  Datum allParameterTypes,
+					  Datum parameterModes,
+					  Datum parameterNames,
+					  List *parameterDefaults,
+					  Oid variadicArgType,
+					  List *nameParent,
+					  List *nameChild,
+					  oidvector *parameterTypesParent,
+					  int numArgsParent,
+					  Oid variadicArgTypeParent)
+{
+	Relation	aggdesc;
+	HeapTuple	tup;
+	HeapTuple	oldtup;
+	bool		nulls[Natts_pg_aggregate];
+	Datum		values[Natts_pg_aggregate];
+	bool		replaces[Natts_pg_aggregate];
+	Oid			parentfn;
+	Oid			childfn;
+	Oid		   *argTypes = parameterTypes->values;
+	Oid		   *argTypesParent = parameterTypesParent->values;
+	Oid			rettypeChild;
+	Oid			rettypeParent;
+	Oid			finaltype;
+	Oid			procOid;
+	TupleDesc	tupDesc;
+	char	   *detailmsg;
+	int			i;
+	ObjectAddress myself,
+				referenced;
+	AclResult	aclresult;
+	Oid			aggTransTypeParent;
+
+	/* sanity checks (caller should have caught these) */
+	if (!distName)
+		elog(ERROR, "no aggregate name supplied");
+
+	if (numDirectArgs < 0 || numDirectArgs > numArgs)
+		elog(ERROR, "incorrect number of direct arguments for aggregate");
+
+	/*
+	 * Distributed func can have at most FUNC_MAX_ARGS args. We must check now
+	 * to protect fixed-size arrays here and possibly in called functions.
+	 */
+	if (numArgs < 0 || numArgs > FUNC_MAX_ARGS)
+		ereport(ERROR,
+				(errcode(ERRCODE_TOO_MANY_ARGUMENTS),
+				 errmsg_plural("distributed func cannot have more than %d argument",
+							   "distributed func cannot have more than %d arguments",
+							   FUNC_MAX_ARGS,
+							   FUNC_MAX_ARGS)));
+
+	/* Find the child function. It takes all distributed function arguments. */
+	childfn = lookup_dist_function(nameChild, numArgs,
+								   argTypes, variadicArgType,
+								   &rettypeChild, NULL);
+
+	/* Find the parent function. */
+	parentfn = lookup_dist_function(nameParent, numArgsParent,
+								    argTypesParent, variadicArgTypeParent,
+								    &rettypeParent, NULL);
+	parentfunc_validator(parentfn);
+
+	/* Detect result type which is same as that of parent func. */
+	finaltype = rettypeParent;
+	Assert(OidIsValid(finaltype));
+
+	/*
+	 * If finaltype (i.e. aggregate return type) is polymorphic, inputs must
+	 * be polymorphic also, else parser will fail to deduce result type.
+	 * (Note: given the previous test on transtype and inputs, this cannot
+	 * happen, unless someone has snuck a finalfn definition into the catalogs
+	 * that itself violates the rule against polymorphic result with no
+	 * polymorphic input.)
+	 */
+	detailmsg = check_valid_polymorphic_signature(finaltype,
+												  argTypes,
+												  numArgs);
+	if (detailmsg)
+		ereport(ERROR,
+				(errcode(ERRCODE_DATATYPE_MISMATCH),
+				 errmsg("cannot determine result data type"),
+				 errdetail_internal("%s", detailmsg)));
+
+	/*
+	 * Also, the return type can't be INTERNAL unless there's at least one
+	 * INTERNAL argument.  This is the same type-safety restriction we enforce
+	 * for regular functions, but at the level of aggregates.  We must test
+	 * this explicitly because we allow INTERNAL as the transtype.
+	 */
+	detailmsg = check_valid_internal_signature(finaltype,
+											   argTypes,
+											   numArgs);
+	if (detailmsg)
+		ereport(ERROR,
+				(errcode(ERRCODE_INVALID_FUNCTION_DEFINITION),
+				 errmsg("unsafe use of pseudo-type \"internal\""),
+				 errdetail_internal("%s", detailmsg)));
+
+	/*
+	 * permission checks on used types
+	 */
+	for (i = 0; i < numArgs; i++)
+	{
+		aclresult = pg_type_aclcheck(argTypes[i], GetUserId(), ACL_USAGE);
+		if (aclresult != ACLCHECK_OK)
+			aclcheck_error_type(aclresult, argTypes[i]);
+	}
+
+	aclresult = pg_type_aclcheck(finaltype, GetUserId(), ACL_USAGE);
+	if (aclresult != ACLCHECK_OK)
+		aclcheck_error_type(aclresult, finaltype);
+
+
+	/*
+	 * Everything looks okay.  Try to create the pg_proc entry for the
+	 * aggregate.  (This could fail if there's already a conflicting entry.)
+	 */
+
+	myself = ProcedureCreate(distName,
+							 distNamespace,
+							 replace,	/* maybe replacement */
+							 false, /* doesn't return a set */
+							 finaltype, /* returnType */
+							 GetUserId(),	/* proowner */
+							 INTERNALlanguageId,	/* languageObjectId */
+							 InvalidOid,	/* no validator */
+							 "distributed_func_dummy", /* placeholder proc */
+							 NULL,	/* probin */
+							 NULL,	/* prosqlbody */
+							 PROKIND_AGGREGATE,
+							 false, /* security invoker (currently not
+									 * definable for agg) */
+							 false, /* isLeakProof */
+							 false, /* isStrict (not needed for agg) */
+							 PROVOLATILE_IMMUTABLE, /* volatility (not needed
+													 * for agg) */
+							 PROPARALLEL_UNSAFE,
+							 parameterTypes,	/* paramTypes */
+							 allParameterTypes, /* allParamTypes */
+							 parameterModes,	/* parameterModes */
+							 parameterNames,	/* parameterNames */
+							 parameterDefaults, /* parameterDefaults */
+							 PointerGetDatum(NULL), /* trftypes */
+							 PointerGetDatum(NULL), /* proconfig */
+							 InvalidOid,	/* no prosupport */
+							 1, /* procost */
+							 0, /* prorows */
+							 parentfn,
+							 childfn);
+	procOid = myself.objectId;
+
+	/*
+	 * Okay to create the pg_aggregate entry.
+	 */
+	aggdesc = table_open(AggregateRelationId, RowExclusiveLock);
+	tupDesc = aggdesc->rd_att;
+
+	/* initialize nulls and values */
+	for (i = 0; i < Natts_pg_aggregate; i++)
+	{
+		nulls[i] = false;
+		values[i] = (Datum) NULL;
+		replaces[i] = true;
+	}
+	values[Anum_pg_aggregate_aggfnoid - 1] = ObjectIdGetDatum(procOid);
+	values[Anum_pg_aggregate_aggkind - 1] = CharGetDatum(AGGKIND_NORMAL);
+	values[Anum_pg_aggregate_aggnumdirectargs - 1] = Int16GetDatum(numDirectArgs);
+	values[Anum_pg_aggregate_aggtransfn - 1] = ObjectIdGetDatum(InvalidOid);
+	values[Anum_pg_aggregate_aggfinalfn - 1] = ObjectIdGetDatum(InvalidOid);
+	values[Anum_pg_aggregate_aggcombinefn - 1] = ObjectIdGetDatum(InvalidOid);
+	values[Anum_pg_aggregate_aggserialfn - 1] = ObjectIdGetDatum(InvalidOid);
+	values[Anum_pg_aggregate_aggdeserialfn - 1] = ObjectIdGetDatum(InvalidOid);
+	values[Anum_pg_aggregate_aggmtransfn - 1] = ObjectIdGetDatum(InvalidOid);
+	values[Anum_pg_aggregate_aggminvtransfn - 1] = ObjectIdGetDatum(InvalidOid);
+	values[Anum_pg_aggregate_aggmfinalfn - 1] = ObjectIdGetDatum(InvalidOid);
+	values[Anum_pg_aggregate_aggfinalextra - 1] = BoolGetDatum(false);
+	values[Anum_pg_aggregate_aggmfinalextra - 1] = BoolGetDatum(false);
+	values[Anum_pg_aggregate_aggfinalmodify - 1] = CharGetDatum(0);
+	values[Anum_pg_aggregate_aggmfinalmodify - 1] = CharGetDatum(0);
+	values[Anum_pg_aggregate_aggsortop - 1] = ObjectIdGetDatum(InvalidOid);
+	values[Anum_pg_aggregate_aggtranstype - 1] = ObjectIdGetDatum(rettypeChild);
+	values[Anum_pg_aggregate_aggtransspace - 1] = Int32GetDatum(0);
+	values[Anum_pg_aggregate_aggmtranstype - 1] = ObjectIdGetDatum(InvalidOid);
+	values[Anum_pg_aggregate_aggmtransspace - 1] = Int32GetDatum(0);
+	nulls[Anum_pg_aggregate_agginitval - 1] = true;
+	nulls[Anum_pg_aggregate_aggminitval - 1] = true;
+	values[Anum_pg_aggregate_aggparentfn - 1] = ObjectIdGetDatum(parentfn);
+	values[Anum_pg_aggregate_aggchildfn - 1] = ObjectIdGetDatum(childfn);
+
+	if (replace)
+		oldtup = SearchSysCache1(AGGFNOID, ObjectIdGetDatum(procOid));
+	else
+		oldtup = NULL;
+
+	if (HeapTupleIsValid(oldtup))
+	{
+		Form_pg_aggregate oldagg = (Form_pg_aggregate) GETSTRUCT(oldtup);
+
+		/*
+		 * If we're replacing an existing entry, we need to validate that
+		 * we're not changing anything that would break callers. Specifically
+		 * we must not change aggkind or aggnumdirectargs, which affect how an
+		 * aggregate call is treated in parse analysis.
+		 */
+		if (oldagg->aggkind != AGGKIND_NORMAL)
+			ereport(ERROR,
+					(errcode(ERRCODE_WRONG_OBJECT_TYPE),
+					 errmsg("cannot change routine kind"),
+					 (oldagg->aggkind == AGGKIND_NORMAL ?
+					  errdetail("\"%s\" is an ordinary aggregate function.", distName) :
+					  oldagg->aggkind == AGGKIND_ORDERED_SET ?
+					  errdetail("\"%s\" is an ordered-set aggregate.", distName) :
+					  oldagg->aggkind == AGGKIND_HYPOTHETICAL ?
+					  errdetail("\"%s\" is a hypothetical-set aggregate.", distName) :
+					  0)));
+		if (numDirectArgs != oldagg->aggnumdirectargs)
+			ereport(ERROR,
+					(errcode(ERRCODE_INVALID_FUNCTION_DEFINITION),
+					 errmsg("cannot change number of direct arguments of an aggregate function")));
+
+		replaces[Anum_pg_aggregate_aggfnoid - 1] = false;
+		replaces[Anum_pg_aggregate_aggkind - 1] = false;
+		replaces[Anum_pg_aggregate_aggnumdirectargs - 1] = false;
+
+		tup = heap_modify_tuple(oldtup, tupDesc, values, nulls, replaces);
+		CatalogTupleUpdate(aggdesc, &tup->t_self, tup);
+		ReleaseSysCache(oldtup);
+	}
+	else
+	{
+		tup = heap_form_tuple(tupDesc, values, nulls);
+		CatalogTupleInsert(aggdesc, tup);
+	}
+
+	table_close(aggdesc, RowExclusiveLock);
+
+	/*
+	 * Create dependencies for the distributed func (above and beyond those
+	 * already made by ProcedureCreate). 
+	 *
+	 * If we're replacing an existing definition, ProcedureCreate deleted all
+	 * our existing dependencies, so we have to do the same things here either
+	 * way.
+	 */
+
+	/* Depends on parent function */
+	referenced.classId = ProcedureRelationId;
+	referenced.objectId = parentfn;
+	referenced.objectSubId = 0;
+	recordDependencyOn(&myself, &referenced, DEPENDENCY_NORMAL);
+
+	/* Depends on child function */
+	referenced.classId = ProcedureRelationId;
+	referenced.objectId = childfn;
+	referenced.objectSubId = 0;
+	recordDependencyOn(&myself, &referenced, DEPENDENCY_NORMAL);
+
+	return myself;
+}
+
+Oid
+AggregateGetFunctionFromTuple
+(HeapTuple tup, AttrNumber attributeNumber)
+{
+	Datum	d;
+	bool	isnull;
+	Oid		funcoid = InvalidOid;
+
+	d = SysCacheGetAttr(AGGFNOID, tup,
+						attributeNumber, &isnull);
+	if (!isnull)
+		funcoid = DatumGetObjectId(d);
+
+	return funcoid;
+}
+#endif

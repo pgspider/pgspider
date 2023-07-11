@@ -32825,7 +32825,7 @@ SELECT datediff(sysdate(), sysdate()), to_hex(id), 4 FROM time_tbl;
 --Testcase 2706:
 SELECT datediff(sysdate(), sysdate()), to_hex(id), 4 FROM time_tbl;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub sysdate() is called
 CONTEXT:  PL/pgSQL function public.sysdate() line 3 at RAISE
@@ -44697,10 +44697,10 @@ SELECT sum(id),json_extract(json_build_array('{"id": 1, "b": {"c": 30}}', sum(id
 --Testcase 3695:
 SELECT json_extract(c1, '$.a')::int FROM s8;  -- should fail
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:invalid input syntax for type integer: ""10""
+ DETAIL: invalid input syntax for type integer: ""10""
 }
 -- select json_extract with normal cast
 --Testcase 3696:
@@ -52097,10 +52097,10 @@ SELECT mysql_json_value(c1, '$.a')::date FROM s8;
 --Testcase 4285:
 SELECT mysql_json_value(c1, '$.a')::date FROM s8; -- should fail
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:invalid input syntax for type date: "10"
+ DETAIL: invalid input syntax for type date: "10"
 }
 -- select mysql_json_value (stub function, abnormal cast, explain)
 --Testcase 4286:
@@ -52143,10 +52143,10 @@ SELECT mysql_json_value(c1, '$.a', 'returning date', 'error on error')::date FRO
 --Testcase 4289:
 SELECT mysql_json_value(c1, '$.a', 'returning date', 'error on error')::date FROM s8; -- should fail
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:failed to execute the MySQL query: 
+ DETAIL: mysql_fdw: failed to execute the MySQL query: 
 DATE value is out of range in 'json_value'
 }
 -- select mysql_json_value with normal cast

@@ -145,6 +145,10 @@ CalculateShmemSize(int *num_semaphores)
 	size = add_size(size, ShmemBackendArraySize());
 #endif
 
+#ifdef PGSPIDER
+	size = add_size(size, sizeof(SpdInsertTargetLocation));
+#endif
+
 	/* include additional requested shmem from preload libraries */
 	size = add_size(size, total_addin_request);
 

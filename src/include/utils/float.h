@@ -32,7 +32,11 @@ static const uint32 nan[2] = {0xffffffff, 0x7fffffff};
 #define NAN (*(const float8 *) nan)
 #endif
 
+#ifdef PGSPIDER
+extern PGDLLIMPORT __thread int extra_float_digits;
+#else
 extern PGDLLIMPORT int extra_float_digits;
+#endif
 
 /*
  * Utility functions in float.c

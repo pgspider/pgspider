@@ -35784,7 +35784,7 @@ SELECT c1 FROM time_tbl WHERE second(utc_time()) > 10 ORDER BY 1;
 
 -- utc_time as parameter of second(stub function, result)
 --Testcase 2437:
-SELECT c1 FROM time_tbl WHERE (60-second(utc_time())) >= 0 ORDER BY c1;;
+SELECT c1 FROM time_tbl WHERE (60-second(utc_time())) >= 0 ORDER BY c1;
     c1    
 ----------
  00:59:59
@@ -54832,7 +54832,7 @@ CONTEXT:  PL/pgSQL function json_extract(json,text[]) line 3 at RAISE
 --Testcase 3707:
 SELECT json_extract(c1, '$.a')::int FROM s8;  -- should fail
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:invalid input syntax for type integer: ""10""
+ DETAIL: invalid input syntax for type integer: ""10""
 -- select json_extract with normal cast
 --Testcase 3708:
 SELECT * FROM (
@@ -63473,7 +63473,7 @@ SELECT mysql_json_value(c1, '$.a')::date FROM s8;
 --Testcase 4289:
 SELECT mysql_json_value(c1, '$.a')::date FROM s8; -- should fail
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:invalid input syntax for type date: "10"
+ DETAIL: invalid input syntax for type date: "10"
 -- select mysql_json_value (stub function, abnormal cast, explain)
 --Testcase 4290:
 EXPLAIN VERBOSE
@@ -63521,7 +63521,7 @@ SELECT mysql_json_value(c1, '$.a', 'returning date', 'error on error')::date FRO
 --Testcase 4293:
 SELECT mysql_json_value(c1, '$.a', 'returning date', 'error on error')::date FROM s8; -- should fail
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:failed to execute the MySQL query: 
+ DETAIL:  mysql_fdw: failed to execute the MySQL query: 
 DATE value is out of range in 'json_value'
 -- select mysql_json_value with normal cast
 --Testcase 4294:

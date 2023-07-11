@@ -180,6 +180,11 @@ ClassifyUtilityCommandAsReadOnly(Node *parsetree)
 		case T_CreateFdwStmt:
 		case T_CreateForeignServerStmt:
 		case T_CreateForeignTableStmt:
+#ifdef PGSPIDER
+		case T_MigrateTableStmt:
+		case T_CreateDatasourceTableStmt:
+		case T_DropDatasourceTableStmt:
+#endif
 		case T_CreateFunctionStmt:
 		case T_CreateOpClassStmt:
 		case T_CreateOpFamilyStmt:
@@ -1068,7 +1073,23 @@ standard_ProcessUtility(PlannedStmt *pstmt,
 					ExecSecLabelStmt(stmt);
 				break;
 			}
-
+#ifdef PGSPIDER
+			case T_MigrateTableStmt:
+				{
+					/* Nothing to do */
+					break;
+				}
+			case T_CreateDatasourceTableStmt:
+				{
+					CreateDatasourceTable((CreateDatasourceTableStmt *)parsetree);
+					break;
+				}
+			case T_DropDatasourceTableStmt:
+				{
+					DropDatasourceTable((DropDatasourceTableStmt *)parsetree);
+					break;
+				}
+#endif
 		default:
 			/* All other statement types have event trigger support */
 			ProcessUtilitySlow(pstate, pstmt, queryString,
@@ -3215,7 +3236,17 @@ CreateCommandTag(Node *parsetree)
 				}
 			}
 			break;
-
+#ifdef PGSPIDER
+		case T_MigrateTableStmt:
+			tag = CMDTAG_MIGRATE_TABLE;
+			break;
+		case T_CreateDatasourceTableStmt:
+			tag = CMDTAG_CREATE_DATASOURCE_TABLE;
+			break;
+		case T_DropDatasourceTableStmt:
+			tag = CMDTAG_DROP_DATASOURCE_TABLE;
+			break;
+#endif
 		default:
 			elog(WARNING, "unrecognized node type: %d",
 				 (int) nodeTag(parsetree));

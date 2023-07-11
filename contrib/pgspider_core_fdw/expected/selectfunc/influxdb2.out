@@ -449,7 +449,7 @@ SELECT log_all(50) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestam
 --Testcase 45:
 SELECT ln_all(),log10_all(),log_all(50) FROM s3;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub ln_all() is called
 CONTEXT:  PL/pgSQL function public.ln_all() line 3 at RAISE
@@ -610,7 +610,7 @@ SELECT log10_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestam
 --Testcase 58:
 SELECT log2_all(), log10_all() FROM s3;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub log2_all() is called
 CONTEXT:  PL/pgSQL function public.log2_all() line 3 at RAISE
@@ -641,7 +641,7 @@ SELECT spread(value1),spread(value2),spread(value3),spread(value4) FROM s3;
 --Testcase 61:
 SELECT spread(value1::numeric),spread(value2::numeric),spread(value3::numeric),spread(value4::numeric) FROM s3;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub spread_sfunc(double precision, float8) is called
 CONTEXT:  PL/pgSQL function public.spread_sfunc(double precision,double precision) line 3 at RAISE
@@ -954,7 +954,7 @@ SELECT spread(t1.value1), spread(t2.value1) FROM s3 t1 INNER JOIN s3 t2 ON (t1.v
 --Testcase 87:
 SELECT spread(t1.value1), spread(t2.value1) FROM s3 t1 INNER JOIN s3 t2 ON (t1.value1 = t2.value1) where t1.value1 = 0.1;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub spread_sfunc(double precision, float8) is called
 CONTEXT:  PL/pgSQL function public.spread_sfunc(double precision,double precision) line 3 at RAISE
@@ -1417,7 +1417,7 @@ SELECT first('/value[1,4]/'), first('/^v.*/') from s3;
 --Testcase 125:
 SELECT first('/value[1,4]/'), first('/^v.*/') from s3;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub first_sfunc(text, text) is called
 CONTEXT:  PL/pgSQL function public.first_sfunc(text,text) line 3 at RAISE
@@ -1620,7 +1620,7 @@ SELECT first('/value[1,4]/'), first('/^v.*/') from s3;
 --Testcase 141:
 SELECT first('/value[1,4]/'), first('/^v.*/') from s3;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub first_sfunc(text, text) is called
 CONTEXT:  PL/pgSQL function public.first_sfunc(text,text) line 3 at RAISE
@@ -1978,7 +1978,7 @@ SELECT cumulative_sum_all(), cumulative_sum('/value[1,4]/') from s3;
 --Testcase 169:
 SELECT cumulative_sum_all(), cumulative_sum('/value[1,4]/') from s3;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub cumulative_sum_all() is called
 CONTEXT:  PL/pgSQL function public.cumulative_sum_all() line 3 at RAISE
@@ -2051,7 +2051,7 @@ SELECT (cumulative_sum_all()::s3).*, (cumulative_sum('/value[1,4]/')::s3).* from
 --Testcase 175:
 SELECT (cumulative_sum_all()::s3).*, (cumulative_sum('/value[1,4]/')::s3).* from s3;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub cumulative_sum_all() is called
 CONTEXT:  PL/pgSQL function public.cumulative_sum_all() line 3 at RAISE
@@ -2164,7 +2164,7 @@ SELECT derivative_all(), derivative('/value[1,4]/') from s3;
 --Testcase 185:
 SELECT derivative_all(), derivative('/value[1,4]/') from s3;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub derivative_all() is called
 CONTEXT:  PL/pgSQL function public.derivative_all() line 3 at RAISE
@@ -4410,7 +4410,7 @@ SELECT integral(value1, interval '1s'),integral(value2, interval '1s'),integral(
 --Testcase 380:
 SELECT integral(value1::numeric),integral(value2::numeric),integral(value3::numeric),integral(value4::numeric) FROM s3;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub integral_sfunc(double precision, float8) is called
 CONTEXT:  PL/pgSQL function public.integral_sfunc(double precision,double precision) line 3 at RAISE
@@ -4517,7 +4517,7 @@ SELECT integral(t1.value1), integral(t2.value1) FROM s3 t1 INNER JOIN s3 t2 ON (
 --Testcase 390:
 SELECT integral(t1.value1), integral(t2.value1) FROM s3 t1 INNER JOIN s3 t2 ON (t1.value1 = t2.value1) where t1.value1 = 0.1;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub integral_sfunc(double precision, float8) is called
 CONTEXT:  PL/pgSQL function public.integral_sfunc(double precision,double precision) line 3 at RAISE
@@ -4540,7 +4540,7 @@ SELECT integral(t1.value1, interval '1s'), integral(t2.value1, interval '1s') FR
 --Testcase 392:
 SELECT integral(t1.value1, interval '1s'), integral(t2.value1, interval '1s') FROM s3 t1 INNER JOIN s3 t2 ON (t1.value1 = t2.value1) where t1.value1 = 0.1;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub integral_sfunc(double precision, float8, interval) is called
 CONTEXT:  PL/pgSQL function public.integral_sfunc(double precision,double precision,interval) line 3 at RAISE
@@ -4797,7 +4797,7 @@ SELECT mean(value1),mean(value2),mean(value3),mean(value4) FROM s3;
 --Testcase 415:
 SELECT mean(value1::numeric),mean(value2::numeric),mean(value3::numeric),mean(value4::numeric) FROM s3;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub mean_sfunc(double precision, float8) is called
 CONTEXT:  PL/pgSQL function public.mean_sfunc(double precision,double precision) line 3 at RAISE
@@ -4868,7 +4868,7 @@ SELECT mean(t1.value1), mean(t2.value1) FROM s3 t1 INNER JOIN s3 t2 ON (t1.value
 --Testcase 421:
 SELECT mean(t1.value1), mean(t2.value1) FROM s3 t1 INNER JOIN s3 t2 ON (t1.value1 = t2.value1) where t1.value1 = 0.1;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub mean_sfunc(double precision, float8) is called
 CONTEXT:  PL/pgSQL function public.mean_sfunc(double precision,double precision) line 3 at RAISE
@@ -5117,7 +5117,7 @@ SELECT median(value1),median(value2),median(value3),median(value4) FROM s3;
 --Testcase 442:
 SELECT median(value1::numeric),median(value2::numeric),median(value3::numeric),median(value4::numeric) FROM s3;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub median_sfunc(double precision, float8) is called
 CONTEXT:  PL/pgSQL function public.median_sfunc(double precision,double precision) line 3 at RAISE
@@ -5188,7 +5188,7 @@ SELECT median(t1.value1), median(t2.value1) FROM s3 t1 INNER JOIN s3 t2 ON (t1.v
 --Testcase 448:
 SELECT median(t1.value1), median(t2.value1) FROM s3 t1 INNER JOIN s3 t2 ON (t1.value1 = t2.value1) where t1.value1 = 0.1;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub median_sfunc(double precision, float8) is called
 CONTEXT:  PL/pgSQL function public.median_sfunc(double precision,double precision) line 3 at RAISE
@@ -5437,7 +5437,7 @@ SELECT influx_mode(value1),influx_mode(value2),influx_mode(value3),influx_mode(v
 --Testcase 469:
 SELECT influx_mode(value1::numeric),influx_mode(value2::numeric),influx_mode(value3::numeric),influx_mode(value4::numeric) FROM s3;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub influx_mode_sfunc(anyelement, anyelement) is called
 CONTEXT:  PL/pgSQL function public.influx_mode_sfunc(anyelement,anyelement) line 3 at RAISE
@@ -5508,7 +5508,7 @@ SELECT influx_mode(t1.value1), influx_mode(t2.value1) FROM s3 t1 INNER JOIN s3 t
 --Testcase 475:
 SELECT influx_mode(t1.value1), influx_mode(t2.value1) FROM s3 t1 INNER JOIN s3 t2 ON (t1.value1 = t2.value1) where t1.value1 = 0.1;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub influx_mode_sfunc(anyelement, anyelement) is called
 CONTEXT:  PL/pgSQL function public.influx_mode_sfunc(anyelement,anyelement) line 3 at RAISE
@@ -6185,10 +6185,10 @@ SELECT bottom(value1, 1), bottom(value2, 1), bottom(value3, 1), bottom(value4, 1
 --Testcase 531:
 SELECT bottom(value1, 1), bottom(value2, 1), bottom(value3, 1), bottom(value4, 1) FROM s3;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:influxdb_fdw : selector function bottom() cannot be combined with other functions
+ DETAIL: influxdb_fdw : selector function bottom() cannot be combined with other functions
 }
 -- select influx_max(*) (stub agg function, explain)
 --Testcase 532:
@@ -6980,10 +6980,10 @@ SELECT top(value1, 1), top(value2, 1), top(value3, 1), top(value4, 1) FROM s3;
 --Testcase 599:
 SELECT top(value1, 1), top(value2, 1), top(value3, 1), top(value4, 1) FROM s3;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:influxdb_fdw : selector function top() cannot be combined with other functions
+ DETAIL: influxdb_fdw : selector function top() cannot be combined with other functions
 }
 -- select acos (builtin function, explain)
 --Testcase 600:
@@ -7825,7 +7825,7 @@ SELECT (atan_all()::s3).* from s3;
 --Testcase 668:
 SELECT asin_all(), acos_all(), atan_all() FROM s3;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub asin_all() is called
 CONTEXT:  PL/pgSQL function public.asin_all() line 3 at RAISE
@@ -8865,7 +8865,7 @@ SELECT exp_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(
 --Testcase 753:
 SELECT ceil_all(), cos_all(), exp_all() FROM s3;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub ceil_all() is called
 CONTEXT:  PL/pgSQL function public.ceil_all() line 3 at RAISE
@@ -9415,7 +9415,7 @@ SELECT ln_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4
 --Testcase 798:
 SELECT ln_all(), floor_all() FROM s3;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub ln_all() is called
 CONTEXT:  PL/pgSQL function public.ln_all() line 3 at RAISE
@@ -10506,7 +10506,7 @@ SELECT tan_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(
 --Testcase 887:
 SELECT sin_all(), round_all(), tan_all() FROM s3;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub sin_all() is called
 CONTEXT:  PL/pgSQL function public.sin_all() line 3 at RAISE
@@ -10662,7 +10662,7 @@ SELECT influx_count_all(*) FROM s3 t1 INNER JOIN s3 t2 ON (t1.value1 = t2.value1
 --Testcase 899:
 SELECT influx_count_all(*) FROM s3 t1 INNER JOIN s3 t2 ON (t1.value1 = t2.value1) where t1.value1 = 0.1;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub influx_count_all_sfunc(text) is called
 CONTEXT:  PL/pgSQL function public.influx_count_all_sfunc(text) line 3 at RAISE
@@ -10761,7 +10761,7 @@ SELECT influx_distinct(t1.value2) FROM s3 t1 INNER JOIN s3 t2 ON (t1.value1 = t2
 --Testcase 907:
 SELECT influx_distinct(t1.value2) FROM s3 t1 INNER JOIN s3 t2 ON (t1.value1 = t2.value1) where t1.value1 = 0.1;
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:pgspider_fdw fail to get tuples from child process
+ DETAIL: pgspider_fdw fail to get tuples from child process
 {
 ERROR:  stub influx_distinct_sfunc(anyelement, anyelement) is called
 CONTEXT:  PL/pgSQL function public.influx_distinct_sfunc(anyelement,anyelement) line 3 at RAISE

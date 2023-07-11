@@ -155,7 +155,7 @@ CREATE FOREIGN TABLE ft1__postgres_srv__0 (
 	c6 varchar(10),
 	c7 char(10) default 'ft1',
 	c8 user_enum
-) SERVER postgres_srv OPTIONS (schema_name 'S 1', table_name 'T 1');;
+) SERVER postgres_srv OPTIONS (schema_name 'S 1', table_name 'T 1');
 --Testcase 21:
 ALTER FOREIGN TABLE ft1__postgres_srv__0 DROP COLUMN c0;
 --Testcase 22:
@@ -321,7 +321,7 @@ ALTER SERVER postgres_srv OPTIONS (SET dbname 'no such database');
 --Testcase 42:
 SELECT c3, c4 FROM ft1 ORDER BY c3, c1 LIMIT 1;  -- should fail
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:could not connect to server "postgres_srv"
+ DETAIL: could not connect to server "postgres_srv"
 DO $d$
     BEGIN
         EXECUTE $$ALTER SERVER postgres_srv
@@ -5287,21 +5287,21 @@ ALTER FOREIGN TABLE ft1__postgres_srv__0 ALTER COLUMN c8 TYPE int;
 --Testcase 432:
 SELECT * FROM ft1 ftx(x1,x2,x3,x4,x5,x6,x7,x8) WHERE x1 = 1;  -- ERROR
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:invalid input syntax for type integer: "foo"
+ DETAIL: invalid input syntax for type integer: "foo"
 --Testcase 433:
 SELECT ftx.x1, ft2.c2, ftx.x8 FROM ft1 ftx(x1,x2,x3,x4,x5,x6,x7,x8), ft2
   WHERE ftx.x1 = ft2.c1 AND ftx.x1 = 1; -- ERROR
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:invalid input syntax for type integer: "foo"
+ DETAIL: invalid input syntax for type integer: "foo"
 --Testcase 434:
 SELECT ftx.x1, ft2.c2, ftx FROM ft1 ftx(x1,x2,x3,x4,x5,x6,x7,x8), ft2
   WHERE ftx.x1 = ft2.c1 AND ftx.x1 = 1; -- ERROR
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:invalid input syntax for type integer: "foo"
+ DETAIL: invalid input syntax for type integer: "foo"
 --Testcase 435:
 SELECT sum(c2), array_agg(c8) FROM ft1 GROUP BY c8; -- ERROR
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:invalid input syntax for type integer: "foo"
+ DETAIL: invalid input syntax for type integer: "foo"
 ANALYZE ft1; -- ERROR
 WARNING:  skipping "ft1" --- cannot analyze this foreign table
 ALTER FOREIGN TABLE ft1 ALTER COLUMN c8 TYPE user_enum;
@@ -5356,11 +5356,11 @@ SELECT * FROM ft1 WHERE 'foo' = c8 LIMIT 1;
 --Testcase 1202:
 SELECT * FROM ft1 WHERE c8 LIKE 'foo' LIMIT 1; -- ERROR
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:operator does not exist: public.user_enum ~~ unknown
+ DETAIL: operator does not exist: public.user_enum ~~ unknown
 --Testcase 1203:
 SELECT * FROM ft1 WHERE c8::text LIKE 'foo' LIMIT 1; -- ERROR; cast not pushed down
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:operator does not exist: public.user_enum ~~ unknown
+ DETAIL: operator does not exist: public.user_enum ~~ unknown
 --Testcase 436:
 ALTER FOREIGN TABLE ft1 ALTER COLUMN c8 TYPE user_enum;
 --Testcase 437:
@@ -5395,7 +5395,7 @@ SAVEPOINT s;
 --Testcase 440:
 SELECT * FROM ft1 WHERE 1 / (c1 - 1) > 0;  -- ERROR
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:division by zero
+ DETAIL: division by zero
 ROLLBACK TO s;
 --Testcase 441:
 FETCH c;
@@ -5538,7 +5538,7 @@ ROLLBACK TO s;
 --Testcase 1204:
 FETCH 1000 FROM c1; -- should fail
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:Child thread pending timeout.
+ DETAIL: Child thread pending timeout.
 --Testcase 1185:
 FETCH c1; -- should fail
 ERROR:  current transaction is aborted, commands ignored until end of transaction block
@@ -8017,7 +8017,7 @@ SELECT dblink_exec('DROP TRIGGER row_before_insupd_trigger ON child_tbl;');
 (1 row)
 
 --Testcase 575:
-DROP TABLE parent_tbl CASCADE;;
+DROP TABLE parent_tbl CASCADE;
 NOTICE:  drop cascades to view rw_view
 --Testcase 576:
 DROP FUNCTION row_before_insupd_trigfunc;
@@ -11413,11 +11413,11 @@ CREATE FOREIGN TABLE fpagg_tab_p1__postgres_srv__0
 --Testcase 1086:
 CREATE FOREIGN TABLE fpagg_tab_p2__postgres_srv__0
   PARTITION OF pagg_tab FOR VALUES FROM (10) TO (20)
-  SERVER postgres_srv OPTIONS (table_name 'pagg_tab_p2');;
+  SERVER postgres_srv OPTIONS (table_name 'pagg_tab_p2');
 --Testcase 1087:
 CREATE FOREIGN TABLE fpagg_tab_p3__postgres_srv__0
   PARTITION OF pagg_tab FOR VALUES FROM (20) TO (30)
-  SERVER postgres_srv OPTIONS (table_name 'pagg_tab_p3');;
+  SERVER postgres_srv OPTIONS (table_name 'pagg_tab_p3');
 ANALYZE pagg_tab;
 --ANALYZE fpagg_tab_p1;
 --ANALYZE fpagg_tab_p2;

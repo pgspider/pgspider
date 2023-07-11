@@ -33,6 +33,9 @@
 #include "utils/resowner_private.h"
 #include "utils/syscache.h"
 
+#ifdef PGSPIDER
+static pthread_mutex_t tupledesc_mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 /*
  * CreateTemplateTupleDesc
@@ -365,11 +368,14 @@ FreeTupleDesc(TupleDesc tupdesc)
 void
 IncrTupleDescRefCount(TupleDesc tupdesc)
 {
+	SPD_LOCK_TRY(&tupledesc_mutex);
 	Assert(tupdesc->tdrefcount >= 0);
 
 	ResourceOwnerEnlargeTupleDescs(CurrentResourceOwner);
 	tupdesc->tdrefcount++;
 	ResourceOwnerRememberTupleDesc(CurrentResourceOwner, tupdesc);
+
+	SPD_UNLOCK_CATCH(&tupledesc_mutex);
 }
 
 /*
@@ -383,11 +389,14 @@ IncrTupleDescRefCount(TupleDesc tupdesc)
 void
 DecrTupleDescRefCount(TupleDesc tupdesc)
 {
+	SPD_LOCK_TRY(&tupledesc_mutex);
 	Assert(tupdesc->tdrefcount > 0);
 
 	ResourceOwnerForgetTupleDesc(CurrentResourceOwner, tupdesc);
 	if (--tupdesc->tdrefcount == 0)
 		FreeTupleDesc(tupdesc);
+
+	SPD_UNLOCK_CATCH(&tupledesc_mutex);
 }
 
 /*

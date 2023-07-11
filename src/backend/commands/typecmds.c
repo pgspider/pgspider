@@ -1775,7 +1775,13 @@ makeRangeConstructors(const char *name, Oid namespace,
 								 PointerGetDatum(NULL), /* proconfig */
 								 InvalidOid,	/* prosupport */
 								 1.0,	/* procost */
+#ifdef PD_STORED
+								 0.0,	/* prorows */
+								 InvalidOid,	/* parentfn */
+								 InvalidOid);	/* childfn */
+#else
 								 0.0);	/* prorows */
+#endif
 
 		/*
 		 * Make the constructors internally-dependent on the range type so
@@ -1840,7 +1846,13 @@ makeMultirangeConstructors(const char *name, Oid namespace,
 							 PointerGetDatum(NULL), /* proconfig */
 							 InvalidOid,	/* prosupport */
 							 1.0,	/* procost */
+#ifdef PD_STORED
+							 0.0,	/* prorows */
+							 InvalidOid,	/* parentfn */
+							 InvalidOid);	/* childfn */
+#else
 							 0.0);	/* prorows */
+#endif
 
 	/*
 	 * Make the constructor internally-dependent on the multirange type so
@@ -1884,7 +1896,14 @@ makeMultirangeConstructors(const char *name, Oid namespace,
 							 PointerGetDatum(NULL), /* proconfig */
 							 InvalidOid,	/* prosupport */
 							 1.0,	/* procost */
+#ifdef PD_STORED
+							 0.0,	/* prorows */
+							 InvalidOid,	/* parentfn */
+							 InvalidOid);	/* childfn */
+#else
 							 0.0);	/* prorows */
+#endif
+
 	/* ditto */
 	recordDependencyOn(&myself, &referenced, DEPENDENCY_INTERNAL);
 	pfree(argtypes);
@@ -1925,7 +1944,14 @@ makeMultirangeConstructors(const char *name, Oid namespace,
 							 PointerGetDatum(NULL), /* proconfig */
 							 InvalidOid,	/* prosupport */
 							 1.0,	/* procost */
+#ifdef PD_STORED
+							 0.0,	/* prorows */
+							 InvalidOid,	/* parentfn */
+							 InvalidOid);	/* childfn */
+#else
 							 0.0);	/* prorows */
+#endif
+
 	/* ditto */
 	recordDependencyOn(&myself, &referenced, DEPENDENCY_INTERNAL);
 	pfree(argtypes);

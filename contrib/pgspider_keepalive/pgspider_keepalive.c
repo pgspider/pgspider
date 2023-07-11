@@ -2,7 +2,7 @@
  *
  * pgspider_keepalive.c
  *
- * Portions Copyright (c) 2018-2021, TOSHIBA CORPORATION
+ * Portions Copyright (c) 2018, TOSHIBA CORPORATION
  *
  * IDENTIFICATION
  *		  contrib/pgspider_keepalive/pgspider_keepalive.c

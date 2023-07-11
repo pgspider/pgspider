@@ -7,11 +7,12 @@ OBJS = \
 	deparse.o \
 	option.o \
 	pgspider_fdw.o \
+	pgspider_data_compression_transfer.o \
 	shippable.o
 PGFILEDESC = "pgspider_fdw - foreign data wrapper for PGSpider"
 
 PG_CPPFLAGS = -I$(libpq_srcdir)
-SHLIB_LINK_INTERNAL = $(libpq)
+SHLIB_LINK_INTERNAL = $(libpq) -llz4 -lcurl
 
 EXTENSION = pgspider_fdw
 DATA = pgspider_fdw--1.0.sql pgspider_fdw--1.0--1.1.sql pgspider_fdw--1.1.sql pgspider_fdw--1.2.sql pgspider_fdw--1.3.sql pgspider_fdw--1.4.sql

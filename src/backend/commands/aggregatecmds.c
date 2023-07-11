@@ -40,6 +40,177 @@
 
 static char extractModify(DefElem *defel);
 
+#ifdef PD_STORED
+static bool
+interpret_function_parameter_list_try(ParseState *pstate,
+									  List *parameters,
+									  Oid languageOid,
+									  ObjectType objtype,
+									  oidvector **p_parameterTypes,
+									  Oid *p_variadicArgType,
+									  bool error_if_failed)
+{
+	oidvector  *parameterTypes;
+	List	   *parameterTypes_list = NIL;
+	ArrayType  *allParameterTypes;
+	ArrayType  *parameterModes;
+	ArrayType  *parameterNames;
+	List	   *inParameterNames_list = NIL;
+	List	   *parameterDefaults;
+	Oid			variadicArgType;
+	Oid			requiredResultType;
+
+	PG_TRY();
+	{
+
+		interpret_function_parameter_list(pstate,
+										  parameters,
+										  languageOid,
+										  objtype,
+										  &parameterTypes,
+										  &parameterTypes_list,
+										  &allParameterTypes,
+										  &parameterModes,
+										  &parameterNames,
+										  &inParameterNames_list,
+										  &parameterDefaults,
+										  &variadicArgType,
+										  &requiredResultType);
+	}
+	PG_CATCH();
+	{
+		if (error_if_failed)
+			PG_RE_THROW();
+		else
+			return false;
+	}
+	PG_END_TRY();
+
+	if (p_parameterTypes)
+		*p_parameterTypes = parameterTypes;
+	if (p_variadicArgType)
+		*p_variadicArgType = variadicArgType;
+
+	return true;
+}
+
+static ObjectAddress
+DefineDistributedFunc(ParseState *pstate,
+					  char *distName,
+					  Oid distNamespace,
+					  List *args,
+					  bool replace,
+					  List *nameParent,
+					  List *argsParent,
+					  List *nameChild,
+					  List *argsChild
+					  )
+{
+	int			numArgs;
+	oidvector  *parameterTypes;
+	ArrayType  *allParameterTypes;
+	List	   *parameterTypes_list = NIL;
+	ArrayType  *parameterModes;
+	ArrayType  *parameterNames;
+	List	   *inParameterNames_list = NIL;
+	List	   *parameterDefaults;
+	Oid			variadicArgType;
+	Oid			requiredResultType;
+
+	int			numArgsParent;
+	oidvector  *parameterTypesParent;
+	Oid			variadicArgTypeParent;
+	bool		ret;
+#if 1 /* Parent is 0 arg */
+	ObjectType	objtype;
+#endif
+
+	Assert(nameParent != NIL);
+	Assert(nameChild != NIL);
+
+	numArgs = list_length(args);
+	interpret_function_parameter_list(pstate,
+									  args,
+									  InvalidOid,
+									  OBJECT_AGGREGATE,
+									  &parameterTypes,
+									  &parameterTypes_list,
+									  &allParameterTypes,
+									  &parameterModes,
+									  &parameterNames,
+									  &inParameterNames_list,
+									  &parameterDefaults,
+									  &variadicArgType,
+									  &requiredResultType);
+										
+	/* Parameter defaults are not currently allowed by the grammar */
+	Assert(parameterDefaults == NIL);
+	/* There shouldn't have been any OUT parameters, either */
+	Assert(requiredResultType == InvalidOid);
+
+#if 1 /* Parent is 0 arg */
+	if (argsParent == NIL)
+	{
+		numArgsParent = 0;
+		objtype = OBJECT_FUNCTION;
+	}
+	else
+#endif
+	{
+		argsParent = linitial_node(List, argsParent);
+		numArgsParent = list_length(argsParent);
+		objtype = OBJECT_AGGREGATE;
+	}
+	interpret_function_parameter_list_try(pstate,
+									argsParent,
+									InvalidOid,
+									objtype,
+									&parameterTypesParent,
+									&variadicArgTypeParent,
+									true);
+
+	if (argsChild != NIL)
+	{
+		argsChild = linitial_node(List, argsChild);
+		if (!equal(argsChild, args))
+		elog(ERROR, "Argument of child function must be same as that of distributed function");
+	}
+
+	ret = interpret_function_parameter_list_try(pstate,
+												args,
+												InvalidOid,
+												OBJECT_AGGREGATE,
+												NULL,
+												NULL,
+												false);
+	if (!ret)
+		ret = interpret_function_parameter_list_try(pstate,
+													args,
+													InvalidOid,
+													OBJECT_FUNCTION,
+													NULL,
+													NULL,
+													true);
+
+
+	return DistributedFuncCreate(distName,
+								 distNamespace,
+								 replace,
+								 numArgs,
+								 0,		/* numDirectArgs */
+								 parameterTypes,
+								 PointerGetDatum(allParameterTypes),
+								 PointerGetDatum(parameterModes),
+								 PointerGetDatum(parameterNames),
+								 parameterDefaults,
+								 variadicArgType,
+								 nameParent,
+								 nameChild,
+								 parameterTypesParent,
+								 numArgsParent,
+								 variadicArgTypeParent);
+}
+#endif
 
 /*
  *	DefineAggregate
@@ -99,6 +270,12 @@ DefineAggregate(ParseState *pstate,
 	char		mtransTypeType = 0;
 	char		proparallel = PROPARALLEL_UNSAFE;
 	ListCell   *pl;
+#ifdef PD_STORED
+	List	   *parent = NIL;
+	List	   *parentargs = NIL;
+	List	   *child = NIL;
+	List	   *childargs = NIL;
+#endif
 
 	/* Convert list of names to a name and namespace */
 	aggNamespace = QualifiedNameGetCreationNamespace(name, &aggName);
@@ -189,12 +366,39 @@ DefineAggregate(ParseState *pstate,
 			minitval = defGetString(defel);
 		else if (strcmp(defel->defname, "parallel") == 0)
 			parallel = defGetString(defel);
+#ifdef PD_STORED
+		else if (strcmp(defel->defname, "parent") == 0)
+			parent = defGetQualifiedName(defel);
+		else if (strcmp(defel->defname, "parentargs") == 0)
+			parentargs = defGetQualifiedName(defel);
+		else if (strcmp(defel->defname, "child") == 0)
+			child = defGetQualifiedName(defel);
+		else if (strcmp(defel->defname, "childargs") == 0)
+			childargs = defGetQualifiedName(defel);
+#else
+		else if (strcmp(defel->defname, "parent") == 0 ||
+				 strcmp(defel->defname, "parentargs") == 0 ||
+				 strcmp(defel->defname, "child") == 0 ||
+				 strcmp(defel->defname, "childargs") == 0)
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("distributed function feature is not enabled. Please rebuild with ebabling PD_STORED")));
+#endif
 		else
 			ereport(WARNING,
 					(errcode(ERRCODE_SYNTAX_ERROR),
 					 errmsg("aggregate attribute \"%s\" not recognized",
 							defel->defname)));
 	}
+
+#ifdef PD_STORED
+	if (parent != NIL || child != NIL)
+	{
+		return DefineDistributedFunc(pstate, aggName, aggNamespace, args,
+									 replace, parent, parentargs, child,
+									 childargs);
+	}
+#endif
 
 	/*
 	 * make sure we have our required definitions

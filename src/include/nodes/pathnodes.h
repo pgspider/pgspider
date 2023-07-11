@@ -2740,6 +2740,10 @@ typedef struct AggTransInfo
 	Datum		initValue;
 	bool		initValueIsNull;
 
+#ifdef PD_STORED
+	Oid			parentfn_oid;
+	Oid			childfn_oid;
+#endif
 } AggTransInfo;
 
 #endif							/* PATHNODES_H */

@@ -357,6 +357,14 @@ static text *pg_get_expr_worker(text *expr, Oid relid, const char *relname,
 static int	print_function_arguments(StringInfo buf, HeapTuple proctup,
 									 bool print_table_args, bool print_defaults);
 static void print_function_rettype(StringInfo buf, HeapTuple proctup);
+#ifdef PD_STORED
+static int	print_function_arguments_common(StringInfo buf, HeapTuple proctup,
+									 bool print_table_args, bool print_defaults,
+									 bool qualified);
+static void print_function_rettype_common(StringInfo buf, HeapTuple proctup,
+										  bool qualified);
+static void print_function_rettype_qualified(StringInfo buf, HeapTuple proctup);
+#endif
 static void print_function_trftypes(StringInfo buf, HeapTuple proctup);
 static void print_function_sqlbody(StringInfo buf, HeapTuple proctup);
 static void set_rtable_names(deparse_namespace *dpns, List *parent_namespaces,
@@ -2891,6 +2899,14 @@ pg_get_functiondef(PG_FUNCTION_ARGS)
 	const char *nsp;
 	float4		procost;
 	int			oldlen;
+#ifdef PD_STORED
+	bool		qualified;
+	
+	if (fcinfo->nargs >= 2)
+		qualified = PG_GETARG_BOOL(1);
+	else
+		qualified = false;
+#endif
 
 	initStringInfo(&buf);
 
@@ -2922,6 +2938,11 @@ pg_get_functiondef(PG_FUNCTION_ARGS)
 	if (isfunction)
 	{
 		appendStringInfoString(&buf, " RETURNS ");
+#ifdef PD_STORED
+		if (qualified)
+			print_function_rettype_qualified(&buf, proctup);
+		else
+#endif
 		print_function_rettype(&buf, proctup);
 		appendStringInfoChar(&buf, '\n');
 	}
@@ -3135,6 +3156,14 @@ pg_get_function_arguments(PG_FUNCTION_ARGS)
 	Oid			funcid = PG_GETARG_OID(0);
 	StringInfoData buf;
 	HeapTuple	proctup;
+#ifdef PD_STORED
+	bool		qualified;
+
+	if (fcinfo->nargs >= 2)
+		qualified = PG_GETARG_BOOL(1);
+	else
+		qualified = false;
+#endif
 
 	proctup = SearchSysCache1(PROCOID, ObjectIdGetDatum(funcid));
 	if (!HeapTupleIsValid(proctup))
@@ -3142,7 +3171,11 @@ pg_get_function_arguments(PG_FUNCTION_ARGS)
 
 	initStringInfo(&buf);
 
+#ifdef PD_STORED
+	(void) print_function_arguments_common(&buf, proctup, false, true, qualified);
+#else
 	(void) print_function_arguments(&buf, proctup, false, true);
+#endif
 
 	ReleaseSysCache(proctup);
 
@@ -3210,8 +3243,26 @@ pg_get_function_result(PG_FUNCTION_ARGS)
  * Guts of pg_get_function_result: append the function's return type
  * to the specified buffer.
  */
+#ifdef PD_STORED
 static void
 print_function_rettype(StringInfo buf, HeapTuple proctup)
+{
+	return print_function_rettype_common(buf, proctup, false);
+}
+
+static void
+print_function_rettype_qualified(StringInfo buf, HeapTuple proctup)
+{
+	return print_function_rettype_common(buf, proctup, true);
+}
+
+static void
+print_function_rettype_common(StringInfo buf, HeapTuple proctup,
+							  bool qualified)
+#else
+static void
+print_function_rettype(StringInfo buf, HeapTuple proctup)
+#endif
 {
 	Form_pg_proc proc = (Form_pg_proc) GETSTRUCT(proctup);
 	int			ntabargs = 0;
@@ -3223,7 +3274,12 @@ print_function_rettype(StringInfo buf, HeapTuple proctup)
 	{
 		/* It might be a table function; try to print the arguments */
 		appendStringInfoString(&rbuf, "TABLE(");
+#ifdef PD_STORED
+		ntabargs = print_function_arguments_common(&rbuf, proctup, true,
+												   false, qualified);
+#else
 		ntabargs = print_function_arguments(&rbuf, proctup, true, false);
+#endif
 		if (ntabargs > 0)
 			appendStringInfoChar(&rbuf, ')');
 		else
@@ -3235,6 +3291,12 @@ print_function_rettype(StringInfo buf, HeapTuple proctup)
 		/* Not a table function, so do the normal thing */
 		if (proc->proretset)
 			appendStringInfoString(&rbuf, "SETOF ");
+#ifdef PD_STORED
+		if (qualified)
+			appendStringInfoString(&rbuf,
+								   format_type_be_qualified(proc->prorettype));
+		else
+#endif
 		appendStringInfoString(&rbuf, format_type_be(proc->prorettype));
 	}
 
@@ -3248,9 +3310,24 @@ print_function_rettype(StringInfo buf, HeapTuple proctup)
  * We print argument defaults only if print_defaults is true.
  * Function return value is the number of arguments printed.
  */
+#ifdef PD_STORED
 static int
 print_function_arguments(StringInfo buf, HeapTuple proctup,
 						 bool print_table_args, bool print_defaults)
+{
+	return print_function_arguments_common(buf, proctup, print_table_args,
+										   print_defaults, false);
+}
+
+static int
+print_function_arguments_common(StringInfo buf, HeapTuple proctup,
+								bool print_table_args, bool print_defaults,
+								bool qualified)
+#else
+static int
+print_function_arguments(StringInfo buf, HeapTuple proctup,
+						 bool print_table_args, bool print_defaults)
+#endif
 {
 	Form_pg_proc proc = (Form_pg_proc) GETSTRUCT(proctup);
 	int			numargs;
@@ -3370,6 +3447,11 @@ print_function_arguments(StringInfo buf, HeapTuple proctup,
 		appendStringInfoString(buf, modename);
 		if (argname && argname[0])
 			appendStringInfo(buf, "%s ", quote_identifier(argname));
+#ifdef PD_STORED
+		if (qualified)
+			appendStringInfoString(buf, format_type_be_qualified(argtype));
+		else
+#endif
 		appendStringInfoString(buf, format_type_be(argtype));
 		if (print_defaults && isinput && inputargno > nlackdefaults)
 		{

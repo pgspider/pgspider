@@ -221,6 +221,13 @@ typedef struct AggStatePerAggData
 	 * aggregates because the final function is read-write.
 	 */
 	bool		shareable;
+
+#ifdef PD_STORED
+	Oid			parentfn_oid;
+	Oid			childfn_oid;
+	Oid			rettypechild;
+	bool		async;
+#endif
 }			AggStatePerAggData;
 
 /*
@@ -333,5 +340,23 @@ extern void ExecAggRetrieveInstrumentation(AggState *node);
 #ifdef PGSPIDER
 extern TupleTableSlot *ExecRetreiveDirect(AggState *node);
 extern TupleTableSlot *ExecDirectAgg(AggState *node);
+#ifdef PD_STORED
+extern void InitializePhase(AggState *aggstate, int newphase);
+extern void SelectCurrentSet(AggState *aggstate, int setno, bool is_hash);
+extern TupleTableSlot *AggRetrieveHashTable(AggState *aggstate);
+extern void InitializeAggregates(AggState *aggstate,
+										   AggStatePerGroup *pergroups,
+										   int numReset);
+extern void LookupHashEntries(AggState *aggstate);
+extern void AdvanceAggregates(AggState *aggstate);
+extern void PrepareProjectionSlot(AggState *aggstate,
+											TupleTableSlot *slot,
+											int currentSet);
+extern void FinalizeAggregates(AggState *aggstate,
+									   AggStatePerAgg peragg,
+									   AggStatePerGroup pergroup);
+extern TupleTableSlot *ProjectAggregates(AggState *aggstate);
+#endif
+
 #endif
 #endif							/* NODEAGG_H */

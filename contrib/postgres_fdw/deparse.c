@@ -59,6 +59,10 @@
 #include "utils/typcache.h"
 #include "commands/tablecmds.h"
 
+#ifdef PGSPIDER
+#include "rewrite/rewriteHandler.h"
+#endif
+
 /*
  * Global context for foreign_expr_walker's search of an expression tree.
  */
@@ -3891,3 +3895,187 @@ get_relation_column_alias_ids(Var *node, RelOptInfo *foreignrel,
 	/* Shouldn't get here */
 	elog(ERROR, "unexpected expression in subquery output");
 }
+
+#ifdef PGSPIDER
+
+/*
+ * Construct CREATE TABLE statement
+ *
+ */
+void
+deparseCreateTableSql(StringInfo buf, Relation rel, bool if_not_exist)
+{
+	TupleDesc	tupdesc = RelationGetDescr(rel);
+	int			i;
+	char	   *colname;
+	List	   *options;
+	ListCell   *lc;
+	bool		first = true;
+
+	appendStringInfoString(buf, "CREATE TABLE ");
+
+	if (if_not_exist)
+		appendStringInfoString(buf, "IF NOT EXISTS ");
+
+	deparseRelation(buf, rel);
+
+	appendStringInfoString(buf, " (");
+	/* deparse column */
+	for (i = 0; i < tupdesc->natts; i++)
+	{
+		Form_pg_attribute att = TupleDescAttr(tupdesc, i);
+
+		/* Ignore dropped columns. */
+		if (att->attisdropped)
+			continue;
+
+		if (!first)
+			appendStringInfoString(buf, ", ");
+		first = false;
+
+		/* Use attribute name or column_name option. */
+		colname = NameStr(att->attname);
+		options = GetForeignColumnOptions(RelationGetRelid(rel), i + 1);
+
+		foreach(lc, options)
+		{
+			DefElem    *def = (DefElem *) lfirst(lc);
+
+			if (strcmp(def->defname, "column_name") == 0)
+			{
+				colname = defGetString(def);
+				break;
+			}
+		}
+
+		appendStringInfo(buf, "%s %s", quote_identifier(colname), deparse_type_name(att->atttypid, att->atttypmod));
+
+		/* append more column information: type, not null, default value... */
+		/* att is NOT NULL */
+		if (att->attnotnull)
+			appendStringInfoString(buf, " NOT NULL");
+
+		if (OidIsValid(att->attcollation) && is_builtin(att->attcollation))
+		{
+			char	   *collname = get_collation_name(att->attcollation);
+
+			if (collname == NULL)
+				elog(ERROR, "cache lookup failed for collation %u", att->attcollation);
+			appendStringInfo(buf, " COLLATE %s", quote_identifier(collname));
+		}
+
+		/* append default value */
+		if (att->atthasdef)
+		{
+			Expr *defexpr = (Expr *)build_column_default(rel, att->attnum);
+
+			deparse_expr_cxt context;
+			context.buf = buf;
+			context.root = NULL;
+			context.foreignrel = NULL;
+			context.scanrel = NULL;
+			context.params_list = NULL;
+
+			appendStringInfoString(buf, " DEFAULT ");
+			deparseExpr(defexpr, &context);
+		}
+	}
+	appendStringInfoString(buf, ");");
+}
+
+/*
+ * Construct DROP TABLE statement
+ *
+ */
+void
+deparseDropTableSql(StringInfo buf, Relation rel, bool exists_flag)
+{
+	appendStringInfo(buf, "DROP TABLE %s", exists_flag ? "IF EXISTS " : "");
+	deparseRelation(buf, rel);
+	appendStringInfoString(buf, ";");
+}
+
+#endif	/* PGSPIDER */
+
+#ifdef PD_STORED
+static void
+deparseFunctionName(StringInfo buf, Oid funcoid)
+{
+	HeapTuple	tuple;
+	Form_pg_proc pform;
+	char	   *nsp;
+
+	tuple = SearchSysCache1(PROCOID,
+							ObjectIdGetDatum(funcoid));
+	if (!HeapTupleIsValid(tuple))	/* should not happen */
+		elog(ERROR, "cache lookup failed for function %u", funcoid);
+	pform = (Form_pg_proc) GETSTRUCT(tuple);
+
+
+	nsp = get_namespace_name(pform->pronamespace);
+	appendStringInfoString(buf,
+						   quote_qualified_identifier(nsp,
+					 								  NameStr(pform->proname)));
+	ReleaseSysCache(tuple);
+}
+
+static void
+deparseFunctionArgs(StringInfo buf, Oid tableoid,
+					List *tlist)
+{
+	ListCell   *lc;
+	bool		first = true;
+
+	appendStringInfoString(buf, "(");
+	foreach(lc, tlist)
+	{
+		Expr	   *node = (Expr *) lfirst(lc);
+		TargetEntry *tle;
+		Expr	   *expr;
+
+		if (nodeTag(node) != T_TargetEntry)
+			elog(ERROR, "Unexpected expression type (%d) for distributed function argument", nodeTag(node));
+
+		tle = (TargetEntry *) node;
+		expr = tle->expr;
+
+		if (!first)
+			appendStringInfoString(buf, ", ");
+		first = false;
+			
+		//deparseExpr(expr, context);
+
+		switch (nodeTag(expr))
+		{
+			case T_Var:
+			{
+				Var		   *var = (Var *) expr;
+				char	   *colname = get_attname(tableoid, var->varattno, false);
+				appendStringInfoString(buf, colname);
+				break;
+			}
+			case T_TargetEntry:
+			
+			default:
+				elog(ERROR, "Not supported expression type (%d) for distributed function argument", nodeTag(node));
+		}
+	}
+	appendStringInfoString(buf, ")");
+}
+
+void
+deparseFunctionQuery(StringInfo buf, Oid funcoid, Oid tableoid, List *args)
+{
+	Relation	rel;
+
+	appendStringInfoString(buf, "SELECT ");
+	deparseFunctionName(buf, funcoid);
+	deparseFunctionArgs(buf, tableoid, args);
+	appendStringInfoString(buf, " FROM ");
+
+	rel = table_open(tableoid, NoLock);
+	deparseRelation(buf, rel);
+	table_close(rel, NoLock);
+}
+#endif	/* PD_STORED */
+

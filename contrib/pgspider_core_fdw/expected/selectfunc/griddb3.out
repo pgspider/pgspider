@@ -4476,7 +4476,7 @@ ERROR:  PGSpider fail to iterate tuple from child thread
 {
 ERROR:  PGSpider fail to iterate tuple from child thread
  DETAIL: GridDB-API is failed by 152502
-  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=10.116.42.130:10001, partition=17)
+  [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented (address=127.0.0.1:10001, partition=17)
   [152502:TQ_INTERNAL_NOT_IMPLEMENTED] Column selection and direct value selection are not implemented
 }
 --Testcase 225:

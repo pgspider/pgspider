@@ -23,7 +23,7 @@ typedef struct ReadBufferClientSocket
 	unsigned char	buffer[8];		/* read buffer */
 }			ReadBufferClientSocket;
 
-extern void spd_get_dct_option(Relation rel, int *socket_port, int *function_timeout);
+extern void spd_get_dct_option(Relation rel, int *socket_port, int *function_timeout, char **public_host, int *public_port, char **ifconfig_service);
 extern void *spd_socket_server_thread(void *arg);
 extern void spd_end_socket_server(int *server_fd, bool *end_server);
 extern void spd_end_insert_data_thread(SocketThreadInfo *socketThreadInfo);

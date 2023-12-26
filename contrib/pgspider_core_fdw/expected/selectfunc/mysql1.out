@@ -11744,12 +11744,12 @@ SELECT convert(json_extract('{"a": "2000-01-01 12:02:01.123456"}', '$.a'), 'date
 SELECT convert(json_extract('{"a": "2000-01-01 12:02:01.123456"}', '$.a'), 'datetime(3)')::timestamp, convert(json_extract('{"a": "2000-01-01 12:02:01.123456"}', '$.a'), 'datetime(3)')::timestamptz, convert(json_extract('{"a": "12:10:20.123456"}', '$.a'), 'time(3)')::time, convert(json_extract('{"a": "12:10:20.123456"}', '$.a'), 'time(3)')::timetz FROM s3;
          convert         |          convert           |   convert    |     convert     
 -------------------------+----------------------------+--------------+-----------------
- 2000-01-01 12:02:01.123 | 2000-01-01 12:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
- 2000-01-01 12:02:01.123 | 2000-01-01 12:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
- 2000-01-01 12:02:01.123 | 2000-01-01 12:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
- 2000-01-01 12:02:01.123 | 2000-01-01 12:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
- 2000-01-01 12:02:01.123 | 2000-01-01 12:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
- 2000-01-01 12:02:01.123 | 2000-01-01 12:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
+ 2000-01-01 12:02:01.123 | 2000-01-01 21:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
+ 2000-01-01 12:02:01.123 | 2000-01-01 21:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
+ 2000-01-01 12:02:01.123 | 2000-01-01 21:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
+ 2000-01-01 12:02:01.123 | 2000-01-01 21:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
+ 2000-01-01 12:02:01.123 | 2000-01-01 21:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
+ 2000-01-01 12:02:01.123 | 2000-01-01 21:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
 (6 rows)
 
 -- select cast json_extract with type modifier (explain)
@@ -27028,10 +27028,13 @@ SELECT date(date_sub(c3, '1 12:59:10')) as date1 FROM time_tbl;
 (5 rows)
 
 -- DATE_ADD()
+-- Postgres also supports date_add with different arguments (data types, number of argument)
+-- Only support push down MySQL function (2 arguments, 1st argument has type timestamp without time zone).
+-- Therefore, user needs to make sure to pass the 1st argument as timestamp (pass correct type directly or casting).
 -- select date_add (stub function, explain)
 --Testcase 2154:
 EXPLAIN VERBOSE
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl;
                                                                                                                                                                                               QUERY PLAN                                                                                                                                                                                              
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Foreign Scan on public.time_tbl  (cost=100.00..263.58 rows=3413 width=32)
@@ -27043,7 +27046,7 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
 
 -- select date_add (stub function, result)
 --Testcase 2155:
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl;
       date_add       |      date_add       |      date_add       |      date_add       
 ---------------------+---------------------+---------------------+---------------------
  2021-01-03 12:59:10 | 2022-03-02 00:00:00 | 2022-03-01 23:11:20 | 2022-03-02 00:00:00
@@ -27056,7 +27059,7 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
 -- select date_add (stub function, not pushdown constraints, explain)
 --Testcase 2156:
 EXPLAIN VERBOSE
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE to_hex(id) = '1';
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE to_hex(id) = '1';
                                                                                                                                                                                               QUERY PLAN                                                                                                                                                                                              
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Foreign Scan on public.time_tbl  (cost=100.00..161.79 rows=17 width=32)
@@ -27069,7 +27072,7 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
 
 -- select date_add (stub function, not pushdown constraints, result)
 --Testcase 2157:
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE to_hex(id) = '1';
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE to_hex(id) = '1';
       date_add       |      date_add       |      date_add       |      date_add       
 ---------------------+---------------------+---------------------+---------------------
  2021-01-02 12:59:10 | 2022-03-02 00:00:00 | 2022-03-03 10:13:03 | 2022-03-02 00:00:00
@@ -27078,7 +27081,7 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
 -- select date_add (stub function, pushdown constraints, explain)
 --Testcase 2158:
 EXPLAIN VERBOSE
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE id != 1;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE id != 1;
                                                                                                                                                                                               QUERY PLAN                                                                                                                                                                                              
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Foreign Scan on public.time_tbl  (cost=100.00..271.52 rows=3396 width=32)
@@ -27090,7 +27093,7 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
 
 -- select date_add (stub function, pushdown constraints, result)
 --Testcase 2159:
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE id != 1;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE id != 1;
       date_add       |      date_add       |      date_add       |      date_add       
 ---------------------+---------------------+---------------------+---------------------
  2021-01-03 12:59:10 | 2022-03-02 00:00:00 | 2022-03-01 23:11:20 | 2022-03-02 00:00:00
@@ -27102,7 +27105,7 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
 -- select date_add (stub function, date_add in constraints, explain)
 --Testcase 2160:
 EXPLAIN VERBOSE
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE date_add(c2, '1 12:59:10'::interval) != '2000-01-01';
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE date_add(c2::timestamp, '1 12:59:10'::interval) != '2000-01-01';
                                                                                                                                                                                               QUERY PLAN                                                                                                                                                                                              
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Foreign Scan on public.time_tbl  (cost=100.00..288.59 rows=3396 width=32)
@@ -27114,7 +27117,7 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
 
 -- select date_add (stub function, date_add in constraints, result)
 --Testcase 2161:
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE date_add(c2, '1 12:59:10'::interval) != '2000-01-01';
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE date_add(c2::timestamp, '1 12:59:10'::interval) != '2000-01-01';
       date_add       |      date_add       |      date_add       |      date_add       
 ---------------------+---------------------+---------------------+---------------------
  2021-01-03 12:59:10 | 2022-03-02 00:00:00 | 2022-03-01 23:11:20 | 2022-03-02 00:00:00
@@ -27127,7 +27130,7 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
 -- select date_add (stub function, date_add in constraints, explain)
 --Testcase 2162:
 EXPLAIN VERBOSE
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE date_add('2021-01-02', '1-2'::interval) > '2000-01-01';
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE date_add('2021-01-02'::timestamp, '1-2'::interval) > '2000-01-01';
                                                                                                                                                                                               QUERY PLAN                                                                                                                                                                                              
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Foreign Scan on public.time_tbl  (cost=100.00..201.02 rows=1138 width=32)
@@ -27139,7 +27142,7 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
 
 -- select date_add (stub function, date_add in constraints, result)
 --Testcase 2163:
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE date_add('2021-01-02', '1-2'::interval) > '2000-01-01';
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE date_add('2021-01-02'::timestamp, '1-2'::interval) > '2000-01-01';
       date_add       |      date_add       |      date_add       |      date_add       
 ---------------------+---------------------+---------------------+---------------------
  2021-01-03 12:59:10 | 2022-03-02 00:00:00 | 2022-03-01 23:11:20 | 2022-03-02 00:00:00
@@ -27152,7 +27155,7 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
 -- select date_add with agg (pushdown, explain)
 --Testcase 2164:
 EXPLAIN VERBOSE
-SELECT max(c3), date_add(max(c2) , '1-2'::interval) FROM time_tbl;
+SELECT max(c3), date_add(max(c2)::timestamp, '1-2'::interval) FROM time_tbl;
                                                 QUERY PLAN                                                 
 -----------------------------------------------------------------------------------------------------------
  Foreign Scan  (cost=10.00..15.00 rows=1 width=16)
@@ -27166,7 +27169,7 @@ SELECT max(c3), date_add(max(c2) , '1-2'::interval) FROM time_tbl;
 
 -- select date_add as nest function with agg (pushdown, result)
 --Testcase 2165:
-SELECT max(c3), date_add(max(c2) , '1-2'::interval) FROM time_tbl;
+SELECT max(c3), date_add(max(c2)::timestamp, '1-2'::interval) FROM time_tbl;
          max         |      date_add       
 ---------------------+---------------------
  2021-01-07 00:59:59 | 2022-03-29 00:00:00
@@ -27175,7 +27178,7 @@ SELECT max(c3), date_add(max(c2) , '1-2'::interval) FROM time_tbl;
 -- select date_add with non pushdown func and explicit constant (explain)
 --Testcase 2166:
 EXPLAIN VERBOSE
-SELECT date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), pi(), 4.1 FROM time_tbl;
+SELECT date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), pi(), 4.1 FROM time_tbl;
                                                                               QUERY PLAN                                                                              
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Foreign Scan on public.time_tbl  (cost=100.00..229.45 rows=3413 width=48)
@@ -27187,7 +27190,7 @@ SELECT date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), pi(), 4.1 FROM ti
 
 -- select date_add with non pushdown func and explicit constant (result)
 --Testcase 2167:
-SELECT date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), pi(), 4.1 FROM time_tbl;
+SELECT date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), pi(), 4.1 FROM time_tbl;
       date_add       |        pi         | ?column? 
 ---------------------+-------------------+----------
  2022-03-01 23:11:20 | 3.141592653589793 |      4.1
@@ -27200,7 +27203,7 @@ SELECT date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), pi(), 4.1 FROM ti
 -- select date_add with order by (explain)
 --Testcase 2168:
 EXPLAIN VERBOSE
-SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order by date_add(c2 + '1 d'::interval , '1-2'::interval);
+SELECT id, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl order by date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval);
                                                                                                                                                                 QUERY PLAN                                                                                                                                                                
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Foreign Scan on public.time_tbl  (cost=0.00..0.01 rows=1 width=12)
@@ -27213,7 +27216,7 @@ SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order 
 
 -- select date_add with order by (result)
 --Testcase 2169:
-SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order by date_add(c2 + '1 d'::interval , '1-2'::interval);
+SELECT id, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl order by date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval);
  id |      date_add       
 ----+---------------------
   1 | 2022-03-02 00:00:00
@@ -27225,7 +27228,7 @@ SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order 
 
 -- select date_add with order by index (result)
 --Testcase 2170:
-SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order by 2,1;
+SELECT id, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl order by 2,1;
  id |      date_add       
 ----+---------------------
   1 | 2022-03-02 00:00:00
@@ -27237,7 +27240,7 @@ SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order 
 
 -- select date_add with order by index (result)
 --Testcase 2171:
-SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order by 1,2;
+SELECT id, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl order by 1,2;
  id |      date_add       
 ----+---------------------
   0 | 2022-03-03 00:00:00
@@ -27250,7 +27253,7 @@ SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order 
 -- select date_add with group by (explain)
 --Testcase 2172:
 EXPLAIN VERBOSE
-SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl group by date_add(c2 + '1 d'::interval , '1-2'::interval);
+SELECT max(c3), date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl group by date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval);
                                                                         QUERY PLAN                                                                        
 ----------------------------------------------------------------------------------------------------------------------------------------------------------
  Foreign Scan  (cost=10.00..15.00 rows=1 width=16)
@@ -27264,7 +27267,7 @@ SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl g
 
 -- select date_add with group by (result)
 --Testcase 2173:
-SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl group by date_add(c2 + '1 d'::interval , '1-2'::interval);
+SELECT max(c3), date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl group by date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval);
          max         |      date_add       
 ---------------------+---------------------
  2021-01-03 12:10:30 | 2022-03-03 00:00:00
@@ -27276,7 +27279,7 @@ SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl g
 
 -- select date_add with group by index (result)
 --Testcase 2174:
-SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl group by 2,1;
+SELECT id, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl group by 2,1;
  id |      date_add       
 ----+---------------------
   0 | 2022-03-03 00:00:00
@@ -27288,7 +27291,7 @@ SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl group 
 
 -- select date_add with group by index (result)
 --Testcase 2175:
-SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl group by 1,2;
+SELECT id, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl group by 1,2;
  id |      date_add       
 ----+---------------------
   0 | 2022-03-03 00:00:00
@@ -27301,7 +27304,7 @@ SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl group 
 -- select date_add with group by having (explain)
 --Testcase 2176:
 EXPLAIN VERBOSE
-SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval), c2 FROM time_tbl group by date_add(c2 + '1 d'::interval , '1-2'::interval), c3,c2 HAVING date_add(c2 + '1 d'::interval , '1-2'::interval) > '2000-01-01';
+SELECT max(c3), date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval), c2 FROM time_tbl group by date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval), c3,c2 HAVING date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) > '2000-01-01';
                                                                                  QUERY PLAN                                                                                 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Foreign Scan  (cost=10.00..15.00 rows=1 width=28)
@@ -27316,7 +27319,7 @@ SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval), c2 FROM time_t
 
 -- select date_add with group by having (result)
 --Testcase 2177:
-SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval), c2 FROM time_tbl group by date_add(c2 + '1 d'::interval , '1-2'::interval), c3,c2 HAVING date_add(c2 + '1 d'::interval , '1-2'::interval) > '2000-01-01';
+SELECT max(c3), date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval), c2 FROM time_tbl group by date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval), c3,c2 HAVING date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) > '2000-01-01';
          max         |      date_add       |     c2     
 ---------------------+---------------------+------------
  2021-01-03 12:10:30 | 2022-03-03 00:00:00 | 2021-01-02
@@ -27328,7 +27331,7 @@ SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval), c2 FROM time_t
 
 -- select date_add with group by index having (result)
 --Testcase 2178:
-SELECT c2, date_add(c2 + '1 d'::interval , '1-2'::interval), c3 FROM time_tbl group by 3, 2, 1 HAVING date_add(c2 + '1 d'::interval , '1-2'::interval) > '2000-01-01';
+SELECT c2, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval), c3 FROM time_tbl group by 3, 2, 1 HAVING date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) > '2000-01-01';
      c2     |      date_add       |         c3          
 ------------+---------------------+---------------------
  2021-01-02 | 2022-03-03 00:00:00 | 2021-01-03 12:10:30
@@ -27340,7 +27343,7 @@ SELECT c2, date_add(c2 + '1 d'::interval , '1-2'::interval), c3 FROM time_tbl gr
 
 -- select date_add with group by index having (result)
 --Testcase 2179:
-SELECT c2, date_add(c2 + '1 d'::interval , '1-2'::interval), c3 FROM time_tbl group by 1, 2, 3 HAVING date_add(c2 + '1 d'::interval , '1-2'::interval) > '2000-01-01';
+SELECT c2, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval), c3 FROM time_tbl group by 1, 2, 3 HAVING date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) > '2000-01-01';
      c2     |      date_add       |         c3          
 ------------+---------------------+---------------------
  2021-01-02 | 2022-03-03 00:00:00 | 2021-01-03 12:10:30
@@ -27352,7 +27355,7 @@ SELECT c2, date_add(c2 + '1 d'::interval , '1-2'::interval), c3 FROM time_tbl gr
 
 -- select date_add and as
 --Testcase 2180:
-SELECT date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval) as date_add1 FROM time_tbl;
+SELECT date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval) as date_add1 FROM time_tbl;
       date_add1      
 ---------------------
  2022-03-01 23:11:20
@@ -40444,11 +40447,11 @@ SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i
 SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x') FROM time_tbl;
     from_unixtime    |          from_unixtime           
 ---------------------+----------------------------------
- 2015-11-13 08:08:01 | 2015 13th November 08:08:01 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:02 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:03 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:04 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:05 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:01 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:02 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:03 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:04 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:05 2015
 (5 rows)
 
 -- select from_unixtime (stub function, not pushdown constraints, explain)
@@ -40470,10 +40473,10 @@ SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i
 SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x') FROM time_tbl WHERE to_hex(id) > '0';
     from_unixtime    |          from_unixtime           
 ---------------------+----------------------------------
- 2015-11-13 08:08:01 | 2015 13th November 08:08:02 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:03 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:04 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:05 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:02 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:03 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:04 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:05 2015
 (4 rows)
 
 -- select from_unixtime (stub function, pushdown constraints, explain)
@@ -40494,7 +40497,7 @@ SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i
 SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x') FROM time_tbl WHERE id = 1;
     from_unixtime    |          from_unixtime           
 ---------------------+----------------------------------
- 2015-11-13 08:08:01 | 2015 13th November 08:08:02 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:02 2015
 (1 row)
 
 -- select from_unixtime (stub function, from_unixtime in constraints, explain)
@@ -40515,10 +40518,10 @@ SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i
 SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x') FROM time_tbl WHERE from_unixtime(id + 1447430881) > from_unixtime(1447430881);
     from_unixtime    |          from_unixtime           
 ---------------------+----------------------------------
- 2015-11-13 08:08:01 | 2015 13th November 08:08:02 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:03 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:04 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:05 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:02 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:03 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:04 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:05 2015
 (4 rows)
 
 -- select from_unixtime and agg (pushdown, explain)
@@ -40541,11 +40544,11 @@ SELECT from_unixtime(1447430881), sum(id) FROM time_tbl;
 SELECT from_unixtime(1447430881), log2(id) FROM time_tbl;
     from_unixtime    |       log2        
 ---------------------+-------------------
- 2015-11-13 08:08:01 |                  
- 2015-11-13 08:08:01 |                 0
- 2015-11-13 08:08:01 |                 1
- 2015-11-13 08:08:01 | 1.584962500721156
- 2015-11-13 08:08:01 |                 2
+ 2015-11-13 16:08:01 |                  
+ 2015-11-13 16:08:01 |                 0
+ 2015-11-13 16:08:01 |                 1
+ 2015-11-13 16:08:01 | 1.584962500721156
+ 2015-11-13 16:08:01 |                 2
 (5 rows)
 
 -- select from_unixtime with non pushdown func and explicit constant (explain)
@@ -40608,10 +40611,10 @@ SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i
 SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x') FROM time_tbl WHERE from_unixtime(id + 1447430881) > from_unixtime(1447430881) ORDER BY from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x');
     from_unixtime    |          from_unixtime           
 ---------------------+----------------------------------
- 2015-11-13 08:08:01 | 2015 13th November 08:08:02 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:03 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:04 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:05 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:02 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:03 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:04 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:05 2015
 (4 rows)
 
 -- select from_unixtime with group by (explain)
@@ -40647,29 +40650,29 @@ SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i
 -- select from_unixtime with group by index having (explain)
 --Testcase 3238:
 EXPLAIN VERBOSE
-SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x'), c1 FROM time_tbl GROUP BY 1,2,3 HAVING from_unixtime(1447430881) = '2015-11-13 08:08:01';
+SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x'), c1 FROM time_tbl GROUP BY 1,2,3 HAVING from_unixtime(1447430881) = '2015-11-13 16:08:01';
                                                                                                         QUERY PLAN                                                                                                         
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Foreign Scan  (cost=10.00..15.00 rows=1 width=48)
    Output: (from_unixtime('1447430881'::bigint)), (from_unixtime(((id + 1447430881))::bigint, '%Y %D %M %h:%i:%s %x'::text)), c1
-   Filter: ((from_unixtime('1447430881'::bigint)) = '2015-11-13 08:08:01'::timestamp without time zone)
+   Filter: ((from_unixtime('1447430881'::bigint)) = '2015-11-13 16:08:01'::timestamp without time zone)
    Node: mysql_svr / Status: Alive
      Agg push-down: yes
      Relations: Aggregate on (test.time_tbl__mysql_svr__0)
      Local server startup cost: 10
-     Remote query: SELECT from_unixtime(1447430881), from_unixtime((`id` + 1447430881), '%Y %D %M %h:%i:%s %x'), `c1` FROM `test`.`time_tbl` GROUP BY 1, 2, 3 HAVING ((from_unixtime(1447430881) = '2015-11-13 08:08:01'))
+     Remote query: SELECT from_unixtime(1447430881), from_unixtime((`id` + 1447430881), '%Y %D %M %h:%i:%s %x'), `c1` FROM `test`.`time_tbl` GROUP BY 1, 2, 3 HAVING ((from_unixtime(1447430881) = '2015-11-13 16:08:01'))
 (8 rows)
 
 -- select from_unixtime with group by index having (result)
 --Testcase 3239:
-SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x'), c1 FROM time_tbl GROUP BY 1,2,3 HAVING from_unixtime(1447430881) = '2015-11-13 08:08:01';
+SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x'), c1 FROM time_tbl GROUP BY 1,2,3 HAVING from_unixtime(1447430881) = '2015-11-13 16:08:01';
     from_unixtime    |          from_unixtime           |    c1    
 ---------------------+----------------------------------+----------
- 2015-11-13 08:08:01 | 2015 13th November 08:08:01 2015 | 12:10:30
- 2015-11-13 08:08:01 | 2015 13th November 08:08:02 2015 | 23:12:13
- 2015-11-13 08:08:01 | 2015 13th November 08:08:03 2015 | 11:12:12
- 2015-11-13 08:08:01 | 2015 13th November 08:08:04 2015 | 16:00:00
- 2015-11-13 08:08:01 | 2015 13th November 08:08:05 2015 | 00:59:59
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:01 2015 | 12:10:30
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:02 2015 | 23:12:13
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:03 2015 | 11:12:12
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:04 2015 | 16:00:00
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:05 2015 | 00:59:59
 (5 rows)
 
 -- select from_unixtime and as
@@ -43646,7 +43649,7 @@ SELECT tag1, json_agg(value3 + 1) FROM s7a GROUP BY tag1;
  tag1 |                            json_agg                             
 ------+-----------------------------------------------------------------
  a    | [0.8999999985098839, 0.7999999970197678, 0.699999988079071]
- b    | [-0.10000002384185792, -1.2000000476837158, -2.299999952316284]
+ b    | [-0.10000002384185791, -1.2000000476837158, -2.299999952316284]
 (2 rows)
 
 -- select json_agg with stub function (explain)
@@ -43726,7 +43729,7 @@ SELECT tag1, json_agg(value3 + 1) FROM s7a GROUP BY 1, value1 HAVING json_agg(va
  a    | [0.8999999985098839]
  a    | [0.7999999970197678]
  a    | [0.699999988079071]
- b    | [-0.10000002384185792]
+ b    | [-0.10000002384185791]
  b    | [-1.2000000476837158]
  b    | [-2.299999952316284]
 (6 rows)
@@ -46264,12 +46267,12 @@ SELECT json_extract('{"a": "2000-01-01"}', '$.a')::timestamp, json_extract('{"a"
 SELECT json_extract('{"a": "2000-01-01"}', '$.a')::timestamptz, json_extract('{"a": "12:10:20.123456"}', '$.a')::time , json_extract('{"a": "12:10:20.123456"}', '$.a')::timetz FROM s8;
       json_extract      |  json_extract   |    json_extract    
 ------------------------+-----------------+--------------------
- 2000-01-01 00:00:00+09 | 12:10:20.123456 | 12:10:20.123456+09
- 2000-01-01 00:00:00+09 | 12:10:20.123456 | 12:10:20.123456+09
- 2000-01-01 00:00:00+09 | 12:10:20.123456 | 12:10:20.123456+09
- 2000-01-01 00:00:00+09 | 12:10:20.123456 | 12:10:20.123456+09
- 2000-01-01 00:00:00+09 | 12:10:20.123456 | 12:10:20.123456+09
- 2000-01-01 00:00:00+09 | 12:10:20.123456 | 12:10:20.123456+09
+ 2000-01-01 09:00:00+09 | 12:10:20.123456 | 12:10:20.123456+09
+ 2000-01-01 09:00:00+09 | 12:10:20.123456 | 12:10:20.123456+09
+ 2000-01-01 09:00:00+09 | 12:10:20.123456 | 12:10:20.123456+09
+ 2000-01-01 09:00:00+09 | 12:10:20.123456 | 12:10:20.123456+09
+ 2000-01-01 09:00:00+09 | 12:10:20.123456 | 12:10:20.123456+09
+ 2000-01-01 09:00:00+09 | 12:10:20.123456 | 12:10:20.123456+09
 (6 rows)
 
 -- select json_extract with type modifier (explain)
@@ -46290,12 +46293,12 @@ SELECT json_extract('{"a": "2000-01-01 12:02:01.123456"}', '$.a')::timestamp(3),
 SELECT json_extract('{"a": "2000-01-01 12:02:01.123456"}', '$.a')::timestamp(3), json_extract('{"a": "2000-01-01 12:02:01.123456"}', '$.a')::timestamptz(3), json_extract('{"a": "12:10:20.123456"}', '$.a')::time(3), json_extract('{"a": "12:10:20.123456"}', '$.a')::timetz(3) FROM s8;
       json_extract       |        json_extract        | json_extract |  json_extract   
 -------------------------+----------------------------+--------------+-----------------
- 2000-01-01 12:02:01.123 | 2000-01-01 12:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
- 2000-01-01 12:02:01.123 | 2000-01-01 12:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
- 2000-01-01 12:02:01.123 | 2000-01-01 12:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
- 2000-01-01 12:02:01.123 | 2000-01-01 12:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
- 2000-01-01 12:02:01.123 | 2000-01-01 12:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
- 2000-01-01 12:02:01.123 | 2000-01-01 12:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
+ 2000-01-01 12:02:01.123 | 2000-01-01 21:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
+ 2000-01-01 12:02:01.123 | 2000-01-01 21:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
+ 2000-01-01 12:02:01.123 | 2000-01-01 21:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
+ 2000-01-01 12:02:01.123 | 2000-01-01 21:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
+ 2000-01-01 12:02:01.123 | 2000-01-01 21:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
+ 2000-01-01 12:02:01.123 | 2000-01-01 21:02:01.123+09 | 12:10:20.123 | 12:10:20.123+09
 (6 rows)
 
 -- select json_extract with type modifier (explain)
@@ -53890,7 +53893,7 @@ SELECT mysql_json_value(c1, '$.a', 'returning date', 'error on error')::date FRO
 --Testcase 4279:
 SELECT mysql_json_value(c1, '$.a', 'returning date', 'error on error')::date FROM s8; -- should fail
 ERROR:  PGSpider fail to iterate tuple from child thread
- DETAIL:  mysql_fdw: failed to execute the MySQL query: 
+ DETAIL: mysql_fdw: failed to execute the MySQL query: 
 DATE value is out of range in 'json_value'
 -- select mysql_json_value with normal cast
 --Testcase 4280:
@@ -53910,12 +53913,12 @@ SELECT mysql_json_value('{"a": "2000-01-01"}', '$.a')::timestamp, mysql_json_val
 SELECT mysql_json_value('{"a": "2000-01-01"}', '$.a')::timestamptz, mysql_json_value('{"a": "12:10:20.123456"}', '$.a')::time , mysql_json_value('{"a": "12:10:20.123456"}', '$.a')::timetz FROM s8;
     mysql_json_value    | mysql_json_value |  mysql_json_value  
 ------------------------+------------------+--------------------
- 2000-01-01 00:00:00+09 | 12:10:20.123456  | 12:10:20.123456+09
- 2000-01-01 00:00:00+09 | 12:10:20.123456  | 12:10:20.123456+09
- 2000-01-01 00:00:00+09 | 12:10:20.123456  | 12:10:20.123456+09
- 2000-01-01 00:00:00+09 | 12:10:20.123456  | 12:10:20.123456+09
- 2000-01-01 00:00:00+09 | 12:10:20.123456  | 12:10:20.123456+09
- 2000-01-01 00:00:00+09 | 12:10:20.123456  | 12:10:20.123456+09
+ 2000-01-01 09:00:00+09 | 12:10:20.123456  | 12:10:20.123456+09
+ 2000-01-01 09:00:00+09 | 12:10:20.123456  | 12:10:20.123456+09
+ 2000-01-01 09:00:00+09 | 12:10:20.123456  | 12:10:20.123456+09
+ 2000-01-01 09:00:00+09 | 12:10:20.123456  | 12:10:20.123456+09
+ 2000-01-01 09:00:00+09 | 12:10:20.123456  | 12:10:20.123456+09
+ 2000-01-01 09:00:00+09 | 12:10:20.123456  | 12:10:20.123456+09
 (6 rows)
 
 -- select mysql_json_value with type modifier (explain)
@@ -53936,12 +53939,12 @@ SELECT mysql_json_value('{"a": "2000-01-01 12:02:01.123456"}', '$.a')::timestamp
 SELECT mysql_json_value('{"a": "2000-01-01 12:02:01.123456"}', '$.a')::timestamp(3), mysql_json_value('{"a": "2000-01-01 12:02:01.123456"}', '$.a')::timestamptz(3), mysql_json_value('{"a": "12:10:20.123456"}', '$.a')::time(3), mysql_json_value('{"a": "12:10:20.123456"}', '$.a')::timetz(3) FROM s8;
     mysql_json_value     |      mysql_json_value      | mysql_json_value | mysql_json_value 
 -------------------------+----------------------------+------------------+------------------
- 2000-01-01 12:02:01.123 | 2000-01-01 12:02:01.123+09 | 12:10:20.123     | 12:10:20.123+09
- 2000-01-01 12:02:01.123 | 2000-01-01 12:02:01.123+09 | 12:10:20.123     | 12:10:20.123+09
- 2000-01-01 12:02:01.123 | 2000-01-01 12:02:01.123+09 | 12:10:20.123     | 12:10:20.123+09
- 2000-01-01 12:02:01.123 | 2000-01-01 12:02:01.123+09 | 12:10:20.123     | 12:10:20.123+09
- 2000-01-01 12:02:01.123 | 2000-01-01 12:02:01.123+09 | 12:10:20.123     | 12:10:20.123+09
- 2000-01-01 12:02:01.123 | 2000-01-01 12:02:01.123+09 | 12:10:20.123     | 12:10:20.123+09
+ 2000-01-01 12:02:01.123 | 2000-01-01 21:02:01.123+09 | 12:10:20.123     | 12:10:20.123+09
+ 2000-01-01 12:02:01.123 | 2000-01-01 21:02:01.123+09 | 12:10:20.123     | 12:10:20.123+09
+ 2000-01-01 12:02:01.123 | 2000-01-01 21:02:01.123+09 | 12:10:20.123     | 12:10:20.123+09
+ 2000-01-01 12:02:01.123 | 2000-01-01 21:02:01.123+09 | 12:10:20.123     | 12:10:20.123+09
+ 2000-01-01 12:02:01.123 | 2000-01-01 21:02:01.123+09 | 12:10:20.123     | 12:10:20.123+09
+ 2000-01-01 12:02:01.123 | 2000-01-01 21:02:01.123+09 | 12:10:20.123     | 12:10:20.123+09
 (6 rows)
 
 -- select mysql_json_value with type modifier (explain)

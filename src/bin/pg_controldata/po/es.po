@@ -9,10 +9,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: pg_controldata (PostgreSQL) 14\n"
+"Project-Id-Version: pg_controldata (PostgreSQL) 16\n"
 "Report-Msgid-Bugs-To: pgsql-bugs@lists.postgresql.org\n"
-"POT-Creation-Date: 2022-09-24 23:21+0000\n"
-"PO-Revision-Date: 2020-09-12 22:55-0300\n"
+"POT-Creation-Date: 2023-05-22 07:22+0000\n"
+"PO-Revision-Date: 2023-05-22 12:05+0200\n"
 "Last-Translator: Carlos Chapi <carlos.chapi@2ndquadrant.com>\n"
 "Language-Team: PgSQL-es-Ayuda <pgsql-es-ayuda@lists.postgresql.org>\n"
 "Language: es\n"
@@ -37,7 +37,7 @@ msgstr "no se pudo leer el archivo «%s»: %m"
 msgid "could not read file \"%s\": read %d of %zu"
 msgstr "no se pudo leer el archivo «%s»: leídos %d de %zu"
 
-#: ../../common/controldata_utils.c:108 ../../common/controldata_utils.c:244
+#: ../../common/controldata_utils.c:108 ../../common/controldata_utils.c:236
 #, c-format
 msgid "could not close file \"%s\": %m"
 msgstr "no se pudo cerrar el archivo «%s»: %m"
@@ -60,17 +60,17 @@ msgstr ""
 "serían erróneos, y la instalación de PostgreSQL sería incompatible con este\n"
 "directorio de datos."
 
-#: ../../common/controldata_utils.c:194
+#: ../../common/controldata_utils.c:186
 #, c-format
 msgid "could not open file \"%s\": %m"
 msgstr "no se pudo abrir el archivo «%s»: %m"
 
-#: ../../common/controldata_utils.c:213
+#: ../../common/controldata_utils.c:205
 #, c-format
 msgid "could not write file \"%s\": %m"
 msgstr "no se pudo escribir el archivo «%s»: %m"
 
-#: ../../common/controldata_utils.c:232
+#: ../../common/controldata_utils.c:224
 #, c-format
 msgid "could not fsync file \"%s\": %m"
 msgstr "no se pudo sincronizar (fsync) archivo «%s»: %m"

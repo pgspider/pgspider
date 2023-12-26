@@ -86,9 +86,9 @@ static void InitSharedMemoryKeepalives();
 static void join_childs(int numThreads, pthread_t *threads);
 static void *pgspider_check_childnnode(void *arg);
 static shmem_startup_hook_type shmem_startup_prev = NULL;
-void		worker_pgspider_keepalive(Datum main_arg);
+PGDLLEXPORT	void worker_pgspider_keepalive(Datum main_arg);
 void		InitSharedMemoryKeepalives();
-
+PGDLLEXPORT	bool check_server_ipname(char *serverName, char *ip);
 /*
  * Signal handler for SIGTERM
  *		Set a flag to let the main loop to terminate, and set our latch to wake

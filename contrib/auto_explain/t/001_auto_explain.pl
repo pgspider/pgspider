@@ -1,5 +1,5 @@
 
-# Copyright (c) 2021-2022, PostgreSQL Global Development Group
+# Copyright (c) 2021-2023, PostgreSQL Global Development Group
 
 use strict;
 use warnings;
@@ -19,7 +19,7 @@ sub query_log
 	local $ENV{PGOPTIONS} = join " ",
 	  map { "-c $_=$params->{$_}" } keys %$params;
 
-	my $log    = $node->logfile();
+	my $log = $node->logfile();
 	my $offset = -s $log;
 
 	$node->safe_psql("postgres", $sql);
@@ -65,9 +65,75 @@ like(
 
 like(
 	$log_contents,
+	qr/Query Parameters: \$1 = 'int4pl'/,
+	"query parameters logged, text mode");
+
+like(
+	$log_contents,
 	qr/Index Scan using pg_proc_proname_args_nsp_index on pg_proc/,
 	"index scan logged, text mode");
 
+
+# Prepared query with truncated parameters.
+$log_contents = query_log(
+	$node,
+	q{PREPARE get_type(name) AS SELECT * FROM pg_type WHERE typname = $1; EXECUTE get_type('float8');},
+	{ "auto_explain.log_parameter_max_length" => 3 });
+
+like(
+	$log_contents,
+	qr/Query Text: PREPARE get_type\(name\) AS SELECT \* FROM pg_type WHERE typname = \$1;/,
+	"prepared query text logged, text mode");
+
+like(
+	$log_contents,
+	qr/Query Parameters: \$1 = 'flo\.\.\.'/,
+	"query parameters truncated, text mode");
+
+# Prepared query with parameter logging disabled.
+$log_contents = query_log(
+	$node,
+	q{PREPARE get_type(name) AS SELECT * FROM pg_type WHERE typname = $1; EXECUTE get_type('float8');},
+	{ "auto_explain.log_parameter_max_length" => 0 });
+
+like(
+	$log_contents,
+	qr/Query Text: PREPARE get_type\(name\) AS SELECT \* FROM pg_type WHERE typname = \$1;/,
+	"prepared query text logged, text mode");
+
+unlike(
+	$log_contents,
+	qr/Query Parameters:/,
+	"query parameters not logged when disabled, text mode");
+
+# Query Identifier.
+# Logging enabled.
+$log_contents = query_log(
+	$node,
+	"SELECT * FROM pg_class;",
+	{
+		"auto_explain.log_verbose" => "on",
+		"compute_query_id" => "on"
+	});
+
+like(
+	$log_contents,
+	qr/Query Identifier:/,
+	"query identifier logged with compute_query_id=on, text mode");
+
+# Logging disabled.
+$log_contents = query_log(
+	$node,
+	"SELECT * FROM pg_class;",
+	{
+		"auto_explain.log_verbose" => "on",
+		"compute_query_id" => "regress"
+	});
+
+unlike(
+	$log_contents,
+	qr/Query Identifier:/,
+	"query identifier not logged with compute_query_id=regress, text mode");
 
 # JSON format.
 $log_contents = query_log(

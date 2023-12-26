@@ -4,7 +4,7 @@
  *	  exported definitions for utils/hash/dynahash.c; see notes therein
  *
  *
- * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2023, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  * src/include/utils/hsearch.h
@@ -127,8 +127,13 @@ typedef struct
 /*
  * prototypes for functions in dynahash.c
  */
+#ifdef PGSPIDER
 extern HTAB *hash_create(const char *tabname, long nelem,
 						 HASHCTL *info, int flags);
+#else
+extern HTAB *hash_create(const char *tabname, long nelem,
+						 const HASHCTL *info, int flags);
+#endif
 extern void hash_destroy(HTAB *hashp);
 extern void hash_stats(const char *where, HTAB *hashp);
 extern void *hash_search(HTAB *hashp, const void *keyPtr, HASHACTION action,

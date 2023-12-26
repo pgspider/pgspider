@@ -1,7 +1,7 @@
 /*
  * psql - the PostgreSQL interactive terminal
  *
- * Copyright (c) 2000-2022, PostgreSQL Global Development Group
+ * Copyright (c) 2000-2023, PostgreSQL Global Development Group
  *
  * src/bin/psql/common.c
  */
@@ -63,6 +63,7 @@ openQueryOutputFile(const char *fname, FILE **fout, bool *is_pipe)
 	}
 	else if (*fname == '|')
 	{
+		fflush(NULL);
 		*fout = popen(fname + 1, "w");
 		*is_pipe = true;
 	}
@@ -102,7 +103,7 @@ setQFout(const char *fname)
 	if (pset.queryFout && pset.queryFout != stdout && pset.queryFout != stderr)
 	{
 		if (pset.queryFoutPipe)
-			pclose(pset.queryFout);
+			SetShellResultVariables(pclose(pset.queryFout));
 		else
 			fclose(pset.queryFout);
 	}
@@ -249,7 +250,7 @@ NoticeProcessor(void *arg, const char *message)
  * On Windows, currently this does not work, so control-C is less useful
  * there.
  */
-volatile bool sigint_interrupt_enabled = false;
+volatile sig_atomic_t sigint_interrupt_enabled = false;
 
 sigjmp_buf	sigint_interrupt_jmp;
 
@@ -449,6 +450,26 @@ SetResultVariables(PGresult *result, bool success)
 
 
 /*
+ * Set special variables from a shell command result
+ * - SHELL_ERROR: true/false, whether command returned exit code 0
+ * - SHELL_EXIT_CODE: exit code according to shell conventions
+ *
+ * The argument is a wait status as returned by wait(2) or waitpid(2),
+ * which also applies to pclose(3) and system(3).
+ */
+void
+SetShellResultVariables(int wait_result)
+{
+	char		buf[32];
+
+	SetVariable(pset.vars, "SHELL_ERROR",
+				(wait_result == 0) ? "false" : "true");
+	snprintf(buf, sizeof(buf), "%d", wait_result_to_exit_code(wait_result));
+	SetVariable(pset.vars, "SHELL_EXIT_CODE", buf);
+}
+
+
+/*
  * ClearOrSaveResult
  *
  * If the result represents an error, remember it for possible display by
@@ -467,8 +488,7 @@ ClearOrSaveResult(PGresult *result)
 		{
 			case PGRES_NONFATAL_ERROR:
 			case PGRES_FATAL_ERROR:
-				if (pset.last_error_result)
-					PQclear(pset.last_error_result);
+				PQclear(pset.last_error_result);
 				pset.last_error_result = result;
 				break;
 
@@ -1114,7 +1134,7 @@ SendQuery(const char *query)
 			 pset.crosstab_flag || !is_select_command(query))
 	{
 		/* Default fetch-it-all-and-print mode */
-		OK = (ExecQueryAndProcessResults(query, &elapsed_msec, &svpt_gone, false, NULL, NULL) >= 0);
+		OK = (ExecQueryAndProcessResults(query, &elapsed_msec, &svpt_gone, false, NULL, NULL) > 0);
 	}
 	else
 	{
@@ -1220,6 +1240,16 @@ sendquery_cleanup:
 		pset.gsavepopt = NULL;
 	}
 
+	/* clean up after \bind */
+	if (pset.bind_flag)
+	{
+		for (i = 0; i < pset.bind_nparams; i++)
+			free(pset.bind_params[i]);
+		free(pset.bind_params);
+		pset.bind_params = NULL;
+		pset.bind_flag = false;
+	}
+
 	/* reset \gset trigger */
 	if (pset.gset_prefix)
 	{
@@ -1266,6 +1296,8 @@ DescribeQuery(const char *query, double *elapsed_msec)
 
 	if (timing)
 		INSTR_TIME_SET_CURRENT(before);
+	else
+		INSTR_TIME_SET_ZERO(before);
 
 	/*
 	 * To parse the query but not execute it, we prepare it, using the unnamed
@@ -1396,8 +1428,13 @@ ExecQueryAndProcessResults(const char *query,
 
 	if (timing)
 		INSTR_TIME_SET_CURRENT(before);
+	else
+		INSTR_TIME_SET_ZERO(before);
 
-	success = PQsendQuery(pset.db, query);
+	if (pset.bind_flag)
+		success = PQsendQueryParams(pset.db, query, pset.bind_nparams, NULL, (const char *const *) pset.bind_params, NULL, NULL, 0);
+	else
+		success = PQsendQuery(pset.db, query);
 
 	if (!success)
 	{
@@ -1434,7 +1471,7 @@ ExecQueryAndProcessResults(const char *query,
 		if (!AcceptResult(result, false))
 		{
 			/*
-			 * Some error occured, either a server-side failure or a failure
+			 * Some error occurred, either a server-side failure or a failure
 			 * to submit the command string.  Record that.
 			 */
 			const char *error = PQresultErrorMessage(result);
@@ -1635,7 +1672,7 @@ ExecQueryAndProcessResults(const char *query,
 	{
 		if (gfile_is_pipe)
 		{
-			pclose(gfile_fout);
+			SetShellResultVariables(pclose(gfile_fout));
 			restore_sigpipe_trap();
 		}
 		else
@@ -1689,6 +1726,8 @@ ExecQueryUsingCursor(const char *query, double *elapsed_msec)
 
 	if (timing)
 		INSTR_TIME_SET_CURRENT(before);
+	else
+		INSTR_TIME_SET_ZERO(before);
 
 	/* if we're not in a transaction, start one */
 	if (PQtransactionStatus(pset.db) == PQTRANS_IDLE)
@@ -1851,7 +1890,7 @@ ExecQueryUsingCursor(const char *query, double *elapsed_msec)
 		/* close \g argument file/pipe */
 		if (is_pipe)
 		{
-			pclose(fout);
+			SetShellResultVariables(pclose(fout));
 			restore_sigpipe_trap();
 		}
 		else

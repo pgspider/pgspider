@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, PostgreSQL Global Development Group
+# Copyright (c) 2021-2023, PostgreSQL Global Development Group
 
 use strict;
 use warnings;
@@ -25,7 +25,7 @@ my $node = PostgreSQL::Test::Cluster->new('primary');
 # This is only needed on Windows machines that don't use UNIX sockets.
 $node->init(
 	'allows_streaming' => 1,
-	'auth_extra'       => [ '--create-role', 'backupuser' ]);
+	'auth_extra' => [ '--create-role', 'backupuser' ]);
 
 $node->append_conf('postgresql.conf',
 	"shared_preload_libraries = 'basebackup_to_shell'");
@@ -49,8 +49,8 @@ $node->command_fails_like(
 	qr/shell command for backup is not configured/,
 	'fails if basebackup_to_shell.command is not set');
 
-# Configure basebackup_to_shell.command and reload the configuation file.
-my $backup_path         = PostgreSQL::Test::Utils::tempdir;
+# Configure basebackup_to_shell.command and reload the configuration file.
+my $backup_path = PostgreSQL::Test::Utils::tempdir;
 my $escaped_backup_path = $backup_path;
 $escaped_backup_path =~ s{\\}{\\\\}g
   if ($PostgreSQL::Test::Utils::windows_os);

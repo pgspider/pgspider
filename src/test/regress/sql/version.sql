@@ -34,7 +34,6 @@
 \! pg_upgrade \-\-version
 \! pg_verifybackup \-\-version
 \! pg_waldump \-\-version
-\! postmaster \-\-version
 \! psql \-\-version
 \! reindexdb \-\-version
 \! vacuumdb \-\-version
@@ -78,7 +77,6 @@
 \! pg_upgrade \-V
 \! pg_verifybackup \-V
 \! pg_waldump \-V
-\! postmaster \-V
 \! psql \-V
 \! reindexdb \-V
 \! vacuumdb \-V
@@ -91,5 +89,5 @@
 -- ===================================================================
 -- test function version()
 -- ===================================================================
-SELECT substring(version(), 1, 13) AS version;
-SELECT * FROM substring(version(),1,13);
+SELECT substring(version(), 1, 16) AS version;
+SELECT * FROM substring(version(),1,16);

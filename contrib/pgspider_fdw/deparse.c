@@ -24,7 +24,7 @@
  * with collations that match the remote table's columns, which we can
  * consider to be user error.
  *
- * Portions Copyright (c) 2012-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 2012-2023, PostgreSQL Global Development Group
  * Portions Copyright (c) 2018, TOSHIBA CORPORATION
  *
  * IDENTIFICATION
@@ -38,11 +38,14 @@
 #include "access/sysattr.h"
 #include "access/table.h"
 #include "catalog/pg_aggregate.h"
+#include "catalog/pg_authid.h"
 #include "catalog/pg_collation.h"
 #include "catalog/pg_namespace.h"
 #include "catalog/pg_operator.h"
 #include "catalog/pg_opfamily.h"
 #include "catalog/pg_proc.h"
+#include "catalog/pg_ts_config.h"
+#include "catalog/pg_ts_dict.h"
 #include "catalog/pg_type.h"
 #include "commands/defrem.h"
 #include "nodes/makefuncs.h"
@@ -363,7 +366,7 @@ static void deparseReturningList(StringInfo buf, RangeTblEntry *rte,
 static void deparseColumnRef(StringInfo buf, int varno, int varattno,
 							 RangeTblEntry *rte, bool qualify_col);
 static void deparseRelation(StringInfo buf, Relation rel);
-static void deparseExpr(Expr *expr, deparse_expr_cxt *context);
+static void deparseExpr(Expr *node, deparse_expr_cxt *context);
 static void deparseVar(Var *node, deparse_expr_cxt *context);
 static void deparseConst(Const *node, deparse_expr_cxt *context, int showtype);
 static void deparseParam(Param *node, deparse_expr_cxt *context);
@@ -434,10 +437,10 @@ static bool exist_in_function_list(char *funcname, const char **funclist);
  */
 void
 PGSpiderClassifyConditions(PlannerInfo *root,
-						   RelOptInfo *baserel,
-						   List *input_conds,
-						   List **remote_conds,
-						   List **local_conds)
+				   RelOptInfo *baserel,
+				   List *input_conds,
+				   List **remote_conds,
+				   List **local_conds)
 {
 	ListCell   *lc;
 
@@ -460,8 +463,8 @@ PGSpiderClassifyConditions(PlannerInfo *root,
  */
 bool
 pgspider_is_foreign_expr(PlannerInfo *root,
-						 RelOptInfo *baserel,
-						 Expr *expr)
+				RelOptInfo *baserel,
+				Expr *expr)
 {
 	foreign_glob_cxt glob_cxt;
 	foreign_loc_cxt loc_cxt;
@@ -702,6 +705,75 @@ foreign_expr_walker(Node *node,
 					strcmp(type_name, "public.mysql_string_type") == 0 ||
 					strcmp(type_name, "public.path_value[]") == 0)
 					check_type = false;
+
+				/*
+				 * Constants of regproc and related types can't be shipped
+				 * unless the referenced object is shippable.  But NULL's ok.
+				 * (See also the related code in dependency.c.)
+				 */
+				if (!c->constisnull)
+				{
+					switch (c->consttype)
+					{
+						case REGPROCOID:
+						case REGPROCEDUREOID:
+							if (!pgspider_is_shippable(DatumGetObjectId(c->constvalue),
+											  ProcedureRelationId, fpinfo))
+								return false;
+							break;
+						case REGOPEROID:
+						case REGOPERATOROID:
+							if (!pgspider_is_shippable(DatumGetObjectId(c->constvalue),
+											  OperatorRelationId, fpinfo))
+								return false;
+							break;
+						case REGCLASSOID:
+							if (!pgspider_is_shippable(DatumGetObjectId(c->constvalue),
+											  RelationRelationId, fpinfo))
+								return false;
+							break;
+						case REGTYPEOID:
+							if (!pgspider_is_shippable(DatumGetObjectId(c->constvalue),
+											  TypeRelationId, fpinfo))
+								return false;
+							break;
+						case REGCOLLATIONOID:
+							if (!pgspider_is_shippable(DatumGetObjectId(c->constvalue),
+											  CollationRelationId, fpinfo))
+								return false;
+							break;
+						case REGCONFIGOID:
+
+							/*
+							 * For text search objects only, we weaken the
+							 * normal shippability criterion to allow all OIDs
+							 * below FirstNormalObjectId.  Without this, none
+							 * of the initdb-installed TS configurations would
+							 * be shippable, which would be quite annoying.
+							 */
+							if (DatumGetObjectId(c->constvalue) >= FirstNormalObjectId &&
+								!pgspider_is_shippable(DatumGetObjectId(c->constvalue),
+											  TSConfigRelationId, fpinfo))
+								return false;
+							break;
+						case REGDICTIONARYOID:
+							if (DatumGetObjectId(c->constvalue) >= FirstNormalObjectId &&
+								!pgspider_is_shippable(DatumGetObjectId(c->constvalue),
+											  TSDictionaryRelationId, fpinfo))
+								return false;
+							break;
+						case REGNAMESPACEOID:
+							if (!pgspider_is_shippable(DatumGetObjectId(c->constvalue),
+											  NamespaceRelationId, fpinfo))
+								return false;
+							break;
+						case REGROLEOID:
+							if (!pgspider_is_shippable(DatumGetObjectId(c->constvalue),
+											  AuthIdRelationId, fpinfo))
+								return false;
+							break;
+					}
+				}
 
 				/*
 				 * If the constant has nondefault collation, either it's of a
@@ -1344,8 +1416,6 @@ foreign_expr_walker(Node *node,
 				 */
 				if (agg->aggorder)
 				{
-					ListCell   *lc;
-
 					foreach(lc, agg->aggorder)
 					{
 						SortGroupClause *srt = (SortGroupClause *) lfirst(lc);
@@ -1530,8 +1600,8 @@ foreign_expr_walker(Node *node,
  */
 bool
 pgspider_is_foreign_param(PlannerInfo *root,
-						  RelOptInfo *baserel,
-						  Expr *expr)
+				 RelOptInfo *baserel,
+				 Expr *expr)
 {
 	if (expr == NULL)
 		return false;
@@ -1571,8 +1641,8 @@ pgspider_is_foreign_param(PlannerInfo *root,
  */
 bool
 pgspider_is_foreign_pathkey(PlannerInfo *root,
-							RelOptInfo *baserel,
-							PathKey *pathkey)
+				   RelOptInfo *baserel,
+				   PathKey *pathkey)
 {
 	EquivalenceClass *pathkey_ec = pathkey->pk_eclass;
 	PGSpiderFdwRelationInfo *fpinfo = (PGSpiderFdwRelationInfo *) baserel->fdw_private;
@@ -1682,9 +1752,9 @@ pgspider_build_tlist_to_deparse(RelOptInfo *foreignrel)
  */
 void
 PGSpiderDeparseSelectStmtForRel(StringInfo buf, PlannerInfo *root, RelOptInfo *rel,
-								List *tlist, List *remote_conds, List *pathkeys,
-								bool has_final_sort, bool has_limit, bool is_subquery,
-								List **retrieved_attrs, List **params_list)
+						List *tlist, List *remote_conds, List *pathkeys,
+						bool has_final_sort, bool has_limit, bool is_subquery,
+						List **retrieved_attrs, List **params_list)
 {
 	deparse_expr_cxt context;
 	PGSpiderFdwRelationInfo *fpinfo = (PGSpiderFdwRelationInfo *) rel->fdw_private;
@@ -2170,7 +2240,7 @@ addURLExprForRel(StringInfo buf, RangeTblEntry *r_entry)
 
 	foreach(lc, r_entry->spd_url_list)
 	{
-		char	   *url_str = (char *) lfirst(lc);
+		char	   *url_str = strVal(lfirst(lc));
 
 		if (is_first == true)
 			appendStringInfoString(buf, " IN (");
@@ -2382,9 +2452,9 @@ deparseRangeTblRef(StringInfo buf, PlannerInfo *root, RelOptInfo *foreignrel,
 		/* Deparse the subquery representing the relation. */
 		appendStringInfoChar(buf, '(');
 		PGSpiderDeparseSelectStmtForRel(buf, root, foreignrel, NIL,
-										fpinfo->remote_conds, NIL,
-										false, false, true,
-										&retrieved_attrs, params_list);
+								fpinfo->remote_conds, NIL,
+								false, false, true,
+								&retrieved_attrs, params_list);
 		appendStringInfoChar(buf, ')');
 
 		/* Append the relation alias. */
@@ -2429,10 +2499,10 @@ deparseRangeTblRef(StringInfo buf, PlannerInfo *root, RelOptInfo *foreignrel,
  */
 void
 PGSpiderDeparseInsertSql(StringInfo buf, RangeTblEntry *rte,
-						 Index rtindex, Relation rel,
-						 List *targetAttrs, bool doNothing,
-						 List *withCheckOptionList, List *returningList,
-						 List **retrieved_attrs, int *values_end_len)
+				 Index rtindex, Relation rel,
+				 List *targetAttrs, bool doNothing,
+				 List *withCheckOptionList, List *returningList,
+				 List **retrieved_attrs, int *values_end_len)
 {
 	TupleDesc	tupdesc = RelationGetDescr(rel);
 	AttrNumber	pindex;
@@ -2502,9 +2572,9 @@ PGSpiderDeparseInsertSql(StringInfo buf, RangeTblEntry *rte,
  */
 void
 PGSpiderRebuildInsertSql(StringInfo buf, Relation rel,
-						 char *orig_query, List *target_attrs,
-						 int values_end_len, int num_params,
-						 int num_rows)
+				 char *orig_query, List *target_attrs,
+				 int values_end_len, int num_params,
+				 int num_rows)
 {
 	TupleDesc	tupdesc = RelationGetDescr(rel);
 	int			i;
@@ -2562,10 +2632,10 @@ PGSpiderRebuildInsertSql(StringInfo buf, Relation rel,
  */
 void
 PGSpiderDeparseUpdateSql(StringInfo buf, RangeTblEntry *rte,
-						 Index rtindex, Relation rel,
-						 List *targetAttrs,
-						 List *withCheckOptionList, List *returningList,
-						 List **retrieved_attrs)
+				 Index rtindex, Relation rel,
+				 List *targetAttrs,
+				 List *withCheckOptionList, List *returningList,
+				 List **retrieved_attrs)
 {
 	TupleDesc	tupdesc = RelationGetDescr(rel);
 	AttrNumber	pindex;
@@ -2623,14 +2693,14 @@ PGSpiderDeparseUpdateSql(StringInfo buf, RangeTblEntry *rte,
  */
 void
 PGSpiderDeparseDirectUpdateSql(StringInfo buf, PlannerInfo *root,
-							   Index rtindex, Relation rel,
-							   RelOptInfo *foreignrel,
-							   List *targetlist,
-							   List *targetAttrs,
-							   List *remote_conds,
-							   List **params_list,
-							   List *returningList,
-							   List **retrieved_attrs)
+					   Index rtindex, Relation rel,
+					   RelOptInfo *foreignrel,
+					   List *targetlist,
+					   List *targetAttrs,
+					   List *remote_conds,
+					   List **params_list,
+					   List *returningList,
+					   List **retrieved_attrs)
 {
 	deparse_expr_cxt context;
 	int			nestlevel;
@@ -2709,9 +2779,9 @@ PGSpiderDeparseDirectUpdateSql(StringInfo buf, PlannerInfo *root,
  */
 void
 PGSpiderDeparseDeleteSql(StringInfo buf, RangeTblEntry *rte,
-						 Index rtindex, Relation rel,
-						 List *returningList,
-						 List **retrieved_attrs)
+				 Index rtindex, Relation rel,
+				 List *returningList,
+				 List **retrieved_attrs)
 {
 	appendStringInfoString(buf, "DELETE FROM ");
 	deparseRelation(buf, rel);
@@ -2739,12 +2809,12 @@ PGSpiderDeparseDeleteSql(StringInfo buf, RangeTblEntry *rte,
  */
 void
 PGSpiderDeparseDirectDeleteSql(StringInfo buf, PlannerInfo *root,
-							   Index rtindex, Relation rel,
-							   RelOptInfo *foreignrel,
-							   List *remote_conds,
-							   List **params_list,
-							   List *returningList,
-							   List **retrieved_attrs)
+					   Index rtindex, Relation rel,
+					   RelOptInfo *foreignrel,
+					   List *remote_conds,
+					   List **params_list,
+					   List *returningList,
+					   List **retrieved_attrs)
 {
 	deparse_expr_cxt context;
 	RangeTblEntry *rte = planner_rt_fetch(rtindex, root);
@@ -2862,13 +2932,57 @@ PGSpiderDeparseAnalyzeSizeSql(StringInfo buf, Relation rel)
 }
 
 /*
+ * Construct SELECT statement to acquire the number of rows and the relkind of
+ * a relation.
+ *
+ * Note: we just return the remote server's reltuples value, which might
+ * be off a good deal, but it doesn't seem worth working harder.  See
+ * comments in postgresAcquireSampleRowsFunc.
+ */
+void
+PGSpiderDeparseAnalyzeInfoSql(StringInfo buf, Relation rel)
+{
+	StringInfoData relname;
+
+	/* We'll need the remote relation name as a literal. */
+	initStringInfo(&relname);
+	deparseRelation(&relname, rel);
+
+	appendStringInfoString(buf, "SELECT reltuples, relkind FROM pg_catalog.pg_class WHERE oid = ");
+	PGSpiderDeparseStringLiteral(buf, relname.data);
+	appendStringInfoString(buf, "::pg_catalog.regclass");
+}
+
+/*
  * Construct SELECT statement to acquire sample rows of given relation.
  *
  * SELECT command is appended to buf, and list of columns retrieved
  * is returned to *retrieved_attrs.
+ *
+ * We only support sampling methods we can decide based on server version.
+ * Allowing custom TSM modules (like tsm_system_rows) might be useful, but it
+ * would require detecting which extensions are installed, to allow automatic
+ * fall-back. Moreover, the methods may use different parameters like number
+ * of rows (and not sampling rate). So we leave this for future improvements.
+ *
+ * Using random() to sample rows on the remote server has the advantage that
+ * this works on all PostgreSQL versions (unlike TABLESAMPLE), and that it
+ * does the sampling on the remote side (without transferring everything and
+ * then discarding most rows).
+ *
+ * The disadvantage is that we still have to read all rows and evaluate the
+ * random(), while TABLESAMPLE (at least with the "system" method) may skip.
+ * It's not that different from the "bernoulli" method, though.
+ *
+ * We could also do "ORDER BY random() LIMIT x", which would always pick
+ * the expected number of rows, but it requires sorting so it may be much
+ * more expensive (particularly on large tables, which is what the
+ * remote sampling is meant to improve).
  */
 void
-PGSpiderDeparseAnalyzeSql(StringInfo buf, Relation rel, List **retrieved_attrs)
+PGSpiderDeparseAnalyzeSql(StringInfo buf, Relation rel,
+				  PGSpiderFdwSamplingMethod sample_method, double sample_frac,
+				  List **retrieved_attrs)
 {
 	Oid			relid = RelationGetRelid(rel);
 	TupleDesc	tupdesc = RelationGetDescr(rel);
@@ -2916,10 +3030,35 @@ PGSpiderDeparseAnalyzeSql(StringInfo buf, Relation rel, List **retrieved_attrs)
 		appendStringInfoString(buf, "NULL");
 
 	/*
-	 * Construct FROM clause
+	 * Construct FROM clause, and perhaps WHERE clause too, depending on the
+	 * selected sampling method.
 	 */
 	appendStringInfoString(buf, " FROM ");
 	deparseRelation(buf, rel);
+
+	switch (sample_method)
+	{
+		case ANALYZE_SAMPLE_OFF:
+			/* nothing to do here */
+			break;
+
+		case ANALYZE_SAMPLE_RANDOM:
+			appendStringInfo(buf, " WHERE pg_catalog.random() < %f", sample_frac);
+			break;
+
+		case ANALYZE_SAMPLE_SYSTEM:
+			appendStringInfo(buf, " TABLESAMPLE SYSTEM(%f)", (100.0 * sample_frac));
+			break;
+
+		case ANALYZE_SAMPLE_BERNOULLI:
+			appendStringInfo(buf, " TABLESAMPLE BERNOULLI(%f)", (100.0 * sample_frac));
+			break;
+
+		case ANALYZE_SAMPLE_AUTO:
+			/* should have been resolved into actual method */
+			elog(ERROR, "unexpected sampling method");
+			break;
+	}
 }
 
 /*
@@ -2927,9 +3066,9 @@ PGSpiderDeparseAnalyzeSql(StringInfo buf, Relation rel, List **retrieved_attrs)
  */
 void
 PGSpiderDeparseTruncateSql(StringInfo buf,
-						   List *rels,
-						   DropBehavior behavior,
-						   bool restart_seqs)
+				   List *rels,
+				   DropBehavior behavior,
+				   bool restart_seqs)
 {
 	ListCell   *cell;
 
@@ -4219,6 +4358,13 @@ appendGroupByClause(List *tlist, deparse_expr_cxt *context)
 	 */
 	Assert(!query->groupingSets);
 
+	/*
+	 * We intentionally print query->groupClause not processed_groupClause,
+	 * leaving it to the remote planner to get rid of any redundant GROUP BY
+	 * items again.  This is necessary in case processed_groupClause reduced
+	 * to empty, and in any case the redundancy situation on the remote might
+	 * be different than what we think here.
+	 */
 	foreach(lc, query->groupClause)
 	{
 		SortGroupClause *grp = (SortGroupClause *) lfirst(lc);
@@ -4267,13 +4413,13 @@ appendOrderByClause(List *pathkeys, bool has_final_sort,
 			 * the final sort.
 			 */
 			em = pgspider_find_em_for_rel_target(context->root,
-												 pathkey->pk_eclass,
-												 context->foreignrel);
+										pathkey->pk_eclass,
+										context->foreignrel);
 		}
 		else
 			em = pgspider_find_em_for_rel(context->root,
-										  pathkey->pk_eclass,
-										  context->scanrel);
+								 pathkey->pk_eclass,
+								 context->scanrel);
 
 		/*
 		 * We don't expect any error here; it would mean that shippability
@@ -4502,7 +4648,17 @@ get_relation_column_alias_ids(Var *node, RelOptInfo *foreignrel,
 	i = 1;
 	foreach(lc, foreignrel->reltarget->exprs)
 	{
-		if (equal(lfirst(lc), (Node *) node))
+		Var		   *tlvar = (Var *) lfirst(lc);
+
+		/*
+		 * Match reltarget entries only on varno/varattno.  Ideally there
+		 * would be some cross-check on varnullingrels, but it's unclear what
+		 * to do exactly; we don't have enough context to know what that value
+		 * should be.
+		 */
+		if (IsA(tlvar, Var) &&
+			tlvar->varno == node->varno &&
+			tlvar->varattno == node->varattno)
 		{
 			*colno = i;
 			return;

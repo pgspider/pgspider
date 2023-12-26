@@ -15110,10 +15110,10 @@ EXPLAIN VERBOSE
 SELECT id, concat(sum(value1), str1) FROM s3 GROUP BY id, str1 ORDER BY 1,2;
                                       QUERY PLAN                                       
 ---------------------------------------------------------------------------------------
- Sort  (cost=344.56..344.57 rows=1 width=68)
+ Sort  (cost=288.33..288.34 rows=1 width=68)
    Output: id, (concat((sum(value1)), str1)), str1
    Sort Key: s3.id, (concat((sum(s3.value1)), s3.str1))
-   ->  Foreign Scan  (cost=234.13..344.56 rows=1 width=68)
+   ->  Foreign Scan  (cost=200.00..288.32 rows=1 width=68)
          Output: id, concat((sum(value1)), str1), str1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -21085,10 +21085,10 @@ EXPLAIN VERBOSE
 SELECT count(value1), position('XYZ' IN str1) FROM s3 GROUP BY position('XYZ' IN str1) ORDER BY 1,2;
                                                 QUERY PLAN                                                 
 -----------------------------------------------------------------------------------------------------------
- Sort  (cost=318.33..318.34 rows=1 width=12)
+ Sort  (cost=288.33..288.34 rows=1 width=12)
    Output: (count(value1)), (POSITION(('XYZ'::text) IN (str1)))
    Sort Key: (count(s3.value1)), (POSITION(('XYZ'::text) IN (s3.str1)))
-   ->  Foreign Scan  (cost=217.06..318.32 rows=1 width=12)
+   ->  Foreign Scan  (cost=200.00..288.32 rows=1 width=12)
          Output: (count(value1)), (POSITION(('XYZ'::text) IN (str1)))
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -21129,10 +21129,10 @@ EXPLAIN VERBOSE
 SELECT count(value1), position('XYZ' IN str1) FROM s3 GROUP BY position('XYZ' IN str1), str1 HAVING position('XYZ' IN str1) IS NOT NULL ORDER BY 1,2;
                                                                                QUERY PLAN                                                                               
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=352.29..352.30 rows=1 width=44)
+ Sort  (cost=305.40..305.40 rows=1 width=44)
    Output: (count(value1)), (POSITION(('XYZ'::text) IN (str1))), str1
    Sort Key: (count(s3.value1)), (POSITION(('XYZ'::text) IN (s3.str1)))
-   ->  Foreign Scan  (cost=233.96..352.28 rows=1 width=44)
+   ->  Foreign Scan  (cost=200.00..305.39 rows=1 width=44)
          Output: (count(value1)), (POSITION(('XYZ'::text) IN (str1))), str1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -26066,10 +26066,10 @@ EXPLAIN VERBOSE
 SELECT count(value1), trim('-' FROM str1) FROM s3 GROUP BY trim('-' FROM str1) ORDER BY 1,2;
                                              QUERY PLAN                                             
 ----------------------------------------------------------------------------------------------------
- Sort  (cost=318.33..318.34 rows=1 width=40)
+ Sort  (cost=288.33..288.34 rows=1 width=40)
    Output: (count(value1)), (TRIM(BOTH '-'::text FROM str1))
    Sort Key: (count(s3.value1)), (TRIM(BOTH '-'::text FROM s3.str1))
-   ->  Foreign Scan  (cost=217.06..318.32 rows=1 width=40)
+   ->  Foreign Scan  (cost=200.00..288.32 rows=1 width=40)
          Output: (count(value1)), (TRIM(BOTH '-'::text FROM str1))
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -26110,10 +26110,10 @@ EXPLAIN VERBOSE
 SELECT count(value1), trim('-' FROM str1) FROM s3 GROUP BY trim('-' FROM str1) , str1 HAVING trim('-' FROM str1) IS NOT NULL ORDER BY 1,2;
                                                                         QUERY PLAN                                                                        
 ----------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=352.29..352.30 rows=1 width=72)
+ Sort  (cost=305.40..305.40 rows=1 width=72)
    Output: (count(value1)), (TRIM(BOTH '-'::text FROM str1)), str1
    Sort Key: (count(s3.value1)), (TRIM(BOTH '-'::text FROM s3.str1))
-   ->  Foreign Scan  (cost=233.96..352.28 rows=1 width=72)
+   ->  Foreign Scan  (cost=200.00..305.39 rows=1 width=72)
          Output: (count(value1)), (TRIM(BOTH '-'::text FROM str1)), str1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -28639,10 +28639,10 @@ EXPLAIN VERBOSE
 SELECT curdate(), c1 FROM time_tbl GROUP BY c1 ORDER BY 1,2;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Sort  (cost=417.33..417.34 rows=0 width=12)
+ Sort  (cost=288.83..288.83 rows=0 width=12)
    Output: (curdate()), c1
    Sort Key: (curdate()), time_tbl.c1
-   ->  Foreign Scan  (cost=217.06..417.32 rows=0 width=12)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=12)
          Output: curdate(), c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -28662,10 +28662,10 @@ EXPLAIN VERBOSE
 SELECT curdate(), c1 FROM time_tbl GROUP BY 2 ORDER BY 1,2;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Sort  (cost=417.33..417.34 rows=0 width=12)
+ Sort  (cost=288.83..288.83 rows=0 width=12)
    Output: (curdate()), c1
    Sort Key: (curdate()), time_tbl.c1
-   ->  Foreign Scan  (cost=217.06..417.32 rows=0 width=12)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=12)
          Output: curdate(), c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -28731,10 +28731,10 @@ EXPLAIN VERBOSE
 SELECT c1 FROM time_tbl WHERE adddate(curdate(), 31) > '2000-01-01' GROUP BY c1 ORDER BY 1;
                                                                 QUERY PLAN                                                                 
 -------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=3753.09..3753.10 rows=0 width=8)
+ Sort  (cost=3735.46..3735.47 rows=0 width=8)
    Output: c1
    Sort Key: time_tbl.c1
-   ->  Foreign Scan  (cost=205.69..3753.08 rows=0 width=8)
+   ->  Foreign Scan  (cost=200.00..3735.45 rows=0 width=8)
          Output: c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -29040,7 +29040,7 @@ EXPLAIN VERBOSE
 SELECT mysql_current_date(), c1 FROM time_tbl GROUP BY c1;
                            QUERY PLAN                            
 -----------------------------------------------------------------
- Foreign Scan  (cost=217.06..417.32 rows=0 width=12)
+ Foreign Scan  (cost=200.00..288.82 rows=0 width=12)
    Output: mysql_current_date(), c1
    Node: pgspider_svr1 / Status: Alive
      Agg push-down: yes
@@ -29058,7 +29058,7 @@ EXPLAIN VERBOSE
 SELECT mysql_current_date(), c1 FROM time_tbl GROUP BY 2;
                            QUERY PLAN                            
 -----------------------------------------------------------------
- Foreign Scan  (cost=217.06..417.32 rows=0 width=12)
+ Foreign Scan  (cost=200.00..288.82 rows=0 width=12)
    Output: mysql_current_date(), c1
    Node: pgspider_svr1 / Status: Alive
      Agg push-down: yes
@@ -29112,10 +29112,10 @@ EXPLAIN VERBOSE
 SELECT c1 FROM time_tbl WHERE adddate(mysql_current_date(), 31) > '2000-01-01' GROUP BY c1 ORDER BY 1;
                                                                       QUERY PLAN                                                                      
 ------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=3753.09..3753.10 rows=0 width=8)
+ Sort  (cost=3735.46..3735.47 rows=0 width=8)
    Output: c1
    Sort Key: time_tbl.c1
-   ->  Foreign Scan  (cost=205.69..3753.08 rows=0 width=8)
+   ->  Foreign Scan  (cost=200.00..3735.45 rows=0 width=8)
          Output: c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -29416,10 +29416,10 @@ EXPLAIN VERBOSE
 SELECT curtime(), c1 FROM time_tbl GROUP BY c1 ORDER BY 1;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Sort  (cost=417.33..417.34 rows=0 width=16)
+ Sort  (cost=288.83..288.83 rows=0 width=16)
    Output: (curtime()), c1
    Sort Key: (curtime())
-   ->  Foreign Scan  (cost=217.06..417.32 rows=0 width=16)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=16)
          Output: curtime(), c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -29439,10 +29439,10 @@ EXPLAIN VERBOSE
 SELECT curtime(), c1 FROM time_tbl GROUP BY 2 ORDER BY 1;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Sort  (cost=417.33..417.34 rows=0 width=16)
+ Sort  (cost=288.83..288.83 rows=0 width=16)
    Output: (curtime()), c1
    Sort Key: (curtime())
-   ->  Foreign Scan  (cost=217.06..417.32 rows=0 width=16)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=16)
          Output: curtime(), c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -29503,10 +29503,10 @@ EXPLAIN VERBOSE
 SELECT c1 FROM time_tbl WHERE addtime(curtime(), '1 12:59:10') > '00:00:00' GROUP BY c1 ORDER BY 1;
                                                                              QUERY PLAN                                                                              
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=3753.09..3753.10 rows=0 width=8)
+ Sort  (cost=3735.46..3735.47 rows=0 width=8)
    Output: c1
    Sort Key: time_tbl.c1
-   ->  Foreign Scan  (cost=205.69..3753.08 rows=0 width=8)
+   ->  Foreign Scan  (cost=200.00..3735.45 rows=0 width=8)
          Output: c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -29812,10 +29812,10 @@ EXPLAIN VERBOSE
 SELECT mysql_current_time(), c1 FROM time_tbl GROUP BY c1 ORDER BY 1,2;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Sort  (cost=417.33..417.34 rows=0 width=16)
+ Sort  (cost=288.83..288.83 rows=0 width=16)
    Output: (mysql_current_time()), c1
    Sort Key: (mysql_current_time()), time_tbl.c1
-   ->  Foreign Scan  (cost=217.06..417.32 rows=0 width=16)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=16)
          Output: mysql_current_time(), c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -29835,10 +29835,10 @@ EXPLAIN VERBOSE
 SELECT mysql_current_time(), c1 FROM time_tbl GROUP BY 2 ORDER BY 1,2;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Sort  (cost=417.33..417.34 rows=0 width=16)
+ Sort  (cost=288.83..288.83 rows=0 width=16)
    Output: (mysql_current_time()), c1
    Sort Key: (mysql_current_time()), time_tbl.c1
-   ->  Foreign Scan  (cost=217.06..417.32 rows=0 width=16)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=16)
          Output: mysql_current_time(), c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -29904,10 +29904,10 @@ EXPLAIN VERBOSE
 SELECT c1 FROM time_tbl WHERE addtime(mysql_current_time(), '1 12:59:10') > '00:00:00' GROUP BY c1 ORDER BY 1;
                                                                                    QUERY PLAN                                                                                   
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=3753.09..3753.10 rows=0 width=8)
+ Sort  (cost=3735.46..3735.47 rows=0 width=8)
    Output: c1
    Sort Key: time_tbl.c1
-   ->  Foreign Scan  (cost=205.69..3753.08 rows=0 width=8)
+   ->  Foreign Scan  (cost=200.00..3735.45 rows=0 width=8)
          Output: c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -30204,10 +30204,10 @@ EXPLAIN VERBOSE
 SELECT mysql_current_timestamp(), c1 FROM time_tbl GROUP BY c1 ORDER BY 1,2;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Sort  (cost=417.33..417.34 rows=0 width=16)
+ Sort  (cost=288.83..288.83 rows=0 width=16)
    Output: (mysql_current_timestamp()), c1
    Sort Key: (mysql_current_timestamp()), time_tbl.c1
-   ->  Foreign Scan  (cost=217.06..417.32 rows=0 width=16)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=16)
          Output: mysql_current_timestamp(), c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -30227,10 +30227,10 @@ EXPLAIN VERBOSE
 SELECT mysql_current_timestamp(), c1 FROM time_tbl GROUP BY 2 ORDER BY 1,2;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Sort  (cost=417.33..417.34 rows=0 width=16)
+ Sort  (cost=288.83..288.83 rows=0 width=16)
    Output: (mysql_current_timestamp()), c1
    Sort Key: (mysql_current_timestamp()), time_tbl.c1
-   ->  Foreign Scan  (cost=217.06..417.32 rows=0 width=16)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=16)
          Output: mysql_current_timestamp(), c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -30296,10 +30296,10 @@ EXPLAIN VERBOSE
 SELECT c1 FROM time_tbl WHERE addtime(mysql_current_timestamp(), '1 12:59:10') > '2000-01-01 00:00:00'::timestamp GROUP BY c1 ORDER BY 1;
                                                                                                     QUERY PLAN                                                                                                     
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=3736.03..3736.03 rows=0 width=8)
+ Sort  (cost=3718.39..3718.40 rows=0 width=8)
    Output: c1
    Sort Key: time_tbl.c1
-   ->  Foreign Scan  (cost=205.69..3736.01 rows=0 width=8)
+   ->  Foreign Scan  (cost=200.00..3718.38 rows=0 width=8)
          Output: c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -30736,10 +30736,13 @@ SELECT date(date_sub(c3, '1 12:59:10')) as date1 FROM time_tbl ORDER BY 1;
 (5 rows)
 
 -- DATE_ADD()
+-- Postgres also supports date_add with different arguments (data types, number of argument)
+-- Only support push down MySQL function (2 arguments, 1st argument has type timestamp without time zone).
+-- Therefore, user needs to make sure to pass the 1st argument as timestamp (pass correct type directly or casting).
 -- select date_add (stub function, explain)
 --Testcase 2160:
 EXPLAIN VERBOSE
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl ORDER BY 1,2,3,4;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl ORDER BY 1,2,3,4;
                                                                                                                                                                                                         QUERY PLAN                                                                                                                                                                                                        
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Sort  (cost=9409.05..9426.12 rows=6826 width=32)
@@ -30749,15 +30752,15 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
          Output: (date_add((c2)::timestamp without time zone, '@ 1 day 12 hours 59 mins 10 secs'::interval)), (date_add('2021-01-02 00:00:00'::timestamp without time zone, '@ 1 year 2 mons'::interval)), (date_add(date_sub(c3, '@ 1 day 12 hours 59 mins 10 secs'::interval), '@ 1 year 2 mons'::interval)), (date_add('2021-01-02 00:00:00'::timestamp without time zone, '@ 1 year 2 mons'::interval))
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
-           Remote SQL: SELECT public.date_add(c2, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval) FROM public.time_tbl1mysql
+           Remote SQL: SELECT public.date_add(c2::timestamp without time zone, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval) FROM public.time_tbl1mysql
          Node: pgspider_svr2 / Status: Alive
            Sort push-down: no
-           Remote SQL: SELECT public.date_add(c2, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval) FROM public.time_tbl2mysql
+           Remote SQL: SELECT public.date_add(c2::timestamp without time zone, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval) FROM public.time_tbl2mysql
 (11 rows)
 
 -- select date_add (stub function, result)
 --Testcase 2161:
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl ORDER BY 1,2,3,4;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl ORDER BY 1,2,3,4;
       date_add       |      date_add       |      date_add       |      date_add       
 ---------------------+---------------------+---------------------+---------------------
  2021-01-02 12:59:10 | 2022-03-02 00:00:00 | 2022-03-03 10:13:03 | 2022-03-02 00:00:00
@@ -30770,7 +30773,7 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
 -- select date_add (stub function, not pushdown constraints, explain)
 --Testcase 2162:
 EXPLAIN VERBOSE
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE to_hex(id) = '1' ORDER BY 1,2,3,4;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE to_hex(id) = '1' ORDER BY 1,2,3,4;
                                                                                                                                                                                                         QUERY PLAN                                                                                                                                                                                                        
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Sort  (cost=501.84..501.92 rows=34 width=32)
@@ -30781,15 +30784,15 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
          Filter: (to_hex(time_tbl.id) = '1'::text)
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
-           Remote SQL: SELECT public.date_add(c2, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval), id FROM public.time_tbl1mysql
+           Remote SQL: SELECT public.date_add(c2::timestamp without time zone, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval), id FROM public.time_tbl1mysql
          Node: pgspider_svr2 / Status: Alive
            Sort push-down: no
-           Remote SQL: SELECT public.date_add(c2, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval), id FROM public.time_tbl2mysql
+           Remote SQL: SELECT public.date_add(c2::timestamp without time zone, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval), id FROM public.time_tbl2mysql
 (12 rows)
 
 -- select date_add (stub function, not pushdown constraints, result)
 --Testcase 2163:
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE to_hex(id) = '1' ORDER BY 1,2,3,4;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE to_hex(id) = '1' ORDER BY 1,2,3,4;
       date_add       |      date_add       |      date_add       |      date_add       
 ---------------------+---------------------+---------------------+---------------------
  2021-01-02 12:59:10 | 2022-03-02 00:00:00 | 2022-03-03 10:13:03 | 2022-03-02 00:00:00
@@ -30798,7 +30801,7 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
 -- select date_add (stub function, pushdown constraints, explain)
 --Testcase 2164:
 EXPLAIN VERBOSE
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE id != 1 ORDER BY 1,2,3,4;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE id != 1 ORDER BY 1,2,3,4;
                                                                                                                                                                                                         QUERY PLAN                                                                                                                                                                                                        
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Sort  (cost=9380.44..9397.42 rows=6792 width=32)
@@ -30808,15 +30811,15 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
          Output: (date_add((c2)::timestamp without time zone, '@ 1 day 12 hours 59 mins 10 secs'::interval)), (date_add('2021-01-02 00:00:00'::timestamp without time zone, '@ 1 year 2 mons'::interval)), (date_add(date_sub(c3, '@ 1 day 12 hours 59 mins 10 secs'::interval), '@ 1 year 2 mons'::interval)), (date_add('2021-01-02 00:00:00'::timestamp without time zone, '@ 1 year 2 mons'::interval))
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
-           Remote SQL: SELECT public.date_add(c2, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval) FROM public.time_tbl1mysql WHERE ((id <> 1))
+           Remote SQL: SELECT public.date_add(c2::timestamp without time zone, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval) FROM public.time_tbl1mysql WHERE ((id <> 1))
          Node: pgspider_svr2 / Status: Alive
            Sort push-down: no
-           Remote SQL: SELECT public.date_add(c2, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval) FROM public.time_tbl2mysql WHERE ((id <> 1))
+           Remote SQL: SELECT public.date_add(c2::timestamp without time zone, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval) FROM public.time_tbl2mysql WHERE ((id <> 1))
 (11 rows)
 
 -- select date_add (stub function, pushdown constraints, result)
 --Testcase 2165:
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE id != 1 ORDER BY 1,2,3,4;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE id != 1 ORDER BY 1,2,3,4;
       date_add       |      date_add       |      date_add       |      date_add       
 ---------------------+---------------------+---------------------+---------------------
  2021-01-03 12:59:10 | 2022-03-02 00:00:00 | 2022-03-01 23:11:20 | 2022-03-02 00:00:00
@@ -30828,9 +30831,9 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
 -- select date_add (stub function, date_add in constraints, explain)
 --Testcase 2166:
 EXPLAIN VERBOSE
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE date_add(c2, '1 12:59:10'::interval) != '2000-01-01' ORDER BY 1,2,3,4;
-                                                                                                                                                                                                        QUERY PLAN                                                                                                                                                                                                        
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE date_add(c2::timestamp, '1 12:59:10'::interval) != '2000-01-01' ORDER BY 1,2,3,4;
+                                                                                                                                                                                                                                   QUERY PLAN                                                                                                                                                                                                                                   
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Sort  (cost=11104.01..11120.99 rows=6792 width=32)
    Output: (date_add((c2)::timestamp without time zone, '@ 1 day 12 hours 59 mins 10 secs'::interval)), (date_add('2021-01-02 00:00:00'::timestamp without time zone, '@ 1 year 2 mons'::interval)), (date_add(date_sub(c3, '@ 1 day 12 hours 59 mins 10 secs'::interval), '@ 1 year 2 mons'::interval)), (date_add('2021-01-02 00:00:00'::timestamp without time zone, '@ 1 year 2 mons'::interval))
    Sort Key: (date_add((time_tbl.c2)::timestamp without time zone, '@ 1 day 12 hours 59 mins 10 secs'::interval)), (date_add('2021-01-02 00:00:00'::timestamp without time zone, '@ 1 year 2 mons'::interval)), (date_add(date_sub(time_tbl.c3, '@ 1 day 12 hours 59 mins 10 secs'::interval), '@ 1 year 2 mons'::interval)), (date_add('2021-01-02 00:00:00'::timestamp without time zone, '@ 1 year 2 mons'::interval))
@@ -30838,15 +30841,15 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
          Output: (date_add((c2)::timestamp without time zone, '@ 1 day 12 hours 59 mins 10 secs'::interval)), (date_add('2021-01-02 00:00:00'::timestamp without time zone, '@ 1 year 2 mons'::interval)), (date_add(date_sub(c3, '@ 1 day 12 hours 59 mins 10 secs'::interval), '@ 1 year 2 mons'::interval)), (date_add('2021-01-02 00:00:00'::timestamp without time zone, '@ 1 year 2 mons'::interval))
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
-           Remote SQL: SELECT public.date_add(c2, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval) FROM public.time_tbl1mysql WHERE ((public.date_add(c2, '1 day 12:59:10'::interval) <> '2000-01-01 00:00:00'::timestamp without time zone))
+           Remote SQL: SELECT public.date_add(c2::timestamp without time zone, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval) FROM public.time_tbl1mysql WHERE ((public.date_add(c2::timestamp without time zone, '1 day 12:59:10'::interval) <> '2000-01-01 00:00:00'::timestamp without time zone))
          Node: pgspider_svr2 / Status: Alive
            Sort push-down: no
-           Remote SQL: SELECT public.date_add(c2, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval) FROM public.time_tbl2mysql WHERE ((public.date_add(c2, '1 day 12:59:10'::interval) <> '2000-01-01 00:00:00'::timestamp without time zone))
+           Remote SQL: SELECT public.date_add(c2::timestamp without time zone, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval) FROM public.time_tbl2mysql WHERE ((public.date_add(c2::timestamp without time zone, '1 day 12:59:10'::interval) <> '2000-01-01 00:00:00'::timestamp without time zone))
 (11 rows)
 
 -- select date_add (stub function, date_add in constraints, result)
 --Testcase 2167:
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE date_add(c2, '1 12:59:10'::interval) != '2000-01-01' ORDER BY 1,2,3,4;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE date_add(c2::timestamp, '1 12:59:10'::interval) != '2000-01-01' ORDER BY 1,2,3,4;
       date_add       |      date_add       |      date_add       |      date_add       
 ---------------------+---------------------+---------------------+---------------------
  2021-01-02 12:59:10 | 2022-03-02 00:00:00 | 2022-03-03 10:13:03 | 2022-03-02 00:00:00
@@ -30859,9 +30862,9 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
 -- select date_add (stub function, date_add in constraints, explain)
 --Testcase 2168:
 EXPLAIN VERBOSE
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE date_add('2021-01-02', '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3,4;
-                                                                                                                                                                                                                             QUERY PLAN                                                                                                                                                                                                                             
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE date_add('2021-01-02'::timestamp, '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3,4;
+                                                                                                                                                                                                                                           QUERY PLAN                                                                                                                                                                                                                                            
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Sort  (cost=5034.95..5040.64 rows=2276 width=32)
    Output: (date_add((c2)::timestamp without time zone, '@ 1 day 12 hours 59 mins 10 secs'::interval)), (date_add('2021-01-02 00:00:00'::timestamp without time zone, '@ 1 year 2 mons'::interval)), (date_add(date_sub(c3, '@ 1 day 12 hours 59 mins 10 secs'::interval), '@ 1 year 2 mons'::interval)), (date_add('2021-01-02 00:00:00'::timestamp without time zone, '@ 1 year 2 mons'::interval))
    Sort Key: (date_add((time_tbl.c2)::timestamp without time zone, '@ 1 day 12 hours 59 mins 10 secs'::interval)), (date_add('2021-01-02 00:00:00'::timestamp without time zone, '@ 1 year 2 mons'::interval)), (date_add(date_sub(time_tbl.c3, '@ 1 day 12 hours 59 mins 10 secs'::interval), '@ 1 year 2 mons'::interval)), (date_add('2021-01-02 00:00:00'::timestamp without time zone, '@ 1 year 2 mons'::interval))
@@ -30869,15 +30872,15 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
          Output: (date_add((c2)::timestamp without time zone, '@ 1 day 12 hours 59 mins 10 secs'::interval)), (date_add('2021-01-02 00:00:00'::timestamp without time zone, '@ 1 year 2 mons'::interval)), (date_add(date_sub(c3, '@ 1 day 12 hours 59 mins 10 secs'::interval), '@ 1 year 2 mons'::interval)), (date_add('2021-01-02 00:00:00'::timestamp without time zone, '@ 1 year 2 mons'::interval))
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
-           Remote SQL: SELECT public.date_add(c2, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval) FROM public.time_tbl1mysql WHERE ((public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval) > '2000-01-01 00:00:00'::timestamp without time zone))
+           Remote SQL: SELECT public.date_add(c2::timestamp without time zone, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval) FROM public.time_tbl1mysql WHERE ((public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval) > '2000-01-01 00:00:00'::timestamp without time zone))
          Node: pgspider_svr2 / Status: Alive
            Sort push-down: no
-           Remote SQL: SELECT public.date_add(c2, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval) FROM public.time_tbl2mysql WHERE ((public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval) > '2000-01-01 00:00:00'::timestamp without time zone))
+           Remote SQL: SELECT public.date_add(c2::timestamp without time zone, '1 day 12:59:10'::interval), public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval), public.date_add(public.date_sub(c3, '1 day 12:59:10'::interval), '1 year 2 mons'::interval) FROM public.time_tbl2mysql WHERE ((public.date_add('2021-01-02 00:00:00'::timestamp without time zone, '1 year 2 mons'::interval) > '2000-01-01 00:00:00'::timestamp without time zone))
 (11 rows)
 
 -- select date_add (stub function, date_add in constraints, result)
 --Testcase 2169:
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE date_add('2021-01-02', '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3,4;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE date_add('2021-01-02'::timestamp, '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3,4;
       date_add       |      date_add       |      date_add       |      date_add       
 ---------------------+---------------------+---------------------+---------------------
  2021-01-02 12:59:10 | 2022-03-02 00:00:00 | 2022-03-03 10:13:03 | 2022-03-02 00:00:00
@@ -30890,7 +30893,7 @@ SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::inter
 -- select date_add with agg (pushdown, explain)
 --Testcase 2170:
 EXPLAIN VERBOSE
-SELECT max(c3), date_add(max(c2) , '1-2'::interval) FROM time_tbl;
+SELECT max(c3), date_add(max(c2)::timestamp, '1-2'::interval) FROM time_tbl;
                                               QUERY PLAN                                              
 ------------------------------------------------------------------------------------------------------
  Foreign Scan  (cost=200.00..288.82 rows=1 width=16)
@@ -30907,13 +30910,13 @@ SELECT max(c3), date_add(max(c2) , '1-2'::interval) FROM time_tbl;
 
 -- select date_add as nest function with agg (pushdown, result)
 --Testcase 2171:
-SELECT max(c3), date_add(max(c2) , '1-2'::interval) FROM time_tbl;
+SELECT max(c3), date_add(max(c2)::timestamp, '1-2'::interval) FROM time_tbl;
 ERROR:  stub date_add(timestamp, interval) is called
 CONTEXT:  PL/pgSQL function date_add(timestamp without time zone,interval) line 3 at RAISE
 -- select date_add with non pushdown func and explicit constant (explain)
 --Testcase 2172:
 EXPLAIN VERBOSE
-SELECT date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), pi(), 4.1 FROM time_tbl ORDER BY 1;
+SELECT date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), pi(), 4.1 FROM time_tbl ORDER BY 1;
                                                                                           QUERY PLAN                                                                                           
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Sort  (cost=4272.49..4289.55 rows=6826 width=48)
@@ -30931,7 +30934,7 @@ SELECT date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), pi(), 4.1 FROM ti
 
 -- select date_add with non pushdown func and explicit constant (result)
 --Testcase 2173:
-SELECT date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), pi(), 4.1 FROM time_tbl ORDER BY 1;
+SELECT date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), pi(), 4.1 FROM time_tbl ORDER BY 1;
       date_add       |        pi         | ?column? 
 ---------------------+-------------------+----------
  2022-03-01 23:11:20 | 3.141592653589793 |      4.1
@@ -30944,7 +30947,7 @@ SELECT date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), pi(), 4.1 FROM ti
 -- select date_add with order by (explain)
 --Testcase 2174:
 EXPLAIN VERBOSE
-SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order by id,date_add(c2 + '1 d'::interval , '1-2'::interval);
+SELECT id, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl order by id,date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval);
                                                             QUERY PLAN                                                            
 ----------------------------------------------------------------------------------------------------------------------------------
  Sort  (cost=2583.05..2600.12 rows=6826 width=12)
@@ -30962,7 +30965,7 @@ SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order 
 
 -- select date_add with order by (result)
 --Testcase 2175:
-SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order by id,date_add(c2 + '1 d'::interval , '1-2'::interval);
+SELECT id, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl order by id,date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval);
  id |      date_add       
 ----+---------------------
   0 | 2022-03-03 00:00:00
@@ -30974,7 +30977,7 @@ SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order 
 
 -- select date_add with order by index (result)
 --Testcase 2176:
-SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order by 2,1;
+SELECT id, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl order by 2,1;
  id |      date_add       
 ----+---------------------
   1 | 2022-03-02 00:00:00
@@ -30986,7 +30989,7 @@ SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order 
 
 -- select date_add with order by index (result)
 --Testcase 2177:
-SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order by 1,2;
+SELECT id, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl order by 1,2;
  id |      date_add       
 ----+---------------------
   0 | 2022-03-03 00:00:00
@@ -30999,7 +31002,7 @@ SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order 
 -- select date_add with group by (explain)
 --Testcase 2178:
 EXPLAIN VERBOSE
-SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl group by date_add(c2 + '1 d'::interval , '1-2'::interval) ORDER BY 1;
+SELECT max(c3), date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl group by date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) ORDER BY 1;
                                                                QUERY PLAN                                                               
 ----------------------------------------------------------------------------------------------------------------------------------------
  Sort  (cost=2242.62..2243.12 rows=200 width=16)
@@ -31020,7 +31023,7 @@ SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl g
 
 -- select date_add with group by (result)
 --Testcase 2179:
-SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl group by date_add(c2 + '1 d'::interval , '1-2'::interval) ORDER BY 1;
+SELECT max(c3), date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl group by date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) ORDER BY 1;
          max         |      date_add       
 ---------------------+---------------------
  2021-01-03 12:10:30 | 2022-03-03 00:00:00
@@ -31032,7 +31035,7 @@ SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl g
 
 -- select date_add with group by index (result)
 --Testcase 2180:
-SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl group by 2,1;
+SELECT id, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl group by 2,1;
  id |      date_add       
 ----+---------------------
   2 | 2022-03-11 00:00:00
@@ -31044,7 +31047,7 @@ SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl group 
 
 -- select date_add with group by index (result)
 --Testcase 2181:
-SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl group by 1,2;
+SELECT id, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl group by 1,2;
  id |      date_add       
 ----+---------------------
   2 | 2022-03-11 00:00:00
@@ -31057,7 +31060,7 @@ SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl group 
 -- select date_add with group by having (explain)
 --Testcase 2182:
 EXPLAIN VERBOSE
-SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval), c2 FROM time_tbl group by date_add(c2 + '1 d'::interval , '1-2'::interval), c3,c2 HAVING date_add(c2 + '1 d'::interval , '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3;
+SELECT max(c3), date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval), c2 FROM time_tbl group by date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval), c3,c2 HAVING date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3;
                                                                      QUERY PLAN                                                                      
 -----------------------------------------------------------------------------------------------------------------------------------------------------
  Sort  (cost=2288.55..2288.72 rows=67 width=28)
@@ -31079,7 +31082,7 @@ SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval), c2 FROM time_t
 
 -- select date_add with group by having (result)
 --Testcase 2183:
-SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval), c2 FROM time_tbl group by date_add(c2 + '1 d'::interval , '1-2'::interval), c3,c2 HAVING date_add(c2 + '1 d'::interval , '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3;
+SELECT max(c3), date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval), c2 FROM time_tbl group by date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval), c3,c2 HAVING date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3;
          max         |      date_add       |     c2     
 ---------------------+---------------------+------------
  2021-01-03 12:10:30 | 2022-03-03 00:00:00 | 2021-01-02
@@ -31091,7 +31094,7 @@ SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval), c2 FROM time_t
 
 -- select date_add with group by index having (result)
 --Testcase 2184:
-SELECT c2, date_add(c2 + '1 d'::interval , '1-2'::interval), c3 FROM time_tbl group by 3, 2, 1 HAVING date_add(c2 + '1 d'::interval , '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3;
+SELECT c2, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval), c3 FROM time_tbl group by 3, 2, 1 HAVING date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3;
      c2     |      date_add       |         c3          
 ------------+---------------------+---------------------
  2021-01-01 | 2022-03-02 00:00:00 | 2021-01-04 23:12:13
@@ -31103,7 +31106,7 @@ SELECT c2, date_add(c2 + '1 d'::interval , '1-2'::interval), c3 FROM time_tbl gr
 
 -- select date_add with group by index having (result)
 --Testcase 2185:
-SELECT c2, date_add(c2 + '1 d'::interval , '1-2'::interval), c3 FROM time_tbl group by 1, 2, 3 HAVING date_add(c2 + '1 d'::interval , '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3;
+SELECT c2, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval), c3 FROM time_tbl group by 1, 2, 3 HAVING date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3;
      c2     |      date_add       |         c3          
 ------------+---------------------+---------------------
  2021-01-01 | 2022-03-02 00:00:00 | 2021-01-04 23:12:13
@@ -31115,7 +31118,7 @@ SELECT c2, date_add(c2 + '1 d'::interval , '1-2'::interval), c3 FROM time_tbl gr
 
 -- select date_add and as
 --Testcase 2186:
-SELECT date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval) as date_add1 FROM time_tbl ORDER BY 1;
+SELECT date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval) as date_add1 FROM time_tbl ORDER BY 1;
       date_add1      
 ---------------------
  2022-03-01 23:11:20
@@ -34537,10 +34540,10 @@ EXPLAIN VERBOSE
 SELECT utc_timestamp(), c1 FROM time_tbl GROUP BY c1 ORDER BY 1,2;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Sort  (cost=417.33..417.34 rows=0 width=16)
+ Sort  (cost=288.83..288.83 rows=0 width=16)
    Output: (utc_timestamp()), c1
    Sort Key: (utc_timestamp()), time_tbl.c1
-   ->  Foreign Scan  (cost=217.06..417.32 rows=0 width=16)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=16)
          Output: utc_timestamp(), c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -34560,10 +34563,10 @@ EXPLAIN VERBOSE
 SELECT utc_timestamp(), c1 FROM time_tbl GROUP BY 2 ORDER BY 1,2;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Sort  (cost=417.33..417.34 rows=0 width=16)
+ Sort  (cost=288.83..288.83 rows=0 width=16)
    Output: (utc_timestamp()), c1
    Sort Key: (utc_timestamp()), time_tbl.c1
-   ->  Foreign Scan  (cost=217.06..417.32 rows=0 width=16)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=16)
          Output: utc_timestamp(), c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -34629,10 +34632,10 @@ EXPLAIN VERBOSE
 SELECT c1 FROM time_tbl WHERE addtime(utc_timestamp(), '1 12:59:10'::interval) > '1997-10-14 00:00:00'::timestamp GROUP BY c1 ORDER BY 1;
                                                                                                QUERY PLAN                                                                                                
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=3736.03..3736.03 rows=0 width=8)
+ Sort  (cost=3718.39..3718.40 rows=0 width=8)
    Output: c1
    Sort Key: time_tbl.c1
-   ->  Foreign Scan  (cost=205.69..3736.01 rows=0 width=8)
+   ->  Foreign Scan  (cost=200.00..3718.38 rows=0 width=8)
          Output: c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -34932,7 +34935,7 @@ EXPLAIN VERBOSE
 SELECT utc_time(), c1 FROM time_tbl GROUP BY c1;
                            QUERY PLAN                            
 -----------------------------------------------------------------
- Foreign Scan  (cost=217.06..417.32 rows=0 width=16)
+ Foreign Scan  (cost=200.00..288.82 rows=0 width=16)
    Output: utc_time(), c1
    Node: pgspider_svr1 / Status: Alive
      Agg push-down: yes
@@ -34950,7 +34953,7 @@ EXPLAIN VERBOSE
 SELECT utc_time(), c1 FROM time_tbl GROUP BY 2;
                            QUERY PLAN                            
 -----------------------------------------------------------------
- Foreign Scan  (cost=217.06..417.32 rows=0 width=16)
+ Foreign Scan  (cost=200.00..288.82 rows=0 width=16)
    Output: utc_time(), c1
    Node: pgspider_svr1 / Status: Alive
      Agg push-down: yes
@@ -35014,10 +35017,10 @@ EXPLAIN VERBOSE
 SELECT c1 FROM time_tbl WHERE second(utc_time()) > 10 GROUP BY c1 ORDER BY 1;
                                                       QUERY PLAN                                                       
 -----------------------------------------------------------------------------------------------------------------------
- Sort  (cost=3736.03..3736.03 rows=0 width=8)
+ Sort  (cost=3718.39..3718.40 rows=0 width=8)
    Output: c1
    Sort Key: time_tbl.c1
-   ->  Foreign Scan  (cost=205.69..3736.01 rows=0 width=8)
+   ->  Foreign Scan  (cost=200.00..3718.38 rows=0 width=8)
          Output: c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -35317,10 +35320,10 @@ EXPLAIN VERBOSE
 SELECT utc_date(), c1 FROM time_tbl GROUP BY c1 ORDER BY 1,2;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Sort  (cost=417.33..417.34 rows=0 width=12)
+ Sort  (cost=288.83..288.83 rows=0 width=12)
    Output: (utc_date()), c1
    Sort Key: (utc_date()), time_tbl.c1
-   ->  Foreign Scan  (cost=217.06..417.32 rows=0 width=12)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=12)
          Output: utc_date(), c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -35340,10 +35343,10 @@ EXPLAIN VERBOSE
 SELECT utc_date(), c1 FROM time_tbl GROUP BY 2 ORDER BY 1,2;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Sort  (cost=417.33..417.34 rows=0 width=12)
+ Sort  (cost=288.83..288.83 rows=0 width=12)
    Output: (utc_date()), c1
    Sort Key: (utc_date()), time_tbl.c1
-   ->  Foreign Scan  (cost=217.06..417.32 rows=0 width=12)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=12)
          Output: utc_date(), c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -35409,10 +35412,10 @@ EXPLAIN VERBOSE
 SELECT c1 FROM time_tbl WHERE addtime(utc_date(), '1 12:59:10'::interval) > '1997-10-14 00:00:00'::timestamp GROUP BY c1 ORDER BY 1;
                                                                                              QUERY PLAN                                                                                             
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=3753.09..3753.10 rows=0 width=8)
+ Sort  (cost=3735.46..3735.47 rows=0 width=8)
    Output: c1
    Sort Key: time_tbl.c1
-   ->  Foreign Scan  (cost=205.69..3753.08 rows=0 width=8)
+   ->  Foreign Scan  (cost=200.00..3735.45 rows=0 width=8)
          Output: c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -35670,10 +35673,10 @@ EXPLAIN VERBOSE
 SELECT unix_timestamp(), unix_timestamp(c3), unix_timestamp(c2), c1 FROM time_tbl GROUP BY c1,c2,c3 ORDER BY 1,2,3,4;
                                                                 QUERY PLAN                                                                
 ------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=873.13..873.14 rows=0 width=116)
+ Sort  (cost=289.83..289.84 rows=0 width=116)
    Output: (unix_timestamp()), (unix_timestamp(c3)), (unix_timestamp((c2)::timestamp without time zone)), c1, c2, c3
    Sort Key: (unix_timestamp()), (unix_timestamp(time_tbl.c3)), (unix_timestamp((time_tbl.c2)::timestamp without time zone)), time_tbl.c1
-   ->  Foreign Scan  (cost=251.19..873.12 rows=0 width=116)
+   ->  Foreign Scan  (cost=200.00..289.82 rows=0 width=116)
          Output: unix_timestamp(), unix_timestamp(c3), unix_timestamp((c2)::timestamp without time zone), c1, c2, c3
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -36027,10 +36030,10 @@ EXPLAIN VERBOSE
 SELECT to_seconds(971014), to_seconds(c3), to_seconds(c2), c1 FROM time_tbl GROUP BY c1,c2,c3 ORDER BY 1,2,3,4;
                                                              QUERY PLAN                                                             
 ------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=873.13..873.14 rows=0 width=44)
+ Sort  (cost=289.83..289.84 rows=0 width=44)
    Output: (to_seconds(971014)), (to_seconds(c3)), (to_seconds((c2)::timestamp without time zone)), c1, c2, c3
    Sort Key: (to_seconds(971014)), (to_seconds(time_tbl.c3)), (to_seconds((time_tbl.c2)::timestamp without time zone)), time_tbl.c1
-   ->  Foreign Scan  (cost=251.19..873.12 rows=0 width=44)
+   ->  Foreign Scan  (cost=200.00..289.82 rows=0 width=44)
          Output: to_seconds(971014), to_seconds(c3), to_seconds((c2)::timestamp without time zone), c1, c2, c3
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -36382,10 +36385,10 @@ EXPLAIN VERBOSE
 SELECT to_days(971014), to_days(c2), c1 FROM time_tbl GROUP BY c1,c2 ORDER BY 1,2,3;
                                   QUERY PLAN                                  
 ------------------------------------------------------------------------------
- Sort  (cost=683.86..683.87 rows=0 width=20)
+ Sort  (cost=289.33..289.33 rows=0 width=20)
    Output: (to_days(971014)), (to_days(c2)), c1, c2
    Sort Key: (to_days(971014)), (to_days(time_tbl.c2)), time_tbl.c1
-   ->  Foreign Scan  (cost=234.13..683.85 rows=0 width=20)
+   ->  Foreign Scan  (cost=200.00..289.32 rows=0 width=20)
          Output: to_days(971014), to_days(c2), c1, c2
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -39317,10 +39320,10 @@ EXPLAIN VERBOSE
 SELECT id, c1 FROM time_tbl WHERE addtime(sysdate(), '1 12:59:10'::interval) > '1997-10-14 00:00:00'::timestamp GROUP BY id,c1 ORDER BY 1,2;
                                                                                                 QUERY PLAN                                                                                                
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=3749.81..3749.82 rows=0 width=12)
+ Sort  (cost=3718.39..3718.40 rows=0 width=12)
    Output: id, c1
    Sort Key: time_tbl.id, time_tbl.c1
-   ->  Foreign Scan  (cost=211.38..3749.80 rows=0 width=12)
+   ->  Foreign Scan  (cost=200.00..3718.38 rows=0 width=12)
          Output: id, c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -40785,10 +40788,10 @@ EXPLAIN VERBOSE
 SELECT second(c1), second(c3), c1 FROM time_tbl GROUP BY c1,c3 ORDER BY 1,2,3;
                                   QUERY PLAN                                  
 ------------------------------------------------------------------------------
- Sort  (cost=683.86..683.87 rows=0 width=24)
+ Sort  (cost=289.33..289.33 rows=0 width=24)
    Output: (second(c1)), (second(c3)), c1, c3
    Sort Key: (second(time_tbl.c1)), (second(time_tbl.c3)), time_tbl.c1
-   ->  Foreign Scan  (cost=234.13..683.85 rows=0 width=24)
+   ->  Foreign Scan  (cost=200.00..289.32 rows=0 width=24)
          Output: second(c1), second(c3), c1, c3
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -41162,10 +41165,10 @@ EXPLAIN VERBOSE
 SELECT sec_to_time(id), c1 FROM time_tbl GROUP BY id,c1 ORDER BY 1,2;
                                   QUERY PLAN                                  
 ------------------------------------------------------------------------------
- Sort  (cost=513.36..513.37 rows=0 width=20)
+ Sort  (cost=288.83..288.83 rows=0 width=20)
    Output: (sec_to_time(id)), c1, id
    Sort Key: (sec_to_time(time_tbl.id)), time_tbl.c1
-   ->  Foreign Scan  (cost=234.13..513.35 rows=0 width=20)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=20)
          Output: sec_to_time(id), c1, id
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -42575,10 +42578,10 @@ EXPLAIN VERBOSE
 SELECT mysql_now(), c1 FROM time_tbl GROUP BY c1 ORDER BY 1,2;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Sort  (cost=417.33..417.34 rows=0 width=16)
+ Sort  (cost=288.83..288.83 rows=0 width=16)
    Output: (mysql_now()), c1
    Sort Key: (mysql_now()), time_tbl.c1
-   ->  Foreign Scan  (cost=217.06..417.32 rows=0 width=16)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=16)
          Output: mysql_now(), c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -42598,10 +42601,10 @@ EXPLAIN VERBOSE
 SELECT mysql_now(), c1 FROM time_tbl GROUP BY 2 ORDER BY 1,2;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Sort  (cost=417.33..417.34 rows=0 width=16)
+ Sort  (cost=288.83..288.83 rows=0 width=16)
    Output: (mysql_now()), c1
    Sort Key: (mysql_now()), time_tbl.c1
-   ->  Foreign Scan  (cost=217.06..417.32 rows=0 width=16)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=16)
          Output: mysql_now(), c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -42667,10 +42670,10 @@ EXPLAIN VERBOSE
 SELECT c1 FROM time_tbl WHERE addtime(mysql_now(), '1 12:59:10') > '2000-01-01 00:00:00'::timestamp GROUP BY c1 ORDER BY 1;
                                                                                              QUERY PLAN                                                                                              
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=3736.03..3736.03 rows=0 width=8)
+ Sort  (cost=3718.39..3718.40 rows=0 width=8)
    Output: c1
    Sort Key: time_tbl.c1
-   ->  Foreign Scan  (cost=205.69..3736.01 rows=0 width=8)
+   ->  Foreign Scan  (cost=200.00..3718.38 rows=0 width=8)
          Output: c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -45160,10 +45163,10 @@ EXPLAIN VERBOSE
 SELECT mysql_localtimestamp(), c1 FROM time_tbl GROUP BY c1 ORDER BY 1,2;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Sort  (cost=417.33..417.34 rows=0 width=16)
+ Sort  (cost=288.83..288.83 rows=0 width=16)
    Output: (mysql_localtimestamp()), c1
    Sort Key: (mysql_localtimestamp()), time_tbl.c1
-   ->  Foreign Scan  (cost=217.06..417.32 rows=0 width=16)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=16)
          Output: mysql_localtimestamp(), c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -45183,10 +45186,10 @@ EXPLAIN VERBOSE
 SELECT mysql_localtimestamp(), c1 FROM time_tbl GROUP BY 2 ORDER BY 1,2;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Sort  (cost=417.33..417.34 rows=0 width=16)
+ Sort  (cost=288.83..288.83 rows=0 width=16)
    Output: (mysql_localtimestamp()), c1
    Sort Key: (mysql_localtimestamp()), time_tbl.c1
-   ->  Foreign Scan  (cost=217.06..417.32 rows=0 width=16)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=16)
          Output: mysql_localtimestamp(), c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -45252,10 +45255,10 @@ EXPLAIN VERBOSE
 SELECT c1 FROM time_tbl WHERE addtime(mysql_localtimestamp(), '1 12:59:10') > '2000-01-01 00:00:00'::timestamp GROUP BY c1 ORDER BY 1;
                                                                                                    QUERY PLAN                                                                                                   
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=3736.03..3736.03 rows=0 width=8)
+ Sort  (cost=3718.39..3718.40 rows=0 width=8)
    Output: c1
    Sort Key: time_tbl.c1
-   ->  Foreign Scan  (cost=205.69..3736.01 rows=0 width=8)
+   ->  Foreign Scan  (cost=200.00..3718.38 rows=0 width=8)
          Output: c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -45546,10 +45549,10 @@ EXPLAIN VERBOSE
 SELECT mysql_localtime(), c1 FROM time_tbl GROUP BY c1 ORDER BY 1,2;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Sort  (cost=417.33..417.34 rows=0 width=16)
+ Sort  (cost=288.83..288.83 rows=0 width=16)
    Output: (mysql_localtime()), c1
    Sort Key: (mysql_localtime()), time_tbl.c1
-   ->  Foreign Scan  (cost=217.06..417.32 rows=0 width=16)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=16)
          Output: mysql_localtime(), c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -45569,10 +45572,10 @@ EXPLAIN VERBOSE
 SELECT mysql_localtime(), c1 FROM time_tbl GROUP BY 2 ORDER BY 1,2;
                               QUERY PLAN                               
 -----------------------------------------------------------------------
- Sort  (cost=417.33..417.34 rows=0 width=16)
+ Sort  (cost=288.83..288.83 rows=0 width=16)
    Output: (mysql_localtime()), c1
    Sort Key: (mysql_localtime()), time_tbl.c1
-   ->  Foreign Scan  (cost=217.06..417.32 rows=0 width=16)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=16)
          Output: mysql_localtime(), c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -45638,10 +45641,10 @@ EXPLAIN VERBOSE
 SELECT c1 FROM time_tbl WHERE addtime(mysql_localtime(), '1 12:59:10') > '2000-01-01 00:00:00'::timestamp GROUP BY c1 ORDER BY 1;
                                                                                                 QUERY PLAN                                                                                                 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=3736.03..3736.03 rows=0 width=8)
+ Sort  (cost=3718.39..3718.40 rows=0 width=8)
    Output: c1
    Sort Key: time_tbl.c1
-   ->  Foreign Scan  (cost=205.69..3736.01 rows=0 width=8)
+   ->  Foreign Scan  (cost=200.00..3718.38 rows=0 width=8)
          Output: c1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -46834,11 +46837,11 @@ SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i
 SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x') FROM time_tbl ORDER BY 1,2;
     from_unixtime    |          from_unixtime           
 ---------------------+----------------------------------
- 2015-11-13 08:08:01 | 2015 13th November 08:08:01 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:02 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:03 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:04 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:05 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:01 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:02 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:03 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:04 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:05 2015
 (5 rows)
 
 -- select from_unixtime (stub function, not pushdown constraints, explain)
@@ -46866,10 +46869,10 @@ SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i
 SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x') FROM time_tbl WHERE to_hex(id) > '0' ORDER BY 1,2;
     from_unixtime    |          from_unixtime           
 ---------------------+----------------------------------
- 2015-11-13 08:08:01 | 2015 13th November 08:08:02 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:03 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:04 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:05 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:02 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:03 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:04 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:05 2015
 (4 rows)
 
 -- select from_unixtime (stub function, pushdown constraints, explain)
@@ -46896,7 +46899,7 @@ SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i
 SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x') FROM time_tbl WHERE id = 1 ORDER BY 1,2;
     from_unixtime    |          from_unixtime           
 ---------------------+----------------------------------
- 2015-11-13 08:08:01 | 2015 13th November 08:08:02 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:02 2015
 (1 row)
 
 -- select from_unixtime (stub function, from_unixtime in constraints, explain)
@@ -46923,10 +46926,10 @@ SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i
 SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x') FROM time_tbl WHERE from_unixtime(id + 1447430881) > from_unixtime(1447430881) ORDER BY 1,2;
     from_unixtime    |          from_unixtime           
 ---------------------+----------------------------------
- 2015-11-13 08:08:01 | 2015 13th November 08:08:02 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:03 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:04 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:05 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:02 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:03 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:04 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:05 2015
 (4 rows)
 
 -- select from_unixtime and agg (pushdown, explain)
@@ -46957,11 +46960,11 @@ SELECT from_unixtime(1447430881), sum(id) FROM time_tbl ORDER BY 1,2;
 SELECT from_unixtime(1447430881), log2(id) FROM time_tbl ORDER BY 1,2;
     from_unixtime    |       log2        
 ---------------------+-------------------
- 2015-11-13 08:08:01 |                 0
- 2015-11-13 08:08:01 |                 1
- 2015-11-13 08:08:01 | 1.584962500721156
- 2015-11-13 08:08:01 |                 2
- 2015-11-13 08:08:01 |                  
+ 2015-11-13 16:08:01 |                 0
+ 2015-11-13 16:08:01 |                 1
+ 2015-11-13 16:08:01 | 1.584962500721156
+ 2015-11-13 16:08:01 |                 2
+ 2015-11-13 16:08:01 |                  
 (5 rows)
 
 -- select from_unixtime with non pushdown func and explicit constant (explain)
@@ -47045,10 +47048,10 @@ SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i
 SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x') FROM time_tbl WHERE from_unixtime(id + 1447430881) > from_unixtime(1447430881) ORDER BY from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x');
     from_unixtime    |          from_unixtime           
 ---------------------+----------------------------------
- 2015-11-13 08:08:01 | 2015 13th November 08:08:02 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:03 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:04 2015
- 2015-11-13 08:08:01 | 2015 13th November 08:08:05 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:02 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:03 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:04 2015
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:05 2015
 (4 rows)
 
 -- select from_unixtime with group by (explain)
@@ -47057,10 +47060,10 @@ EXPLAIN VERBOSE
 SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x'), c1 FROM time_tbl GROUP BY c1,id ORDER BY 1,2,3;
                                                                      QUERY PLAN                                                                      
 -----------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=687.27..687.28 rows=0 width=52)
+ Sort  (cost=289.34..289.34 rows=0 width=52)
    Output: (from_unixtime('1447430881'::bigint)), (from_unixtime(((id + 1447430881))::bigint, '%Y %D %M %h:%i:%s %x'::text)), c1, id
    Sort Key: (from_unixtime('1447430881'::bigint)), (from_unixtime(((time_tbl.id + 1447430881))::bigint, '%Y %D %M %h:%i:%s %x'::text)), time_tbl.c1
-   ->  Foreign Scan  (cost=234.13..687.26 rows=0 width=52)
+   ->  Foreign Scan  (cost=200.00..289.33 rows=0 width=52)
          Output: from_unixtime('1447430881'::bigint), from_unixtime(((id + 1447430881))::bigint, '%Y %D %M %h:%i:%s %x'::text), c1, id
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -47099,7 +47102,7 @@ SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i
 -- select from_unixtime with group by index having (explain)
 --Testcase 3243:
 EXPLAIN VERBOSE
-SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x'), c1 FROM time_tbl GROUP BY 1,2,3 HAVING from_unixtime(1447430881) = '2015-11-13 08:08:01' ORDER BY 1,2,3;
+SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x'), c1 FROM time_tbl GROUP BY 1,2,3 HAVING from_unixtime(1447430881) = '2015-11-13 16:08:01' ORDER BY 1,2,3;
                                                                                     QUERY PLAN                                                                                     
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Sort  (cost=5732.96..5733.05 rows=34 width=48)
@@ -47108,7 +47111,7 @@ SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i
    ->  HashAggregate  (cost=3923.11..5732.10 rows=34 width=48)
          Output: (from_unixtime('1447430881'::bigint)), (from_unixtime(((id + 1447430881))::bigint, '%Y %D %M %h:%i:%s %x'::text)), c1
          Group Key: (from_unixtime('1447430881'::bigint)), (from_unixtime(((time_tbl.id + 1447430881))::bigint, '%Y %D %M %h:%i:%s %x'::text)), time_tbl.c1
-         Filter: ((from_unixtime('1447430881'::bigint)) = '2015-11-13 08:08:01'::timestamp without time zone)
+         Filter: ((from_unixtime('1447430881'::bigint)) = '2015-11-13 16:08:01'::timestamp without time zone)
          ->  Foreign Scan on public.time_tbl  (cost=200.00..3871.91 rows=6826 width=48)
                Output: (from_unixtime('1447430881'::bigint)), (from_unixtime(((id + 1447430881))::bigint, '%Y %D %M %h:%i:%s %x'::text)), c1
                Node: pgspider_svr1 / Status: Alive
@@ -47121,14 +47124,14 @@ SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i
 
 -- select from_unixtime with group by index having (result)
 --Testcase 3244:
-SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x'), c1 FROM time_tbl GROUP BY 1,2,3 HAVING from_unixtime(1447430881) = '2015-11-13 08:08:01' ORDER BY 1,2,3;
+SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x'), c1 FROM time_tbl GROUP BY 1,2,3 HAVING from_unixtime(1447430881) = '2015-11-13 16:08:01' ORDER BY 1,2,3;
     from_unixtime    |          from_unixtime           |    c1    
 ---------------------+----------------------------------+----------
- 2015-11-13 08:08:01 | 2015 13th November 08:08:01 2015 | 12:10:30
- 2015-11-13 08:08:01 | 2015 13th November 08:08:02 2015 | 23:12:13
- 2015-11-13 08:08:01 | 2015 13th November 08:08:03 2015 | 11:12:12
- 2015-11-13 08:08:01 | 2015 13th November 08:08:04 2015 | 16:00:00
- 2015-11-13 08:08:01 | 2015 13th November 08:08:05 2015 | 00:59:59
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:01 2015 | 12:10:30
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:02 2015 | 23:12:13
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:03 2015 | 11:12:12
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:04 2015 | 16:00:00
+ 2015-11-13 16:08:01 | 2015 13th November 04:08:05 2015 | 00:59:59
 (5 rows)
 
 -- select from_unixtime and as
@@ -47419,10 +47422,10 @@ EXPLAIN VERBOSE
 SELECT from_days(id + 200719), c1 FROM time_tbl GROUP BY c1,id ORDER BY 1,2;
                                   QUERY PLAN                                  
 ------------------------------------------------------------------------------
- Sort  (cost=515.07..515.07 rows=0 width=16)
+ Sort  (cost=288.83..288.84 rows=0 width=16)
    Output: (from_days((id + 200719))), c1, id
    Sort Key: (from_days((time_tbl.id + 200719))), time_tbl.c1
-   ->  Foreign Scan  (cost=234.13..515.06 rows=0 width=16)
+   ->  Foreign Scan  (cost=200.00..288.82 rows=0 width=16)
          Output: from_days((id + 200719)), c1, id
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -49904,17 +49907,20 @@ CONTEXT:  PL/pgSQL function group_concat_sfunc(text,anyelement) line 3 at RAISE
 --Testcase 3447:
 EXPLAIN VERBOSE
 SELECT group_concat(value1 ORDER By value1) FROM s7a;
-                                QUERY PLAN                                 
----------------------------------------------------------------------------
- Aggregate  (cost=2131.28..2131.29 rows=1 width=32)
+                                   QUERY PLAN                                    
+---------------------------------------------------------------------------------
+ Aggregate  (cost=2583.05..2583.06 rows=1 width=32)
    Output: group_concat(value1 ORDER BY value1)
-   ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=8)
+   ->  Sort  (cost=859.49..876.55 rows=6826 width=8)
          Output: value1
-         Node: pgspider_svr1 / Status: Alive
-           Remote SQL: SELECT value1 FROM public.s7a1mysql
-         Node: pgspider_svr2 / Status: Alive
-           Remote SQL: SELECT value1 FROM public.s7a2mysql
-(8 rows)
+         Sort Key: s7a.value1
+         ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=8)
+               Output: value1
+               Node: pgspider_svr1 / Status: Alive
+                 Remote SQL: SELECT value1 FROM public.s7a1mysql
+               Node: pgspider_svr2 / Status: Alive
+                 Remote SQL: SELECT value1 FROM public.s7a2mysql
+(11 rows)
 
 --Testcase 3448:
 SELECT group_concat(value1 ORDER By value1) FROM s7a;
@@ -49924,17 +49930,20 @@ CONTEXT:  PL/pgSQL function group_concat_sfunc(text,anyelement) line 3 at RAISE
 --Testcase 3449:
 EXPLAIN VERBOSE
 SELECT group_concat(value1 ORDER By value1 ASC) FROM s7a;
-                                QUERY PLAN                                 
----------------------------------------------------------------------------
- Aggregate  (cost=2131.28..2131.29 rows=1 width=32)
+                                   QUERY PLAN                                    
+---------------------------------------------------------------------------------
+ Aggregate  (cost=2583.05..2583.06 rows=1 width=32)
    Output: group_concat(value1 ORDER BY value1)
-   ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=8)
+   ->  Sort  (cost=859.49..876.55 rows=6826 width=8)
          Output: value1
-         Node: pgspider_svr1 / Status: Alive
-           Remote SQL: SELECT value1 FROM public.s7a1mysql
-         Node: pgspider_svr2 / Status: Alive
-           Remote SQL: SELECT value1 FROM public.s7a2mysql
-(8 rows)
+         Sort Key: s7a.value1
+         ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=8)
+               Output: value1
+               Node: pgspider_svr1 / Status: Alive
+                 Remote SQL: SELECT value1 FROM public.s7a1mysql
+               Node: pgspider_svr2 / Status: Alive
+                 Remote SQL: SELECT value1 FROM public.s7a2mysql
+(11 rows)
 
 --Testcase 3450:
 SELECT group_concat(value1 ORDER By value1 ASC) FROM s7a;
@@ -49944,17 +49953,20 @@ CONTEXT:  PL/pgSQL function group_concat_sfunc(text,anyelement) line 3 at RAISE
 --Testcase 3451:
 EXPLAIN VERBOSE
 SELECT group_concat(value1 ORDER By value1 DESC) FROM s7a;
-                                QUERY PLAN                                 
----------------------------------------------------------------------------
- Aggregate  (cost=2131.28..2131.29 rows=1 width=32)
+                                   QUERY PLAN                                    
+---------------------------------------------------------------------------------
+ Aggregate  (cost=2583.05..2583.06 rows=1 width=32)
    Output: group_concat(value1 ORDER BY value1 DESC)
-   ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=8)
+   ->  Sort  (cost=859.49..876.55 rows=6826 width=8)
          Output: value1
-         Node: pgspider_svr1 / Status: Alive
-           Remote SQL: SELECT value1 FROM public.s7a1mysql
-         Node: pgspider_svr2 / Status: Alive
-           Remote SQL: SELECT value1 FROM public.s7a2mysql
-(8 rows)
+         Sort Key: s7a.value1 DESC
+         ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=8)
+               Output: value1
+               Node: pgspider_svr1 / Status: Alive
+                 Remote SQL: SELECT value1 FROM public.s7a1mysql
+               Node: pgspider_svr2 / Status: Alive
+                 Remote SQL: SELECT value1 FROM public.s7a2mysql
+(11 rows)
 
 --Testcase 3452:
 SELECT group_concat(value1 ORDER By value1 DESC) FROM s7a;
@@ -49969,15 +49981,18 @@ EXPLAIN VERBOSE
 SELECT group_concat(DISTINCT id), group_concat(DISTINCT tag1), group_concat(DISTINCT value1), group_concat(DISTINCT value2), group_concat(DISTINCT value3), group_concat(DISTINCT value5), group_concat(DISTINCT str2) FROM s7a;
                                                                                                         QUERY PLAN                                                                                                         
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Aggregate  (cost=12370.28..12370.29 rows=1 width=224)
+ Aggregate  (cost=12822.05..12822.06 rows=1 width=224)
    Output: group_concat(DISTINCT id), group_concat(DISTINCT tag1), group_concat(DISTINCT value1), group_concat(DISTINCT value2), group_concat(DISTINCT value3), group_concat(DISTINCT value5), group_concat(DISTINCT str2)
-   ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=98)
+   ->  Sort  (cost=859.49..876.55 rows=6826 width=98)
          Output: id, tag1, value1, value2, value3, value5, str2
-         Node: pgspider_svr1 / Status: Alive
-           Remote SQL: SELECT id, tag1, value1, value2, value3, value5, str2 FROM public.s7a1mysql
-         Node: pgspider_svr2 / Status: Alive
-           Remote SQL: SELECT id, tag1, value1, value2, value3, value5, str2 FROM public.s7a2mysql
-(8 rows)
+         Sort Key: s7a.id
+         ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=98)
+               Output: id, tag1, value1, value2, value3, value5, str2
+               Node: pgspider_svr1 / Status: Alive
+                 Remote SQL: SELECT id, tag1, value1, value2, value3, value5, str2 FROM public.s7a1mysql
+               Node: pgspider_svr2 / Status: Alive
+                 Remote SQL: SELECT id, tag1, value1, value2, value3, value5, str2 FROM public.s7a2mysql
+(11 rows)
 
 -- select group_concat(DISTINCT) (result)
 --Testcase 3454:
@@ -49988,17 +50003,20 @@ CONTEXT:  PL/pgSQL function group_concat_sfunc(text,anyelement) line 3 at RAISE
 --Testcase 3455:
 EXPLAIN VERBOSE
 SELECT group_concat(DISTINCT (value1 + 1)) FROM s7a;
-                                QUERY PLAN                                 
----------------------------------------------------------------------------
- Aggregate  (cost=2148.35..2148.36 rows=1 width=32)
-   Output: group_concat(DISTINCT (value1 + '1'::double precision))
-   ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=8)
-         Output: value1
-         Node: pgspider_svr1 / Status: Alive
-           Remote SQL: SELECT value1 FROM public.s7a1mysql
-         Node: pgspider_svr2 / Status: Alive
-           Remote SQL: SELECT value1 FROM public.s7a2mysql
-(8 rows)
+                                   QUERY PLAN                                    
+---------------------------------------------------------------------------------
+ Aggregate  (cost=2600.12..2600.13 rows=1 width=32)
+   Output: group_concat(DISTINCT ((value1 + '1'::double precision)))
+   ->  Sort  (cost=859.49..876.55 rows=6826 width=8)
+         Output: value1, ((value1 + '1'::double precision))
+         Sort Key: ((s7a.value1 + '1'::double precision))
+         ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=8)
+               Output: value1, (value1 + '1'::double precision)
+               Node: pgspider_svr1 / Status: Alive
+                 Remote SQL: SELECT value1 FROM public.s7a1mysql
+               Node: pgspider_svr2 / Status: Alive
+                 Remote SQL: SELECT value1 FROM public.s7a2mysql
+(11 rows)
 
 -- select group_concat(DISTINCT) (result)
 --Testcase 3456:
@@ -50016,7 +50034,7 @@ SELECT value2, group_concat(DISTINCT value3) FROM s7a GROUP BY value2;
    Group Key: s7a.value2
    ->  Sort  (cost=859.49..876.55 rows=6826 width=12)
          Output: value2, value3
-         Sort Key: s7a.value2
+         Sort Key: s7a.value2, s7a.value3
          ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=12)
                Output: value2, value3
                Node: pgspider_svr1 / Status: Alive
@@ -50034,17 +50052,20 @@ CONTEXT:  PL/pgSQL function group_concat_sfunc(text,anyelement) line 3 at RAISE
 --Testcase 3459:
 EXPLAIN VERBOSE
 SELECT group_concat(DISTINCT (id, tag1, value2, str1, value5)) FROM s7a;
-                                    QUERY PLAN                                     
------------------------------------------------------------------------------------
- Aggregate  (cost=2131.28..2131.29 rows=1 width=32)
-   Output: group_concat(DISTINCT ROW(id, tag1, value2, str1, value5))
-   ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=82)
-         Output: id, tag1, value2, str1, value5
-         Node: pgspider_svr1 / Status: Alive
-           Remote SQL: SELECT id, tag1, value2, value5, str1 FROM public.s7a1mysql
-         Node: pgspider_svr2 / Status: Alive
-           Remote SQL: SELECT id, tag1, value2, value5, str1 FROM public.s7a2mysql
-(8 rows)
+                                        QUERY PLAN                                         
+-------------------------------------------------------------------------------------------
+ Aggregate  (cost=2583.05..2583.06 rows=1 width=32)
+   Output: group_concat(DISTINCT (ROW(id, tag1, value2, str1, value5)))
+   ->  Sort  (cost=859.49..876.55 rows=6826 width=82)
+         Output: id, tag1, value2, str1, value5, (ROW(id, tag1, value2, str1, value5))
+         Sort Key: (ROW(s7a.id, s7a.tag1, s7a.value2, s7a.str1, s7a.value5))
+         ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=82)
+               Output: id, tag1, value2, str1, value5, ROW(id, tag1, value2, str1, value5)
+               Node: pgspider_svr1 / Status: Alive
+                 Remote SQL: SELECT id, tag1, value2, value5, str1 FROM public.s7a1mysql
+               Node: pgspider_svr2 / Status: Alive
+                 Remote SQL: SELECT id, tag1, value2, value5, str1 FROM public.s7a2mysql
+(11 rows)
 
 --Testcase 3460:
 SELECT group_concat(DISTINCT (id, tag1, value2, str1, value5)) FROM s7a;
@@ -50054,17 +50075,20 @@ CONTEXT:  PL/pgSQL function group_concat_sfunc(text,anyelement) line 3 at RAISE
 --Testcase 3461:
 EXPLAIN VERBOSE
 SELECT group_concat(DISTINCT (tag1, value2)) FROM s7a;
-                                 QUERY PLAN                                 
-----------------------------------------------------------------------------
- Aggregate  (cost=2131.28..2131.29 rows=1 width=32)
-   Output: group_concat(DISTINCT ROW(tag1, value2))
-   ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=36)
-         Output: tag1, value2
-         Node: pgspider_svr1 / Status: Alive
-           Remote SQL: SELECT tag1, value2 FROM public.s7a1mysql
-         Node: pgspider_svr2 / Status: Alive
-           Remote SQL: SELECT tag1, value2 FROM public.s7a2mysql
-(8 rows)
+                                    QUERY PLAN                                    
+----------------------------------------------------------------------------------
+ Aggregate  (cost=2583.05..2583.06 rows=1 width=32)
+   Output: group_concat(DISTINCT (ROW(tag1, value2)))
+   ->  Sort  (cost=859.49..876.55 rows=6826 width=36)
+         Output: tag1, value2, (ROW(tag1, value2))
+         Sort Key: (ROW(s7a.tag1, s7a.value2))
+         ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=36)
+               Output: tag1, value2, ROW(tag1, value2)
+               Node: pgspider_svr1 / Status: Alive
+                 Remote SQL: SELECT tag1, value2 FROM public.s7a1mysql
+               Node: pgspider_svr2 / Status: Alive
+                 Remote SQL: SELECT tag1, value2 FROM public.s7a2mysql
+(11 rows)
 
 --Testcase 3462:
 SELECT group_concat(DISTINCT (tag1, value2)) FROM s7a;
@@ -50106,7 +50130,7 @@ SELECT id, group_concat(DISTINCT value3) FROM s7a GROUP BY 1, value1 HAVING grou
    Filter: (group_concat(DISTINCT s7a.value3) IS NOT NULL)
    ->  Sort  (cost=859.49..876.55 rows=6826 width=20)
          Output: id, value1, value3
-         Sort Key: s7a.id, s7a.value1
+         Sort Key: s7a.id, s7a.value1, s7a.value3
          ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=20)
                Output: id, value1, value3
                Node: pgspider_svr1 / Status: Alive
@@ -50132,7 +50156,7 @@ SELECT id, group_concat(DISTINCT value3) FROM s7a GROUP BY 1, value1 HAVING grou
    Filter: (group_concat(DISTINCT (s7a.value3 + '1'::double precision)) IS NOT NULL)
    ->  Sort  (cost=859.49..876.55 rows=6826 width=20)
          Output: id, value1, value3
-         Sort Key: s7a.id, s7a.value1
+         Sort Key: s7a.id, s7a.value1, s7a.value3
          ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=20)
                Output: id, value1, value3
                Node: pgspider_svr1 / Status: Alive
@@ -50158,7 +50182,7 @@ SELECT id, group_concat(DISTINCT value3) FROM s7a GROUP BY 1, value1 HAVING grou
    Filter: (group_concat(DISTINCT abs(s7a.value3)) IS NOT NULL)
    ->  Sort  (cost=859.49..876.55 rows=6826 width=20)
          Output: id, value1, value3
-         Sort Key: s7a.id, s7a.value1
+         Sort Key: s7a.id, s7a.value1, s7a.value3
          ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=20)
                Output: id, value1, value3
                Node: pgspider_svr1 / Status: Alive
@@ -50231,7 +50255,7 @@ EXPLAIN VERBOSE
 SELECT COUNT(tag1) FROM s7a GROUP BY tag1;
                                 QUERY PLAN                                 
 ---------------------------------------------------------------------------
- Foreign Scan  (cost=217.06..317.32 rows=1 width=40)
+ Foreign Scan  (cost=200.00..288.32 rows=1 width=40)
    Output: (count(tag1)), tag1
    Node: pgspider_svr1 / Status: Alive
      Agg push-down: yes
@@ -50255,17 +50279,20 @@ SELECT COUNT(tag1) FROM s7a GROUP BY tag1;
 --Testcase 3479:
 EXPLAIN VERBOSE
 SELECT COUNT(DISTINCT tag1) FROM s7a;
-                                 QUERY PLAN                                 
-----------------------------------------------------------------------------
- Aggregate  (cost=441.84..441.85 rows=1 width=8)
+                                    QUERY PLAN                                    
+----------------------------------------------------------------------------------
+ Aggregate  (cost=893.62..893.63 rows=1 width=8)
    Output: count(DISTINCT tag1)
-   ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=32)
+   ->  Sort  (cost=859.49..876.55 rows=6826 width=32)
          Output: tag1
-         Node: pgspider_svr1 / Status: Alive
-           Remote SQL: SELECT tag1 FROM public.s7a1mysql
-         Node: pgspider_svr2 / Status: Alive
-           Remote SQL: SELECT tag1 FROM public.s7a2mysql
-(8 rows)
+         Sort Key: s7a.tag1
+         ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=32)
+               Output: tag1
+               Node: pgspider_svr1 / Status: Alive
+                 Remote SQL: SELECT tag1 FROM public.s7a1mysql
+               Node: pgspider_svr2 / Status: Alive
+                 Remote SQL: SELECT tag1 FROM public.s7a2mysql
+(11 rows)
 
 --Testcase 3480:
 SELECT COUNT(DISTINCT tag1) FROM s7a GROUP BY tag1;
@@ -50279,17 +50306,20 @@ SELECT COUNT(DISTINCT tag1) FROM s7a GROUP BY tag1;
 --Testcase 3481:
 EXPLAIN VERBOSE
 SELECT COUNT(DISTINCT (id, tag1, value2, str1, value5)) FROM s7a;
-                                    QUERY PLAN                                     
------------------------------------------------------------------------------------
- Aggregate  (cost=441.84..441.85 rows=1 width=8)
-   Output: count(DISTINCT ROW(id, tag1, value2, str1, value5))
-   ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=82)
-         Output: id, tag1, value2, str1, value5
-         Node: pgspider_svr1 / Status: Alive
-           Remote SQL: SELECT id, tag1, value2, value5, str1 FROM public.s7a1mysql
-         Node: pgspider_svr2 / Status: Alive
-           Remote SQL: SELECT id, tag1, value2, value5, str1 FROM public.s7a2mysql
-(8 rows)
+                                        QUERY PLAN                                         
+-------------------------------------------------------------------------------------------
+ Aggregate  (cost=893.62..893.63 rows=1 width=8)
+   Output: count(DISTINCT (ROW(id, tag1, value2, str1, value5)))
+   ->  Sort  (cost=859.49..876.55 rows=6826 width=82)
+         Output: id, tag1, value2, str1, value5, (ROW(id, tag1, value2, str1, value5))
+         Sort Key: (ROW(s7a.id, s7a.tag1, s7a.value2, s7a.str1, s7a.value5))
+         ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=82)
+               Output: id, tag1, value2, str1, value5, ROW(id, tag1, value2, str1, value5)
+               Node: pgspider_svr1 / Status: Alive
+                 Remote SQL: SELECT id, tag1, value2, value5, str1 FROM public.s7a1mysql
+               Node: pgspider_svr2 / Status: Alive
+                 Remote SQL: SELECT id, tag1, value2, value5, str1 FROM public.s7a2mysql
+(11 rows)
 
 --Testcase 3482:
 SELECT COUNT(DISTINCT (id, tag1, value2, str1, value5)) FROM s7a;
@@ -50302,17 +50332,20 @@ SELECT COUNT(DISTINCT (id, tag1, value2, str1, value5)) FROM s7a;
 --Testcase 3483:
 EXPLAIN VERBOSE
 SELECT COUNT(DISTINCT (tag1, value2)) FROM s7a;
-                                 QUERY PLAN                                 
-----------------------------------------------------------------------------
- Aggregate  (cost=441.84..441.85 rows=1 width=8)
-   Output: count(DISTINCT ROW(tag1, value2))
-   ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=36)
-         Output: tag1, value2
-         Node: pgspider_svr1 / Status: Alive
-           Remote SQL: SELECT tag1, value2 FROM public.s7a1mysql
-         Node: pgspider_svr2 / Status: Alive
-           Remote SQL: SELECT tag1, value2 FROM public.s7a2mysql
-(8 rows)
+                                    QUERY PLAN                                    
+----------------------------------------------------------------------------------
+ Aggregate  (cost=893.62..893.63 rows=1 width=8)
+   Output: count(DISTINCT (ROW(tag1, value2)))
+   ->  Sort  (cost=859.49..876.55 rows=6826 width=36)
+         Output: tag1, value2, (ROW(tag1, value2))
+         Sort Key: (ROW(s7a.tag1, s7a.value2))
+         ->  Foreign Scan on public.s7a  (cost=200.00..424.78 rows=6826 width=36)
+               Output: tag1, value2, ROW(tag1, value2)
+               Node: pgspider_svr1 / Status: Alive
+                 Remote SQL: SELECT tag1, value2 FROM public.s7a1mysql
+               Node: pgspider_svr2 / Status: Alive
+                 Remote SQL: SELECT tag1, value2 FROM public.s7a2mysql
+(11 rows)
 
 --Testcase 3484:
 SELECT COUNT(DISTINCT (tag1, value2)) FROM s7a;
@@ -56080,7 +56113,7 @@ EXPLAIN VERBOSE
 SELECT id, json_depth(json_build_object('a', 1)) FROM s8 GROUP BY 1 HAVING count(c2) > 1;
                               QUERY PLAN                              
 ----------------------------------------------------------------------
- Foreign Scan  (cost=217.06..418.32 rows=1 width=8)
+ Foreign Scan  (cost=200.00..288.82 rows=1 width=8)
    Output: id, json_depth(json_build_object('a', 1))
    Node: pgspider_svr1 / Status: Alive
      Agg push-down: yes

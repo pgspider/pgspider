@@ -42,6 +42,7 @@ PG_MODULE_MAGIC;
 #include "nodes/makefuncs.h"
 #include "nodes/print.h"
 #include "optimizer/appendinfo.h"
+#include "optimizer/inherit.h"
 #include "optimizer/pathnode.h"
 #include "optimizer/paths.h"
 #include "optimizer/planmain.h"
@@ -49,13 +50,13 @@ PG_MODULE_MAGIC;
 #include "optimizer/restrictinfo.h"
 #include "optimizer/optimizer.h"
 #include "optimizer/tlist.h"
+#include "parser/parse_relation.h"
 #include "parser/parsetree.h"
 #include "pgspider_core_compression_transfer.h"
 #include "storage/ipc.h"
 #include "utils/builtins.h"
 #include "utils/datum.h"
 #include "utils/elog.h"
-#include "utils/guc.h"
 #include "utils/hsearch.h"
 #include "utils/lsyscache.h"
 #include "utils/syscache.h"
@@ -158,7 +159,7 @@ PG_MODULE_MAGIC;
 	}
 
 /* Code version is updated at new release. */
-#define CODE_VERSION   30000
+#define CODE_VERSION   40000
 
 /*
  * Same as COMPARE_SCALAR_FIELD of equalfuncs.c
@@ -425,6 +426,18 @@ typedef struct SpdChildRootId
 	int			childid;
 }			SpdChildRootId;
 
+/*
+ * When multi tenant table acts as a child partition tables, there will be multiple
+ * fdw_private in corresponding with multple child partition multi tenant tables.
+ * Therefore, use this struct to map fdw_private with relation ID so that pgspider_core_fdw
+ * can get correct fdw_private in corresponding with each relation.
+ */
+typedef struct SpdRelFDWPrivate
+{
+	Oid			relid;
+	void	   *fdw_private;
+}			SpdRelFDWPrivate;
+
 /* local function forward declarations */
 void		_PG_init(void);
 
@@ -507,6 +520,10 @@ static TupleTableSlot *spd_ExecForeignDelete(EState *estate,
 											 TupleTableSlot *planSlot);
 static void spd_EndForeignModify(EState *estate,
 								 ResultRelInfo *rinfo);
+static void spd_BeginForeignInsert(ModifyTableState *mtstate,
+								   ResultRelInfo *resultRelInfo);
+static void spd_EndForeignInsert(EState *estate,
+								 ResultRelInfo *resultRelInfo);
 static int	spd_IsForeignRelUpdatable(Relation rel);
 static bool spd_PlanDirectModify(PlannerInfo *root,
 									 ModifyTable *plan,
@@ -534,6 +551,7 @@ static void spd_wait_transaction_thread_safe(ForeignScanThreadInfo *fssThrdInfo)
 static void spd_check_pending_request(ForeignScanThreadInfo * threadInfo, SpdTimeMeasureInfo * tm_info);
 static void spd_request_end_all_child_thread(void *arg);
 static bool spd_rel_has_spdurl(Oid relid);
+static SpdFdwPrivate *spd_GetPrivate(List *rel_private_list, Oid relid);
 
 /* Queue functions */
 static bool spd_queue_add(SpdTupleQueue * que, TupleTableSlot *slot, bool deepcopy, SpdTimeMeasureInfo * tm_info, int thread_index, Oid serveroid, Oid tableoid);
@@ -995,6 +1013,9 @@ pgspider_core_fdw_handler(PG_FUNCTION_ARGS)
 	fdwroutine->EndForeignModify = spd_EndForeignModify;
 	fdwroutine->ExplainForeignModify = spd_ExplainForeignModify;
 
+	fdwroutine->BeginForeignInsert = spd_BeginForeignInsert;
+	fdwroutine->EndForeignInsert = spd_EndForeignInsert;
+
 	fdwroutine->IsForeignRelUpdatable = spd_IsForeignRelUpdatable;
 	fdwroutine->PlanDirectModify = spd_PlanDirectModify;
 	fdwroutine->BeginDirectModify = spd_BeginDirectModify;
@@ -1186,17 +1207,19 @@ spd_queue_add(SpdTupleQueue * que, TupleTableSlot *slot, bool deepcopy, SpdTimeM
 	 */
 	if (TTS_IS_HEAPTUPLE(slot) && ((HeapTupleTableSlot *) slot)->tuple)
 	{
-		HeapTuple tuple = slot->tts_ops->get_heap_tuple(slot);
-
-		/* Extract heap tuple data into values and isnull arrays */
-		heap_deform_tuple(tuple, slot->tts_tupleDescriptor, que->tuples[idx]->tts_values, que->tuples[idx]->tts_isnull);
-
-		/* Copy tuple's tid */
-		que->tuples[idx]->tts_tid = tuple->t_self;
+		/*
+		 * For some FDWs like postgres_fdw, pgspider_fdw, they can reset batch_cxt
+		 * tuple memory context while PGSpider Core is using data allocated by that
+		 * memory context. Using a copy of an entire tuple is necessary to avoid corrupt
+		 * record data.
+		 */
+		ExecStoreHeapTuple(slot->tts_ops->copy_heap_tuple(slot),
+						   que->tuples[idx],
+						   false);
 	}
 	else
 	{
-		/* Store virtual tuple */
+		/* Virtual tuple */
 		natts = que->tuples[idx]->tts_tupleDescriptor->natts;
 		memcpy(que->tuples[idx]->tts_isnull, slot->tts_isnull, natts * sizeof(bool));
 
@@ -1217,13 +1240,13 @@ spd_queue_add(SpdTupleQueue * que, TupleTableSlot *slot, bool deepcopy, SpdTimeM
 		}
 		else
 			/*
-			* Even if deep copy is not necessary, tts_values array cannot be
-			* reused because it is overwritten by child fdw
-			*/
+			 * Even if deep copy is not necessary, tts_values array cannot be
+			 * reused because it is overwritten by child fdw
+			 */
 			memcpy(que->tuples[idx]->tts_values, slot->tts_values, (natts * sizeof(Datum)));
-	}
 
-	ExecStoreVirtualTuple(que->tuples[idx]);
+		ExecStoreVirtualTuple(que->tuples[idx]);
+	}
 
 	/* serveroid and tableoid are also stored so that we can know where the slot is from */
 	que->serveroid[idx] = serveroid;
@@ -2391,6 +2414,7 @@ spd_add_to_flat_tlist(List *tlist, Expr *expr, List **mapping_tlist,
 	{
 		case T_OpExpr:
 		case T_BoolExpr:
+		case T_ScalarArrayOpExpr:
 			{
 				/* Add original mapping list. */
 				if (!spd_tlist_member(expr, tlist, &target_num) && !is_having_qual)
@@ -3405,7 +3429,7 @@ spd_ForeignScan_thread(void *arg)
 	/* Configuration for context of error handling and memory context. */
 	spd_setThreadContext(fssthrdInfo, &errcallback, tuplectx);
 
-	/* Build a guc_variables array for child thread */
+	/* Build a guc_variables hash table for child thread */
 	build_guc_variables_child_thread();
 
 	spd_tm_child_thread_init(&fdw_private_main->tm_info, fssthrdInfo->childInfoIndex, get_rel_name(pChildInfo->oid));
@@ -3627,9 +3651,10 @@ spd_ParseUrl(List *spd_url_list)
 		char	   *next = NULL;
 		char	   *throwing_url = NULL;
 		int			original_len;
-		char	   *url_str = (char *) lfirst(lc);
+		char	   *url_str;
 		List	   *url_parse_list = NULL;
 
+		url_str = strVal(lfirst(lc));
 		url_option = pstrdup(url_str);
 		if (url_option[0] != '/')
 			elog(ERROR, "Failed to parse URL '%s' in IN clause. The first character should be '/'.", url_str);
@@ -3638,7 +3663,7 @@ spd_ParseUrl(List *spd_url_list)
 		if (tp == NULL)
 			break;
 
-		url_parse_list = lappend(url_parse_list, tp);	/* Original URL */
+		url_parse_list = lappend(url_parse_list, makeString(tp));	/* Original URL */
 
 		throw_tp = strtok_r(NULL, "/", &next);
 		if (throw_tp != NULL)
@@ -3646,7 +3671,7 @@ spd_ParseUrl(List *spd_url_list)
 			original_len = strlen(tp) + 1;
 			throwing_url = pstrdup(&url_str[original_len]); /* Throwing URL */
 			if (strlen(throwing_url) != 1)
-				url_parse_list = lappend(url_parse_list, throwing_url);
+				url_parse_list = lappend(url_parse_list, makeString(throwing_url));
 		}
 		parsed_url = lappend(parsed_url, url_parse_list);
 	}
@@ -3696,10 +3721,10 @@ spd_create_child_url(List *spd_url_list, ChildInfo *pChildInfo, int node_num,
 		char	   *throwing_url = NULL;
 		List	   *url_parse_list = (List *) lfirst(lc);
 
-		original_url = (char *) list_nth(url_parse_list, 0);
+		original_url = strVal(list_nth(url_parse_list, 0));
 		if (url_parse_list->length > 1)
 		{
-			throwing_url = (char *) list_nth(url_parse_list, 1);
+			throwing_url = strVal(list_nth(url_parse_list, 1));
 		}
 		/* If IN clause is used, then store parsed URL. */
 		for (i = 0; i < node_num; i++)
@@ -3738,7 +3763,7 @@ spd_create_child_url(List *spd_url_list, ChildInfo *pChildInfo, int node_num,
 				{
 					elog(ERROR, "Trying to pushdown IN clause. But child node is not %s.", PGSPIDER_FDW_NAME);
 				}
-				pChildInfo[i].url_list = lappend(pChildInfo[i].url_list, throwing_url);
+				pChildInfo[i].url_list = lappend(pChildInfo[i].url_list, makeString(throwing_url));
 			}
 		}
 	}
@@ -4013,7 +4038,7 @@ spd_makeRangeTableEntry(Oid relid, char relkind, List *spd_url_list)
 	 * new IN clause URL at child node planner URL.
 	 */
 	if (spd_url_list != NIL)
-		rte->spd_url_list = list_copy(spd_url_list);
+		rte->spd_url_list = list_copy_deep(spd_url_list);
 
 	return rte;
 }
@@ -4028,7 +4053,7 @@ spd_makeRangeTableEntry(Oid relid, char relkind, List *spd_url_list)
  * @return Created PlannerInfo
  */
 static PlannerInfo *
-spd_CreateRoot(PlannerInfo *root, List *rtable)
+spd_CreateRoot(PlannerInfo *root, List *rtable, List *rteperminfos)
 {
 	PlannerInfo	   *new_root;
 	Query		   *query;
@@ -4060,8 +4085,14 @@ spd_CreateRoot(PlannerInfo *root, List *rtable)
 	 */
 	new_root->placeholder_list = copyObject(root->placeholder_list);
 
+	/* Inherit JoinDomain list of base root */
+	new_root->join_domains = root->join_domains;
+
 	/* Set a range table. */
 	query->rtable = rtable;
+
+	/* Set RTEPermissionInfo List*/
+	query->rteperminfos = rteperminfos;
 
 	/* Set up RTE/RelOptInfo arrays. */
 	setup_simple_rel_arrays(new_root);
@@ -4128,6 +4159,7 @@ spd_CreateChildRoot(PlannerInfo *root, Index relid, Oid tableOid, Oid oid_server
 	List	   *rtable = NIL;
 	ListCell   *lc;
 	Index		i = 1;
+	List	   *rteperminfos = NIL;
 
 	/* Create a child range table. */
 	foreach(lc, root->parse->rtable)
@@ -4135,6 +4167,7 @@ spd_CreateChildRoot(PlannerInfo *root, Index relid, Oid tableOid, Oid oid_server
 		RangeTblEntry *rte = (RangeTblEntry *) lfirst(lc);
 		RangeTblEntry *child_rte;
 		Oid			child_relid;
+		RTEPermissionInfo *child_perminfo;
 
 		/*
 		 * Get a child table oid corresponding to the parent table oid. That
@@ -4152,13 +4185,20 @@ spd_CreateChildRoot(PlannerInfo *root, Index relid, Oid tableOid, Oid oid_server
 		/* Create a range table entry. */
 		child_rte = spd_makeRangeTableEntry(child_relid, rte->relkind, spd_url_list);
 
+		if (child_relid != 0)
+		{
+			/* Create RTEPermissionInfo */
+			child_perminfo = addRTEPermissionInfo(&rteperminfos, child_rte);
+			child_perminfo->requiredPerms = ACL_SELECT;
+		}
+
 		rtable = lappend(rtable, child_rte);
 
 		i++;
 	}
 
 	/* Create a child root. */
-	child_root = spd_CreateRoot(root, rtable);
+	child_root = spd_CreateRoot(root, rtable, rteperminfos);
 
 	return child_root;
 }
@@ -4188,6 +4228,8 @@ spd_GetChildRoot(PlannerInfo *root, Index relid, Oid child_tableoid, Oid oid_ser
 	ListCell   *lc;
 	PlannerInfo *child_root = NULL;
 	SpdChildRootId *child_root_id;
+	PlannerInfo	   *old_child_root = NULL;
+	bool			reset_child_root = false;
 
 	foreach(lc, root->child_root)
 	{
@@ -4202,17 +4244,48 @@ spd_GetChildRoot(PlannerInfo *root, Index relid, Oid child_tableoid, Oid oid_ser
 		}
 	}
 
-	if (child_root == NULL)
+	/*
+	 * In some cases (For example, there is inheritance, or partition tables), the root->parse->rtable
+	 * might be expanded to add all the child objects into it. It will lead to mismatch between arrays
+	 * of root and child_root. In those cases, recreate child root.
+	 */
+	if (child_root && child_root->simple_rel_array_size != root->parse->rtable->length + 1)
+	{
+		old_child_root = child_root;
+		reset_child_root = true;
+	}
+
+	if (child_root == NULL || reset_child_root == true)
 	{
 		child_root = spd_CreateChildRoot(root, relid, child_tableoid, oid_server,
 										 spd_url_list);
 
+		/* Set up RTE/RelOptInfo arrays. */
 		child_root_id = palloc0(sizeof(SpdChildRootId));
 		child_root_id->serveroid = oid_server;
 		child_root_id->childid = i_child;
 
+		child_root->append_rel_array = root->append_rel_array;
 		child_root->child_root = lappend(child_root->child_root, child_root_id);
+
+		/*
+		 * In case of reset, all existing items of child_root->simple_rel_array will be copied into
+		 * the new child root, to preserve the created base child relation.
+		 * process_tlist is copied, too.
+		 */
+		if (reset_child_root)
+		{
+			for (int i = 0; i < old_child_root->simple_rel_array_size; i++)
+			{
+				child_root->simple_rel_array[i] = copyObject(old_child_root->simple_rel_array[i]);
+			}
+			child_root->processed_tlist = copyObject(old_child_root->processed_tlist);
+			child_root->update_colnos = copyObject(old_child_root->update_colnos);
+			root->child_root = list_delete(root->child_root, old_child_root);
+		}
+
 		root->child_root = lappend(root->child_root, child_root);
+
 	}
 
 	/*
@@ -4418,6 +4491,7 @@ spd_CopyRoot(PlannerInfo *root, RelOptInfo *baserel, SpdFdwPrivate * fdw_private
 {
 	List	   *rtable = NIL;
 	ListCell   *lc;
+	List	   *rteperminfos = NIL;
 
 	fdw_private->isFirst = true;
 
@@ -4426,15 +4500,23 @@ spd_CopyRoot(PlannerInfo *root, RelOptInfo *baserel, SpdFdwPrivate * fdw_private
 	{
 		RangeTblEntry *rte = (RangeTblEntry *) lfirst(lc);
 		RangeTblEntry *new_rte;
+		RTEPermissionInfo *perminfo;
 
 		/* Create a range table entry. */
 		new_rte = spd_makeRangeTableEntry(rte->relid, rte->relkind, NULL);
+
+		if (new_rte->relid != 0)
+		{
+			/* Create RTEPermissionInfo */
+			perminfo = addRTEPermissionInfo(&rteperminfos, new_rte);
+			perminfo->requiredPerms = ACL_SELECT;
+		}
 
 		rtable = lappend(rtable, new_rte);
 	}
 
 	/* Create new root. */
-	fdw_private->spd_root = spd_CreateRoot(root, rtable);
+	fdw_private->spd_root = spd_CreateRoot(root, rtable, rteperminfos);
 
 	/*
 	 * Memorize remote and local restrictinfo into fdw_private so that we can refer it
@@ -6327,6 +6409,7 @@ foreign_grouping_ok(PlannerInfo *root, RelOptInfo *grouped_rel)
 									  true,
 									  false,
 									  false,
+									  false,
 									  root->qual_security_level,
 									  grouped_rel->relids,
 									  NULL,
@@ -6414,7 +6497,6 @@ foreign_grouping_ok(PlannerInfo *root, RelOptInfo *grouped_rel)
 	return true;
 }
 
-
 /*
  * spd_CreateChildJoinRel
  *
@@ -6430,6 +6512,7 @@ spd_CreateChildJoinRel(PlannerInfo *root_child, RelOptInfo *rel1, RelOptInfo *re
 	SpecialJoinInfo sjinfo_data;
 	RelOptInfo *joinrel_child;
 	List	   *restrictlist;
+	List	   *pushed_down_joins_child = NIL;
 
 	/* Construct Relids set that identifies the joinrel. */
 	joinrelids = bms_union(rel1->relids, rel2->relids);
@@ -6442,6 +6525,13 @@ spd_CreateChildJoinRel(PlannerInfo *root_child, RelOptInfo *rel1, RelOptInfo *re
 		bms_free(joinrelids);
 		return NULL;
 	}
+
+	/*
+	 * Add outer join relid(s) to form the canonical relids.  Any added outer
+	 * joins besides sjinfo itself are appended to pushed_down_joins.
+	 */
+	joinrelids = add_outer_joins_to_relids(root_child, joinrelids, sjinfo,
+										   &pushed_down_joins_child);
 
 	/* Swap rels if needed to match the join info. */
 	if (reversed)
@@ -6466,21 +6556,26 @@ spd_CreateChildJoinRel(PlannerInfo *root_child, RelOptInfo *rel1, RelOptInfo *re
 		sjinfo->syn_lefthand = rel1->relids;
 		sjinfo->syn_righthand = rel2->relids;
 		sjinfo->jointype = JOIN_INNER;
+		sjinfo->ojrelid = 0;
+		sjinfo->commute_above_l = NULL;
+		sjinfo->commute_above_r = NULL;
+		sjinfo->commute_below_l = NULL;
+		sjinfo->commute_below_r = NULL;
 		/* we don't bother trying to make the remaining fields valid */
 		sjinfo->lhs_strict = false;
-		sjinfo->delay_upper_joins = false;
 		sjinfo->semi_can_btree = false;
 		sjinfo->semi_can_hash = false;
 		sjinfo->semi_operators = NIL;
 		sjinfo->semi_rhs_exprs = NIL;
 	}
 
+
 	/*
 	 * Find or build the join RelOptInfo, and compute the restrictlist that
 	 * goes with this particular joining.
 	 */
 	joinrel_child = build_join_rel(root_child, joinrelids, rel1, rel2, sjinfo,
-								   &restrictlist);
+								   pushed_down_joins_child, &restrictlist);
 
 	bms_free(joinrelids);
 
@@ -6670,6 +6765,13 @@ spd_GetForeignJoinPathsChild(SpdFdwPrivate * fdw_private_outer,
 	else
 		innerrel_child = root_child->simple_rel_array[innerrel->relid];
 
+	/*
+	 * add_outer_joins_to_relids requires the following information.
+	 * Copy them from parent root.
+	 */
+	root_child->join_info_list = root->join_info_list;
+	root_child->outer_join_rels = root->outer_join_rels;
+
 	/* Create child join relation. */
 	joinrel_child = spd_CreateChildJoinRel(root_child, outerrel_child, innerrel_child);
 	if (!joinrel_child)
@@ -6846,7 +6948,7 @@ spd_GetForeignJoinPaths(PlannerInfo *root,
 	}
 
 	/* Create new root. */
-	fdw_private->spd_root = spd_CreateRoot(root, root->parse->rtable);
+	fdw_private->spd_root = spd_CreateRoot(root, root->parse->rtable, root->parse->rteperminfos);
 
 	/*
 	 * Create a new join path and add it to the joinrel which represents a
@@ -8261,7 +8363,7 @@ spd_request_end_all_child_thread(void *arg)
 	/* Reset child node offset to 0 for new query execution. */
 	g_node_offset = 0;
 
-	AssertArg(arg);
+	Assert(arg);
 
 	if (IsA(arg, ForeignScanState))
 	{
@@ -8416,7 +8518,7 @@ spd_wait_transaction_foreign_modify_thread_safe(ModifyThreadInfo *mtThrdInfo)
 static void
 spd_at_abort_subtransaction(void *arg)
 {
-	AssertArg(arg);
+	Assert(arg);
 
 	elog(DEBUG1, "At %s", __func__);
 
@@ -8513,7 +8615,7 @@ spd_at_abort_subtransaction(void *arg)
 static void
 spd_pending_all_child_thread(void *arg)
 {
-	AssertArg(arg);
+	Assert(arg);
 
 	elog(DEBUG1, "At %s", __func__);
 
@@ -8611,7 +8713,7 @@ spd_sub_xact_callback(SubXactEvent event, SubTransactionId mySubid,
 {
 	elog(DEBUG1, "At %s", __func__);
 
-	AssertArg(arg);
+	Assert(arg);
 
 	switch (event)
 	{
@@ -8774,7 +8876,8 @@ spd_fix_param_node(PlannerInfo *root, Param *p)
  * @return Created foreign scan state
  */
 static ForeignScanState *
-spd_CreateChildFsstate(ForeignScanState *node, ChildInfo * pChildInfo, int eflags, List *rtable, Relation rd, int planType)
+spd_CreateChildFsstate(ForeignScanState *node, ChildInfo * pChildInfo, int eflags,
+					   List *rtable, List *rteperminfos, Relation rd, int planType)
 {
 	ForeignScanState *fsstate_child;
 	ForeignScan *fsplan_child;
@@ -8798,7 +8901,19 @@ spd_CreateChildFsstate(ForeignScanState *node, ChildInfo * pChildInfo, int eflag
 		fsstate_child->ss = node->ss;
 		fsplan_child = (ForeignScan *) copyObject(node->ss.ps.plan);
 	}
-	fsplan_child->fdw_private = ((ForeignScan *) pChildInfo->plan)->fdw_private;
+
+	if (IsA(pChildInfo->plan, ForeignScan))
+		fsplan_child->fdw_private = ((ForeignScan *) pChildInfo->plan)->fdw_private;
+	else if (IsA(pChildInfo->plan, Append))
+	{
+		/*
+		 * When multi-tenant table is used as child partitioned table, an Append node which has ForeignScan
+		 * as inner plan will be created. Look for ForeignScan and get its fdw_private.
+		 */
+		Append *append_plan = (Append *) pChildInfo->plan;
+
+		fsplan_child->fdw_private = ((ForeignScan *) list_nth(append_plan->appendplans, 0))->fdw_private;
+	}
 
 	/*
 	 * When there is param with kind PARAM_MULTIEXPR, need to process the param before copying
@@ -8843,7 +8958,7 @@ spd_CreateChildFsstate(ForeignScanState *node, ChildInfo * pChildInfo, int eflag
 		 * Init range table, in which we use range table array for exec_rt_fetch()
 		 * because it is faster than rt_fetch().
 		 */
-		ExecInitRangeTable(fsstate_child->ss.ps.state, rtable);
+		ExecInitRangeTable(fsstate_child->ss.ps.state, rtable, rteperminfos);
 		fsstate_child->ss.ps.state->es_plannedstmt = copyObject(node->ss.ps.state->es_plannedstmt);
 		fsstate_child->ss.ps.state->es_plannedstmt->planTree = copyObject(fsstate_child->ss.ps.plan);
 	}
@@ -9229,7 +9344,7 @@ spd_setThreadInfo(ForeignScanState *node, SpdFdwPrivate * fdw_private,
 		ResourceOwnerCreate(CurrentResourceOwner, "thread resource owner");
 	pFssThrdInfo->private = fdw_private;
 
-	if (pFssThrdInfo->is_foreign_modify_query)
+	if (pFssThrdInfo->is_foreign_modify_query && !fdw_private->is_explain)
 	{
 		/* Only append thread info of main thread */
 		ChildThreadInfo	*child_thread_info = (ChildThreadInfo *) palloc0(sizeof(ChildThreadInfo));
@@ -9518,7 +9633,8 @@ spd_BeginForeignScan(ForeignScanState *node, int eflags)
 			LockRelationOid(pChildInfo->oid, AccessShareLock);
 
 		/* Create child fsstate. */
-		fsstate_child = spd_CreateChildFsstate(node, pChildInfo, eflags, query->rtable, rd, SpdForeignScan);
+		fsstate_child = spd_CreateChildFsstate(node, pChildInfo, eflags, query->rtable,
+											   query->rteperminfos, rd, SpdForeignScan);
 
 		/* Set member variables in ForeignScanThreadInfo. */
 		spd_setThreadInfo(node, fdw_private, pChildInfo, fsstate_child, eflags,
@@ -11451,15 +11567,30 @@ spd_IterateForeignScan(ForeignScanState *node)
 			return NULL;
 
 		/*
-		 * Store virtual slot under the management of main thread
-		 * to avoid conflict with child thread since both of them
-		 * handle slots of the same queue at the same time.
+		 * Return main tuple slot which used main memory context via tts_mcxt variable.
+		 * This is used to avoid using the shared memory context via tts_mcxt variable
+		 * while PGSpider Core allocates some memories into tts_mcxt memory context and
+		 * child thread tries to free some memories in that context concurrently. That
+		 * make memory context corrupted.
+		 *
+		 * The child slot had gotten from the queue, it is either a HeapTuple slot or a VirtualTuple
+		 * slot when adding a child slot to queue, main slot will point to the built child tuple
+		 * for HeapTuple case or point to the built child values/isnull arrays for VirtualTuple case.
 		 */
-		tempSlot->tts_values = slot->tts_values;
-		tempSlot->tts_isnull = slot->tts_isnull;
-		if (ItemPointerIsValid(&(slot->tts_tid)))
-			tempSlot->tts_tid = slot->tts_tid;
-		ExecStoreVirtualTuple(tempSlot);
+		if (TTS_IS_HEAPTUPLE(slot) && ((HeapTupleTableSlot *) slot)->tuple)
+		{
+			HeapTupleTableSlot *hslot = (HeapTupleTableSlot *) slot;
+
+			ExecStoreHeapTuple(hslot->tuple, tempSlot, false);
+		}
+		else
+		{
+			/* Virtual tuple */
+			tempSlot->tts_values = slot->tts_values;
+			tempSlot->tts_isnull = slot->tts_isnull;
+
+			ExecStoreVirtualTuple(tempSlot);
+		}
 	}
 
 	spd_tm_accum_diff(&fdw_private->tm_info, SPD_TM_PARENT_ID, SPD_TM_PARENT_ITERATE);
@@ -11820,7 +11951,7 @@ spd_find_modifytable_subplan(PlannerInfo *root,
 	{
 		ForeignScan *fscan = (ForeignScan *) subplan;
 
-		if (bms_is_member(rtindex, fscan->fs_relids))
+		if (bms_is_member(rtindex, fscan->fs_base_relids))
 			return fscan;
 	}
 
@@ -11842,7 +11973,8 @@ spd_PlanDirectModify(PlannerInfo *root,
 {
 	CmdType		operation = plan->operation;
 	int			i;
-	SpdFdwPrivate *fdw_private = root->fdw_private;
+	RangeTblEntry *rte = planner_rt_fetch(resultRelation, root);
+	SpdFdwPrivate *fdw_private = NULL;
 	bool		direct_modify = false;
 	ForeignScan *fscan;
 	RelOptInfo *foreignrel;
@@ -11855,6 +11987,7 @@ spd_PlanDirectModify(PlannerInfo *root,
 	if (operation != CMD_UPDATE && operation != CMD_DELETE)
 		return false;
 
+	fdw_private = spd_GetPrivate(root->rel_private_list, rte->relid);
 	/*
 	 * Try to locate the ForeignScan subplan that's scanning resultRelation.
 	 */
@@ -11912,6 +12045,7 @@ spd_PlanDirectModify(PlannerInfo *root,
 	{
 		ModifyTable *tmp_plan = copyObject(plan);
 		ChildInfo  *pChildInfo = &fdw_private->childinfo[i];
+		RelOptInfo *baserel = find_base_rel(root, resultRelation);
 
 		/* Reset value of direct_modify variable */
 		direct_modify = false;
@@ -11924,13 +12058,16 @@ spd_PlanDirectModify(PlannerInfo *root,
 		pChildInfo->root = spd_GetChildRoot(root, resultRelation, pChildInfo->oid, pChildInfo->server_oid,
 										 pChildInfo->url_list, i);
 
+		/* Set resultRelation to the relid of child base rel that was created in spd_GetForeignRelSizeChild */
+		pChildInfo->root->parse->resultRelation = baserel->relid;
+
 		/* Do child node's PlanDirectModify. */
 		if (pChildInfo->fdwroutine != NULL &&
 			pChildInfo->fdwroutine->PlanDirectModify != NULL &&
 			pChildInfo->fdwroutine->BeginDirectModify != NULL &&
 			pChildInfo->fdwroutine->IterateDirectModify != NULL &&
 			pChildInfo->fdwroutine->EndDirectModify != NULL)
-			direct_modify = pChildInfo->fdwroutine->PlanDirectModify(pChildInfo->root, tmp_plan, resultRelation, 0);
+			direct_modify = pChildInfo->fdwroutine->PlanDirectModify(pChildInfo->root, tmp_plan, pChildInfo->root->parse->resultRelation, 0);
 
 		if (!direct_modify)
 			return false;
@@ -12277,7 +12414,7 @@ spd_DirectModify_thread(void *arg)
 	/* Configuration for context of error handling and memory context. */
 	spd_setThreadContext(fssthrdInfo, &errcallback, tuplectx);
 
-	/* Build a guc_variables array for child thread */
+	/* Build a guc_variables hash table for child thread */
 	build_guc_variables_child_thread();
 
 	spd_tm_child_thread_init(&fdw_private_main->tm_info, fssthrdInfo->childInfoIndex, get_rel_name(pChildInfo->oid));
@@ -12526,7 +12663,8 @@ spd_BeginDirectModify(ForeignScanState *node, int eflags)
 			LockRelationOid(pChildInfo->oid, AccessShareLock);
 
 		/* Create child fsstate. */
-		fsstate_child = spd_CreateChildFsstate(node, pChildInfo, eflags, query->rtable, rd, SpdDirectModify);
+		fsstate_child = spd_CreateChildFsstate(node, pChildInfo, eflags, query->rtable,
+											   query->rteperminfos, rd, SpdDirectModify);
 		fsstate_child->resultRelInfo = estate->es_result_relations[fsplan->resultRelation - 1];
 
 		/* Set member variables in ForeignScanThreadInfo. */
@@ -12827,6 +12965,24 @@ spd_InitPrivate(Oid foreigntableid, List *spd_url_list, int *nums)
 
 	return fdw_private;
 }
+
+/* Get fdw_private of a relation based on relation id */
+static SpdFdwPrivate *
+spd_GetPrivate(List *rel_private_list, Oid relid)
+{
+	ListCell *lc;
+
+	foreach(lc, rel_private_list)
+	{
+		SpdRelFDWPrivate *rel_fdw_private = (SpdRelFDWPrivate *) lfirst(lc);
+
+		if (rel_fdw_private->relid == relid)
+			return rel_fdw_private->fdw_private;
+	}
+
+	return NULL;
+}
+
 /**
  * spd_AddForeignUpdateTargetsChild
  *
@@ -12884,7 +13040,7 @@ spd_AddForeignUpdateTargetsChild(PlannerInfo *root, Index relid,
 		child_root->leaf_result_relids = root->leaf_result_relids;
 		child_root->processed_tlist = root->processed_tlist;
 		child_root->update_colnos = root->update_colnos;
-
+		child_root->row_identity_vars = root->row_identity_vars;
 		/* No need to call AddForeignUpdateTargets for INSERT */
 		if (isInsert)
 		{
@@ -12994,9 +13150,13 @@ spd_AddForeignUpdateTargets(PlannerInfo *root,
 	MemoryContext oldcontext;
 	SpdFdwPrivate *fdw_private;
 	int			nums = 0;
+	SpdRelFDWPrivate *rel_fdw_private = (SpdRelFDWPrivate *)
+	MemoryContextAllocZero(TopTransactionContext, sizeof(*rel_fdw_private));
 
 	fdw_private = spd_InitPrivate(relid, target_rte->spd_url_list, &nums);
-	root->fdw_private = (void *) fdw_private;
+	rel_fdw_private->fdw_private = fdw_private;
+	rel_fdw_private->relid = relid;
+	root->rel_private_list = lappend(root->rel_private_list, (void *) rel_fdw_private);
 	oldcontext = MemoryContextSwitchTo(TopTransactionContext);
 
 	spd_AddForeignUpdateTargetsChild(root, relid, rtindex, nums, fdw_private->childinfo, false);
@@ -13040,14 +13200,15 @@ spd_PlanForeignModifyChild(PlannerInfo *root,
 						   Index resultRelation,
 						   int subplan_index,
 						   ChildInfo * childinfo,
-						   CmdType operation)
+						   CmdType operation,
+						   RTEPermissionInfo *parentPermInfo)
 {
-	SpdFdwPrivate *fdw_private = (SpdFdwPrivate *) root->fdw_private;
 	int			i;
 	int			node_incr = 0;
 	MemoryContext oldcontext = CurrentMemoryContext;
 	RangeTblEntry *parentrte = planner_rt_fetch(resultRelation, root);
 	ForeignTable *table = GetForeignTable(parentrte->relid);
+	SpdFdwPrivate *fdw_private = spd_GetPrivate(root->rel_private_list, parentrte->relid);
 	bool		disable_transaction_feature_check = true;
 	ListCell   *lc;
 
@@ -13068,7 +13229,6 @@ spd_PlanForeignModifyChild(PlannerInfo *root,
 		ChildInfo *pChildInfo = &childinfo[i];
 		ForeignServer *fs;
 		ForeignDataWrapper *fdw;
-		List	   *rtable = NIL;
 		ListCell   *lc;
 		Relation	rel;
 		int			refcnt;
@@ -13090,26 +13250,34 @@ spd_PlanForeignModifyChild(PlannerInfo *root,
 		pChildInfo->root = spd_GetChildRoot(root, resultRelation, pChildInfo->oid,
 											pChildInfo->server_oid, pChildInfo->url_list, i);
 
+		if (operation != CMD_INSERT)
+		{
+			RelOptInfo *baserel = find_base_rel(root, resultRelation);
+
+			/* Set resultRelation to the relid of child base rel that was created in spd_GetForeignRelSizeChild */
+			pChildInfo->root->parse->resultRelation = baserel->relid;
+		}
+
 		/* Create a range table. */
 		foreach(lc, pChildInfo->root->parse->rtable)
 		{
 			RangeTblEntry *rte = (RangeTblEntry *) lfirst(lc);
 
 			rte->tablesample = copyObject(parentrte->tablesample);
-
-			rte->selectedCols = bms_copy(parentrte->selectedCols);
-			rte->insertedCols = bms_copy(parentrte->insertedCols);
-			rte->updatedCols = bms_copy(parentrte->updatedCols);
-			rte->extraUpdatedCols = bms_copy(parentrte->extraUpdatedCols);
-
-			rtable = lappend(rtable, rte);
 		}
 
-		/* Set a range table. */
-		pChildInfo->root->parse->rtable = rtable;
+		if (parentPermInfo)
+		{
+			/* Create a RTEPermissionInfo. */
+			foreach(lc, pChildInfo->root->parse->rteperminfos)
+			{
+				RTEPermissionInfo *perminfo = (RTEPermissionInfo *) lfirst(lc);
 
-		/* Set up RTE/RelOptInfo arrays. */
-		setup_simple_rel_arrays(pChildInfo->root);
+				perminfo->selectedCols = bms_copy(parentPermInfo->selectedCols);
+				perminfo->insertedCols = bms_copy(parentPermInfo->insertedCols);
+				perminfo->updatedCols = bms_copy(parentPermInfo->updatedCols);
+			}
+		}
 
 		/*
 		 * Memorize the current reference count so that we can detect to call table_close()
@@ -13127,7 +13295,7 @@ spd_PlanForeignModifyChild(PlannerInfo *root,
 					pChildInfo->fdwroutine->ExecForeignInsert != NULL &&
 					pChildInfo->fdwroutine->EndForeignModify != NULL)
 				{
-					child_fdw_private = pChildInfo->fdwroutine->PlanForeignModify(pChildInfo->root, plan, resultRelation, subplan_index);
+					child_fdw_private = pChildInfo->fdwroutine->PlanForeignModify(pChildInfo->root, plan, pChildInfo->root->parse->resultRelation, subplan_index);
 					node_incr++;
 				}
 				else
@@ -13145,7 +13313,7 @@ spd_PlanForeignModifyChild(PlannerInfo *root,
 					pChildInfo->fdwroutine->BeginForeignModify != NULL &&
 					pChildInfo->fdwroutine->EndForeignModify != NULL)
 				{
-					child_fdw_private = pChildInfo->fdwroutine->PlanForeignModify(pChildInfo->root, plan, resultRelation, subplan_index);
+					child_fdw_private = pChildInfo->fdwroutine->PlanForeignModify(pChildInfo->root, plan, pChildInfo->root->parse->resultRelation, subplan_index);
 					node_incr++;
 				}
 				else
@@ -13216,9 +13384,11 @@ spd_PlanForeignModify(PlannerInfo *root,
 {
 	RangeTblEntry *rte = planner_rt_fetch(resultRelation, root);
 	MemoryContext oldcontext;
-	SpdFdwPrivate *fdw_private = (SpdFdwPrivate *) root->fdw_private;
 	int			nums = 0;
 	CmdType		operation = plan->operation;
+	SpdFdwPrivate *fdw_private = spd_GetPrivate(root->rel_private_list, rte->relid);
+	RangeTblEntry *parentrte = NULL;
+	RTEPermissionInfo *parentPermInfo = NULL;
 
 	if (plan->returningLists)
 		ereport(ERROR,
@@ -13241,27 +13411,41 @@ spd_PlanForeignModify(PlannerInfo *root,
 	 */
 	if (fdw_private == NULL)
 	{
+		SpdRelFDWPrivate *rel_fdw_private = (SpdRelFDWPrivate *)
+		MemoryContextAllocZero(TopTransactionContext, sizeof(*rel_fdw_private));
+
 		fdw_private = (void *) spd_InitPrivate(rte->relid, rte->spd_url_list, &nums);
 		spd_AddForeignUpdateTargetsChild(root, rte->relid, 1, nums, fdw_private->childinfo, true);
-		root->fdw_private = (void *) fdw_private;
+		rel_fdw_private->relid = rte->relid;
+		rel_fdw_private->fdw_private = fdw_private;
+		root->rel_private_list = lappend(root->rel_private_list, (void *) rel_fdw_private);
 	}
 
 	if (operation == CMD_UPDATE)
 	{
-		AttrNumber	col;
-		Bitmapset  *tmpset = bms_union(rte->updatedCols, rte->extraUpdatedCols);
+		int			col = 0;
+		RelOptInfo *rel = find_base_rel(root, resultRelation);
+		Bitmapset  *allUpdatedCols = get_rel_all_updated_cols(root, rel);
 		char	   *colname = NULL;
 
-		while ((col = bms_first_member(tmpset)) >= 0)
+		while ((col = bms_next_member(allUpdatedCols, col)) >= 0)
 		{
-			col += FirstLowInvalidHeapAttributeNumber;
+			/* bit numbers are offset by FirstLowInvalidHeapAttributeNumber */
+			AttrNumber	attno = col + FirstLowInvalidHeapAttributeNumber;
 
-			if (col <= InvalidAttrNumber)	/* shouldn't happen */
+			if (attno <= InvalidAttrNumber)	/* shouldn't happen */
 				elog(ERROR, "system-column update is not supported");
 
-			colname = get_attname(rte->relid, col, false);
+			colname = get_attname(rte->relid, attno, false);
 			if (strcmp(colname, SPDURL) == 0)	/* __spd_url can't be updated */
 				elog(ERROR, "__spd_url column update is not supported");
+		}
+
+		parentrte = planner_rt_fetch(root->parse->resultRelation, root);
+		if (parentrte->perminfoindex > 0)
+		{
+			parentPermInfo = getRTEPermissionInfo(root->parse->rteperminfos, parentrte);
+			parentPermInfo->updatedCols = allUpdatedCols;
 		}
 	}
 
@@ -13269,7 +13453,7 @@ spd_PlanForeignModify(PlannerInfo *root,
 		spd_routing_candidate_validate(fdw_private->childinfo, fdw_private->node_num);
 
 	oldcontext = MemoryContextSwitchTo(TopTransactionContext);
-	spd_PlanForeignModifyChild(root, plan, resultRelation, subplan_index, fdw_private->childinfo, operation);
+	spd_PlanForeignModifyChild(root, plan, resultRelation, subplan_index, fdw_private->childinfo, operation, parentPermInfo);
 
 	fdw_private->operation = operation;
 	MemoryContextSwitchTo(oldcontext);
@@ -13313,11 +13497,15 @@ spd_CreateChildForeignModifyMtstate(ModifyTable *node, PlannerInfo *child_root, 
 	mtstate->ps.state->es_relations[0] = rd;
 	mtstate->rootResultRelInfo = mtstate->resultRelInfo;
 
+	/* Copy RTEPermissionInfo list */
+	mtstate->ps.state->es_rteperminfos = child_root->parse->rteperminfos;
+
 	ExecInitResultRelation(mtstate->ps.state, mtstate->resultRelInfo,
-						   linitial_int(node->resultRelations));
+						   child_root->parse->resultRelation);
 
 	/* set up epqstate with dummy subplan data for the moment */
-	EvalPlanQualInit(&mtstate->mt_epqstate, mtstate->ps.state, NULL, NIL, node->epqParam);
+	EvalPlanQualInit(&mtstate->mt_epqstate, mtstate->ps.state, NULL, NIL,
+					 node->epqParam, node->resultRelations);
 	mtstate->fireBSTriggers = true;
 
 	resultRelInfo = mtstate->resultRelInfo;
@@ -13950,7 +14138,7 @@ spd_ForeignModify_thread(void *arg)
 		update_normalized_id(child_thread_info->normalizedId);
 	}
 
-	/* Build a guc_variables array for child thread */
+	/* Build a guc_variables hash table for child thread */
 	build_guc_variables_child_thread();
 
 	/* BeginForeignModify */
@@ -13958,6 +14146,9 @@ spd_ForeignModify_thread(void *arg)
 	{
 		pChildInfo->fdw_private = lappend(pChildInfo->fdw_private, makeInteger(fdw_private->socketInfo->socket_port));
 		pChildInfo->fdw_private = lappend(pChildInfo->fdw_private, makeInteger(fdw_private->socketInfo->function_timeout));
+		pChildInfo->fdw_private = lappend(pChildInfo->fdw_private, makeString(fdw_private->socketInfo->public_host));
+		pChildInfo->fdw_private = lappend(pChildInfo->fdw_private, makeInteger(fdw_private->socketInfo->public_port));
+		pChildInfo->fdw_private = lappend(pChildInfo->fdw_private, makeString(fdw_private->socketInfo->ifconfig_service));
 	}
 	spd_BeginForeignModifyChild(mtThrdInfo, pChildInfo, &fdw_private->modify_mutex, &fdw_private->socketInfo->socketThreadInfos, fdw_private->data_compression_transfer_enabled, &socketThreadInfo);
 
@@ -14308,13 +14499,18 @@ spd_BeginForeignModify(ModifyTableState *mtstate,
 		int			socket_port;
 		int			function_timeout;
 		Relation	rel = resultRelInfo->ri_RelationDesc;
+		char		*public_host = NULL;
+		char        *ifconfig_service =  NULL;
+		int          public_port = -1;
 		SocketInfo *socketInfo;
 
-		spd_get_dct_option(rel, &socket_port, &function_timeout);
-
 		socketInfo =  (SocketInfo *) palloc0(sizeof(SocketInfo));
+		spd_get_dct_option(rel, &socket_port, &function_timeout, &public_host, &public_port, &ifconfig_service);
 		fdw_private->socketInfo = socketInfo;
 
+		socketInfo->public_host = public_host;
+		socketInfo->public_port = public_port;
+		socketInfo->ifconfig_service = ifconfig_service;
 		socketInfo->socket_port = socket_port;
 		socketInfo->function_timeout = function_timeout;
 		socketInfo->thrd_ResourceOwner = ResourceOwnerCreate(CurrentResourceOwner, "socket server thread resource owner");
@@ -15441,6 +15637,40 @@ spd_EndForeignModify(EState *estate,
 	spd_finalizeForeignModify(resultRelInfo);
 }
 
+/*
+ * spd_BeginForeignInsert
+ *		Begin an insert operation on a foreign table
+ *
+ * This is not yet supported, raise an error here to disallow PGSpider'core
+ * from calling GetForeignModifyBatchSize first without any planning phase.
+ */
+static void
+spd_BeginForeignInsert(ModifyTableState *mtstate,
+					   ResultRelInfo *resultRelInfo)
+{
+	ereport(ERROR,
+			(errcode(ERRCODE_FDW_UNABLE_TO_CREATE_EXECUTION),
+			 errmsg("COPY and modify (INSERT/UPDATE/DELETE) foreign partition are not supported in pgspider_core_fdw")));
+}
+
+/*
+ * spd_EndForeignInsert
+ *		Finish an insert operation on a foreign table
+ *
+ * 		spd_BeginForeignInsert() is not yet implemented, hence we do not
+ * 		have anything to cleanup as of now. We throw an error here just
+ * 		to make sure when we do that we do not forget to cleanup
+ * 		resources.
+ */
+static void
+spd_EndForeignInsert(EState *estate,
+					 ResultRelInfo *resultRelInfo)
+{
+	ereport(ERROR,
+			(errcode(ERRCODE_FDW_UNABLE_TO_CREATE_EXECUTION),
+			 errmsg("COPY and modify (INSERT/UPDATE/DELETE) foreign partition are not supported in pgspider_core_fdw")));
+}
+
 #ifdef ENABLE_PARALLEL_S3
 void		parquet_s3_init();
 void		parquet_s3_shutdown();
@@ -15868,6 +16098,7 @@ spd_GetRootQueryPathkeys(PlannerInfo *root, PlannerInfo *root_child)
 	root_child->distinct_pathkeys = root->distinct_pathkeys;
 	root_child->sort_pathkeys = root->sort_pathkeys;
 	root_child->query_pathkeys = root->query_pathkeys;
+	root_child->eq_classes = root->eq_classes;
 }
 
 /*

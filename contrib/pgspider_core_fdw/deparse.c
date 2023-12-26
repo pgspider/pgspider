@@ -475,6 +475,39 @@ foreign_expr_walker(Node *node,
 				 */
 				break;
 			}
+		case T_ScalarArrayOpExpr:
+			{
+				ScalarArrayOpExpr *oe = (ScalarArrayOpExpr *) node;
+
+				/*
+				 * Recurse to input subexpressions.
+				 */
+				if (!foreign_expr_walker((Node *) oe->args,
+										 glob_cxt, &inner_cxt))
+					return false;
+
+				break;
+			}
+		case T_ArrayCoerceExpr:
+			{
+				ArrayCoerceExpr *acoerce = (ArrayCoerceExpr *) node;
+
+				/*
+				 * Recurse to input subexpressions.
+				 */
+				if (!foreign_expr_walker((Node *) acoerce->arg,
+										 glob_cxt, &inner_cxt))
+					return false;
+
+				/*
+				 * Recurse to expression representing per-element work.
+				 */
+				if (!foreign_expr_walker((Node *) acoerce->elemexpr,
+										 glob_cxt, &inner_cxt))
+					return false;
+
+				break;
+			}
 		default:
 			break;
 	}

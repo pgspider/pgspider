@@ -18,6 +18,7 @@
 #include "catalog/pg_operator.h"
 #include "catalog/pg_proc.h"
 #include "catalog/pg_proc_d.h"
+#include "commands/explain.h"
 #include "miscadmin.h"
 #include "postgres_fdw.h"
 #include "utils/builtins.h"
@@ -29,7 +30,7 @@
  */
 static List *
 append_func_def(List *list, StringInfo buf, Oid funcid,
-					   const char *fmt)
+					   const char *fmt, bool verbose)
 {
 	HeapTuple		proctup;
 	Form_pg_proc	procform;
@@ -51,7 +52,12 @@ append_func_def(List *list, StringInfo buf, Oid funcid,
 	d = DirectFunctionCall2(pg_get_functiondef, DatumGetInt32(funcid),
 							DatumGetBool(true));
 	funcstr = text_to_cstring(DatumGetTextP(d));
-	list = lappend(list, funcstr);
+
+	/* Get only function name for EXPLAIN without VERBOSE */
+	if (verbose == false)
+		list = lappend(list, quote_qualified_identifier(nsp, NameStr(procform->proname)));
+	else
+		list = lappend(list, funcstr);
 
 	return list;
 }
@@ -61,7 +67,7 @@ append_func_def(List *list, StringInfo buf, Oid funcid,
  * CREATE FUNCTION.
  */
 static List *
-get_aggregatedef(Form_pg_proc proc)
+get_aggregatedef(Form_pg_proc proc, bool verbose)
 {
 	StringInfoData	buf;
 	HeapTuple		aggTuple;
@@ -90,7 +96,7 @@ get_aggregatedef(Form_pg_proc proc)
 	appendStringInfoString(&buf, "(\n");
 
 	/* Append SFUNC. */
-	sqls = append_func_def(sqls, &buf, aggform->aggtransfn, " SFUNC = %s");
+	sqls = append_func_def(sqls, &buf, aggform->aggtransfn, " SFUNC = %s", verbose);
 
 	/* Append STYPE. */
 	appendStringInfo(&buf, ",\n STYPE = %s", format_type_be_qualified(aggform->aggtranstype));
@@ -102,7 +108,7 @@ get_aggregatedef(Form_pg_proc proc)
 	/* Append FINALFUNC if specified. */
 	if (OidIsValid(aggform->aggfinalfn))
 		sqls = append_func_def(sqls, &buf, aggform->aggfinalfn,
-							   ",\n FINALFUNC = %s");
+							   ",\n FINALFUNC = %s", verbose);
 
 	/* Append FINALFUNC_EXTRA if specified. */
 	if (aggform->aggfinalextra)
@@ -119,17 +125,17 @@ get_aggregatedef(Form_pg_proc proc)
 	/* Append COMBINEFUNC if specified. */
 	if (OidIsValid(aggform->aggcombinefn))
 		sqls = append_func_def(sqls, &buf, aggform->aggcombinefn,
-							   ",\n COMBINEFUNC = %s");
+							   ",\n COMBINEFUNC = %s", verbose);
 
 	/* Append SERIALFUNC if specified. */
 	if (OidIsValid(aggform->aggserialfn))
 		sqls = append_func_def(sqls, &buf, aggform->aggserialfn,
-							   ",\n SERIALFUNC = %s");
+							   ",\n SERIALFUNC = %s", verbose);
 
 	/* Append DESERIALFUNC if specified. */
 	if (OidIsValid(aggform->aggdeserialfn))
 		sqls = append_func_def(sqls, &buf, aggform->aggdeserialfn,
-							   ",\n DESERIALFUNC = %s");
+							   ",\n DESERIALFUNC = %s", verbose);
 
 	/* Append INITCOND if specified. */
 	d = SysCacheGetAttr(AGGFNOID, aggTuple,
@@ -144,12 +150,12 @@ get_aggregatedef(Form_pg_proc proc)
 	/* Append MSFUNC if specified. */
 	if (OidIsValid(aggform->aggdeserialfn))
 		sqls = append_func_def(sqls, &buf, aggform->aggmtransfn,
-							   ",\n MSFUNC = %s");
+							   ",\n MSFUNC = %s", verbose);
 
 	/* Append MINVFUNC if specified. */
 	if (OidIsValid(aggform->aggminvtransfn))
 		sqls = append_func_def(sqls, &buf, aggform->aggminvtransfn,
-							   ",\n MINVFUNC = %s");
+							   ",\n MINVFUNC = %s", verbose);
 
 	/* Append MSTYPE if specified. */
 	if (aggform->aggmtranstype > 0)
@@ -162,7 +168,7 @@ get_aggregatedef(Form_pg_proc proc)
 	/* Append MFINALFUNC if specified. */
 	if (OidIsValid(aggform->aggmfinalfn))
 		sqls = append_func_def(sqls, &buf, aggform->aggmfinalfn,
-							   ",\n MFINALFUNC = %s");
+							   ",\n MFINALFUNC = %s", verbose);
 
 	/* Append MFINALFUNC_EXTRA if specified. */
 	if (aggform->aggmfinalextra)
@@ -209,8 +215,14 @@ get_aggregatedef(Form_pg_proc proc)
 
 	appendStringInfoString(&buf, ")");
 
-	/* Append CREATE AGGREGATE query. */
-	sqls = lappend(sqls, buf.data);
+	/*
+	 * Append CREATE AGGREGATE query.
+	 * Get only aggreate name for EXPLAIN without VERBOSE.
+	 */
+	if (verbose == false)
+		sqls = lappend(sqls, quote_qualified_identifier(nsp, NameStr(proc->proname)));
+	else
+		sqls = lappend(sqls, buf.data);
 
 	ReleaseSysCache(aggTuple);
 	
@@ -221,7 +233,7 @@ get_aggregatedef(Form_pg_proc proc)
  * Get a function definition as a string by using pg_get_functiondef().
  */
 static List *
-get_functiondef_string(Oid funcid)
+get_functiondef_string(Oid funcid, bool verbose)
 {
 	HeapTuple	proctup;
 	Form_pg_proc	proc;
@@ -241,7 +253,7 @@ get_functiondef_string(Oid funcid)
 
 	if (proc->prokind == PROKIND_AGGREGATE)
 	{
-		sqls = get_aggregatedef(proc);
+		sqls = get_aggregatedef(proc, verbose);
 	}
 	else
 	{
@@ -270,7 +282,7 @@ create_function(UserMapping *user, Oid funcoid)
     PGresult   *res;
 	ListCell	*lc;
 
-	sqls = get_functiondef_string(funcoid);
+	sqls = get_functiondef_string(funcoid, true);
 
 	conn = GetConnection(user, false, NULL);
 
@@ -302,7 +314,7 @@ typedef struct private_data
  * it always execites a function asynchronously.
  */
 void
-postgresExecuteFunction(Oid funcoid, Oid tableoid,
+ExecuteFunction(Oid funcoid, Oid tableoid,
 						List *args, bool async, void **private)
 {
 	ForeignTable *table;
@@ -337,12 +349,40 @@ postgresExecuteFunction(Oid funcoid, Oid tableoid,
 }
 
 /*
- * Get a result of the function executed by postgresExecuteFunction,
+ * Explain a distributed stored function.
+ */
+void
+ExplainFunction(Oid funcoid, Oid tableoid,
+						List *args, bool async, void *private)
+{
+	ExplainState *es = (ExplainState *) private;
+	StringInfoData buf;
+	List 	*sqlList = NIL;
+	ListCell *lc;
+
+	sqlList = get_functiondef_string(funcoid, es->verbose);
+	foreach (lc, sqlList)
+	{
+		char *sql = (char *) lfirst(lc);
+
+		ExplainPropertyText("Child aggregate function CREATE SQL", sql, es);
+	}
+
+	initStringInfo(&buf);
+	if (es->verbose == false)
+		deparseFunctionName(&buf, funcoid);
+	else
+		deparseFunctionQuery(&buf, funcoid, tableoid, args);
+	ExplainPropertyText("Child aggregate function SELECT SQL", buf.data, es);
+}
+
+/*
+ * Get a result of the function executed by ExecuteFunction,
  * return a row in the result. This function will be called repeatedly
  * until this function returns false.
  */
 bool
-postgresGetFunctionResultOne(void *private, AttInMetadata *attinmeta,
+GetFunctionResultOne(void *private, AttInMetadata *attinmeta,
 							 Datum *value, bool *null)
 {
 	private_data *fdw_private = (private_data *) private;
@@ -397,9 +437,10 @@ postgresGetFunctionResultOne(void *private, AttInMetadata *attinmeta,
  * Clean up
  */
 void
-postgresFinalizeFunction(void *private)
+FinalizeFunction(void *private)
 {
 	private_data *fdw_private = (private_data *) private;
+
 	if (fdw_private->res)
 	{
 		PQclear(fdw_private->res);

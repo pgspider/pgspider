@@ -24,15 +24,16 @@
 
 typedef struct child_state
 {
-	Oid			tableoid;
-	bool		finished;
-	void	   *fdw_private;
+	Oid				tableoid;			/* table OID of child node */
+	bool			finished;			/* determine finish when fetch result in each child node */
+	void		   *fdw_private;		/* child node information */
+	ExecFunction	pgExecFunc;			/* function pointer to execute aggregate query on child node */
+	GetFunctionResultOne pgFetchFunc;	/* function pointer to get result of aggregate query on child node */
+	FinFunction		pgFinFunc;			/* function pointer to clean result of child node */
 } child_state;
 
 typedef struct dist_func_state
 {
-	GetFunctionResultOne pgFetchFunc;
-	FinFunction		pgFinFunc;
 	List   *status;	/* List of child_state */
 	int		next_child;
 } dist_func_state;
@@ -53,13 +54,37 @@ childfunc_target_server(Oid tableoid)
 
 	for (int i = 0; i < num_child; i++)
 	{
-		child_state	   *state;
+		child_state		   *state;
+		ExecFunction		pgExecFunc;
+		GetFunctionResultOne pgFetchFunc;
+		FinFunction		pgFinFunc;
+		Oid				serveroid;
+		ForeignServer	   *server;
+		ForeignDataWrapper *fdw;
+		char *fdwlib_name = NULL;
+
+		serveroid = GetForeignServerIdByRelId(oids[i]);
+		server = GetForeignServer(serveroid);
+		fdw = GetForeignDataWrapper(server->fdwid);
+
+		/* Create fdw lib name simply by fdw name */
+		fdwlib_name = psprintf("$libdir/%s", fdw->fdwname);
+
+		pgFetchFunc = (GetFunctionResultOne) load_external_function(fdwlib_name, "GetFunctionResultOne", false, NULL);;
+		pgFinFunc = (FinFunction) load_external_function(fdwlib_name, "FinalizeFunction", false, NULL);
+		pgExecFunc = (ExecFunction) load_external_function(fdwlib_name, "ExecuteFunction", false, NULL);
+
+		if (pgFetchFunc == NULL || pgFinFunc == NULL || pgExecFunc == NULL)
+			elog(ERROR, "%s does not support Parallel Distributed Stored Function", fdw->fdwname);
 
 		state = palloc0(sizeof(child_state));
 
 		state->tableoid = oids[i];
 		state->finished = false;
 		state->fdw_private = NULL;
+		state->pgFetchFunc = pgFetchFunc;
+		state->pgFinFunc = pgFinFunc;
+		state->pgExecFunc = pgExecFunc;
 
 		status = lappend(status, state);
 	}
@@ -73,16 +98,10 @@ childfunc_target_server(Oid tableoid)
 static dist_func_state *
 init_func_state(Oid tableoid, List *args)
 {
-	GetFunctionResultOne pgFetchFunc;
-	FinFunction		pgFinFunc;
 	dist_func_state *func_state;
 
-	pgFetchFunc = (GetFunctionResultOne) load_external_function("postgres_fdw", "postgresGetFunctionResultOne", true, NULL);
-	pgFinFunc = (FinFunction) load_external_function("postgres_fdw", "postgresFinalizeFunction", true, NULL);
-
 	func_state = palloc0(sizeof(dist_func_state));
-	func_state->pgFetchFunc = pgFetchFunc;
-	func_state->pgFinFunc = pgFinFunc;
+
 	func_state->status = childfunc_target_server(tableoid);
 	func_state->next_child = 0;
 
@@ -99,21 +118,58 @@ spdExecuteFunction(Oid funcoid, Oid tableoid,
     dist_func_state *func_state;
 	ListCell   *lc;
 
-	ExecFunction pgExecFunc;
-
     func_state = init_func_state(tableoid, args);
-
-	pgExecFunc = (ExecFunction) load_external_function("postgres_fdw", "postgresExecuteFunction", true, NULL);
 
 	foreach (lc, func_state->status)
 	{
 		child_state	   *state = (child_state *) lfirst(lc);
 
-		pgExecFunc(funcoid, state->tableoid, args, async,
+		state->pgExecFunc(funcoid, state->tableoid, args, async,
 				   &state->fdw_private);
 	}
 
 	*private = func_state;
+}
+
+/*
+ * Call ExplainFunction of child FDW.
+ */
+void
+spdExplainFunction(Oid funcoid, Oid tableoid,
+				   List *args, bool async, void *private)
+{
+	ExplainState *es = (ExplainState *) private;
+	int			num_child;
+	Oid		   *oids;	/* Oids of child tables */
+
+	spd_calculate_datasource_count(tableoid, &num_child, &oids);
+
+	for (int i = 0; i < num_child; i++)
+	{
+		ForeignServer	   *server;
+		ForeignDataWrapper *fdw;
+		ExplainFunc		pgExplainFunc;
+		Oid				serveroid;
+		char *fdwlib_name = NULL;
+
+
+		serveroid = GetForeignServerIdByRelId(oids[i]);
+		server = GetForeignServer(serveroid);
+		fdw = GetForeignDataWrapper(server->fdwid);
+
+		/* Create fdw lib name simply by fdw name */
+		fdwlib_name = psprintf("$libdir/%s", fdw->fdwname);
+
+		pgExplainFunc = (ExplainFunc) load_external_function(fdwlib_name, "ExplainFunction", false, NULL);
+		if (pgExplainFunc == NULL)
+			elog(ERROR, "%s does not support Parallel Distribusted Stored Function", fdw->fdwname);
+
+		ExplainPropertyText("Node", server->servername, es);
+
+		es->indent++;
+		pgExplainFunc(funcoid, oids[i], args, async, es);
+		es->indent--;
+	}
 }
 
 /*
@@ -139,7 +195,7 @@ spdGetFunctionResultOne(void *private, AttInMetadata *attinmeta,
 		if (state->finished)
 			continue;
 
-		ret = func_state->pgFetchFunc(state->fdw_private, attinmeta, values, nulls);
+		ret = state->pgFetchFunc(state->fdw_private, attinmeta, values, nulls);
 		if (ret == true)
 		{
             func_state->next_child = id;
@@ -165,7 +221,7 @@ spdFinalizeFunction(void *private)
 	{
 		child_state *state = (child_state *) list_nth(func_state->status, i);
 
-		func_state->pgFinFunc(state->fdw_private);
+		state->pgFinFunc(state->fdw_private);
 	}
 }
 #endif  /* PD_STORED */

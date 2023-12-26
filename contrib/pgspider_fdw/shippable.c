@@ -13,7 +13,7 @@
  * functions or functions using nonportable collations.  Those considerations
  * need not be accounted for here.
  *
- * Portions Copyright (c) 1996-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2023, PostgreSQL Global Development Group
  * Portions Copyright (c) 2018, TOSHIBA CORPORATION
  *
  * IDENTIFICATION
@@ -80,7 +80,7 @@ InvalidateShippableCacheCallback(Datum arg, int cacheid, uint32 hashvalue)
 	while ((entry = (ShippableCacheEntry *) hash_seq_search(&status)) != NULL)
 	{
 		if (hash_search(ShippableCacheHash,
-						(void *) &entry->key,
+						&entry->key,
 						HASH_REMOVE,
 						NULL) == NULL)
 			elog(ERROR, "hash table corrupted");
@@ -192,10 +192,7 @@ pgspider_is_shippable(Oid objectId, Oid classId, PGSpiderFdwRelationInfo * fpinf
 
 	/* See if we already cached the result. */
 	entry = (ShippableCacheEntry *)
-		hash_search(ShippableCacheHash,
-					(void *) &key,
-					HASH_FIND,
-					NULL);
+		hash_search(ShippableCacheHash, &key, HASH_FIND, NULL);
 
 	if (!entry)
 	{
@@ -208,10 +205,7 @@ pgspider_is_shippable(Oid objectId, Oid classId, PGSpiderFdwRelationInfo * fpinf
 		 * cache invalidation.
 		 */
 		entry = (ShippableCacheEntry *)
-			hash_search(ShippableCacheHash,
-						(void *) &key,
-						HASH_ENTER,
-						NULL);
+			hash_search(ShippableCacheHash, &key, HASH_ENTER, NULL);
 
 		entry->shippable = shippable;
 	}

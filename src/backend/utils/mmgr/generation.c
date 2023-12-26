@@ -6,7 +6,7 @@
  * Generation is a custom MemoryContext implementation designed for cases of
  * chunks with similar lifespan.
  *
- * Portions Copyright (c) 2017-2022, PostgreSQL Global Development Group
+ * Portions Copyright (c) 2017-2023, PostgreSQL Global Development Group
  *
  * IDENTIFICATION
  *	  src/backend/utils/mmgr/generation.c
@@ -39,15 +39,16 @@
 #include "port/pg_bitutils.h"
 #include "utils/memdebug.h"
 #include "utils/memutils.h"
+#include "utils/memutils_memorychunk.h"
+#include "utils/memutils_internal.h"
 
 
 #define Generation_BLOCKHDRSZ	MAXALIGN(sizeof(GenerationBlock))
-#define Generation_CHUNKHDRSZ	sizeof(GenerationChunk)
+#define Generation_CHUNKHDRSZ	sizeof(MemoryChunk)
 
 #define Generation_CHUNK_FRACTION	8
 
 typedef struct GenerationBlock GenerationBlock; /* forward reference */
-typedef struct GenerationChunk GenerationChunk;
 
 typedef void *GenerationPointer;
 
@@ -77,11 +78,11 @@ typedef struct GenerationContext
 /*
  * GenerationBlock
  *		GenerationBlock is the unit of memory that is obtained by generation.c
- *		from malloc().  It contains zero or more GenerationChunks, which are
- *		the units requested by palloc() and freed by pfree().  GenerationChunks
- *		cannot be returned to malloc() individually, instead pfree()
- *		updates the free counter of the block and when all chunks in a block
- *		are free the whole block can be returned to malloc().
+ *		from malloc().  It contains zero or more MemoryChunks, which are the
+ *		units requested by palloc() and freed by pfree().  MemoryChunks cannot
+ *		be returned to malloc() individually, instead pfree() updates the free
+ *		counter of the block and when all chunks in a block are free the whole
+ *		block can be returned to malloc().
  *
  *		GenerationBlock is the header data for a block --- the usable space
  *		within the block begins at the next alignment boundary.
@@ -89,6 +90,7 @@ typedef struct GenerationContext
 struct GenerationBlock
 {
 	dlist_node	node;			/* doubly-linked list of blocks */
+	GenerationContext *context; /* pointer back to the owning context */
 	Size		blksize;		/* allocated size of this block */
 	int			nchunks;		/* number of chunks in the block */
 	int			nfree;			/* number of free chunks */
@@ -97,109 +99,36 @@ struct GenerationBlock
 };
 
 /*
- * GenerationChunk
- *		The prefix of each piece of memory in a GenerationBlock
- *
- * Note: to meet the memory context APIs, the payload area of the chunk must
- * be maxaligned, and the "context" link must be immediately adjacent to the
- * payload area (cf. GetMemoryChunkContext).  We simplify matters for this
- * module by requiring sizeof(GenerationChunk) to be maxaligned, and then
- * we can ensure things work by adding any required alignment padding before
- * the pointer fields.  There is a static assertion below that the alignment
- * is done correctly.
- */
-struct GenerationChunk
-{
-	/* size is always the size of the usable space in the chunk */
-	Size		size;
-#ifdef MEMORY_CONTEXT_CHECKING
-	/* when debugging memory usage, also store actual requested size */
-	/* this is zero in a free chunk */
-	Size		requested_size;
-
-#define GENERATIONCHUNK_RAWSIZE  (SIZEOF_SIZE_T * 2 + SIZEOF_VOID_P * 2)
-#else
-#define GENERATIONCHUNK_RAWSIZE  (SIZEOF_SIZE_T + SIZEOF_VOID_P * 2)
-#endif							/* MEMORY_CONTEXT_CHECKING */
-
-	/* ensure proper alignment by adding padding if needed */
-#if (GENERATIONCHUNK_RAWSIZE % MAXIMUM_ALIGNOF) != 0
-	char		padding[MAXIMUM_ALIGNOF - GENERATIONCHUNK_RAWSIZE % MAXIMUM_ALIGNOF];
-#endif
-
-	GenerationBlock *block;		/* block owning this chunk */
-	GenerationContext *context; /* owning context, or NULL if freed chunk */
-	/* there must not be any padding to reach a MAXALIGN boundary here! */
-};
-
-/*
- * Only the "context" field should be accessed outside this module.
- * We keep the rest of an allocated chunk's header marked NOACCESS when using
- * valgrind.  But note that freed chunk headers are kept accessible, for
- * simplicity.
- */
-#define GENERATIONCHUNK_PRIVATE_LEN	offsetof(GenerationChunk, context)
-
-/*
  * GenerationIsValid
- *		True iff set is valid allocation set.
+ *		True iff set is valid generation set.
  */
-#define GenerationIsValid(set) PointerIsValid(set)
+#define GenerationIsValid(set) \
+	(PointerIsValid(set) && IsA(set, GenerationContext))
 
-#define GenerationPointerGetChunk(ptr) \
-	((GenerationChunk *)(((char *)(ptr)) - Generation_CHUNKHDRSZ))
-#define GenerationChunkGetPointer(chk) \
-	((GenerationPointer *)(((char *)(chk)) + Generation_CHUNKHDRSZ))
+/*
+ * GenerationBlockIsValid
+ *		True iff block is valid block of generation set.
+ */
+#define GenerationBlockIsValid(block) \
+	(PointerIsValid(block) && GenerationIsValid((block)->context))
+
+/*
+ * We always store external chunks on a dedicated block.  This makes fetching
+ * the block from an external chunk easy since it's always the first and only
+ * chunk on the block.
+ */
+#define ExternalChunkGetBlock(chunk) \
+	(GenerationBlock *) ((char *) chunk - Generation_BLOCKHDRSZ)
 
 /* Inlined helper functions */
-static inline void GenerationBlockInit(GenerationBlock *block, Size blksize);
+static inline void GenerationBlockInit(GenerationContext *context,
+									   GenerationBlock *block,
+									   Size blksize);
 static inline bool GenerationBlockIsEmpty(GenerationBlock *block);
 static inline void GenerationBlockMarkEmpty(GenerationBlock *block);
 static inline Size GenerationBlockFreeBytes(GenerationBlock *block);
 static inline void GenerationBlockFree(GenerationContext *set,
 									   GenerationBlock *block);
-
-/*
- * These functions implement the MemoryContext API for Generation contexts.
- */
-static void *GenerationAlloc(MemoryContext context, Size size);
-static void GenerationFree(MemoryContext context, void *pointer);
-static void *GenerationRealloc(MemoryContext context, void *pointer, Size size);
-static void GenerationReset(MemoryContext context);
-static void GenerationDelete(MemoryContext context);
-#ifdef PGSPIDER
-static void GenerationFreeContextList(void);
-#endif
-static Size GenerationGetChunkSpace(MemoryContext context, void *pointer);
-static bool GenerationIsEmpty(MemoryContext context);
-static void GenerationStats(MemoryContext context,
-							MemoryStatsPrintFunc printfunc, void *passthru,
-							MemoryContextCounters *totals,
-							bool print_to_stderr);
-
-#ifdef MEMORY_CONTEXT_CHECKING
-static void GenerationCheck(MemoryContext context);
-#endif
-
-/*
- * This is the virtual function table for Generation contexts.
- */
-static const MemoryContextMethods GenerationMethods = {
-	GenerationAlloc,
-	GenerationFree,
-	GenerationRealloc,
-	GenerationReset,
-	GenerationDelete,
-#ifdef PGSPIDER
-	GenerationFreeContextList,
-#endif
-	GenerationGetChunkSpace,
-	GenerationIsEmpty,
-	GenerationStats
-#ifdef MEMORY_CONTEXT_CHECKING
-	,GenerationCheck
-#endif
-};
 
 
 /*
@@ -229,17 +158,20 @@ GenerationContextCreate(MemoryContext parent,
 	GenerationContext *set;
 	GenerationBlock *block;
 
-	/* Assert we padded GenerationChunk properly */
-	StaticAssertStmt(Generation_CHUNKHDRSZ == MAXALIGN(Generation_CHUNKHDRSZ),
-					 "sizeof(GenerationChunk) is not maxaligned");
-	StaticAssertStmt(offsetof(GenerationChunk, context) + sizeof(MemoryContext) ==
-					 Generation_CHUNKHDRSZ,
-					 "padding calculation in GenerationChunk is wrong");
+	/* ensure MemoryChunk's size is properly maxaligned */
+	StaticAssertDecl(Generation_CHUNKHDRSZ == MAXALIGN(Generation_CHUNKHDRSZ),
+					 "sizeof(MemoryChunk) is not maxaligned");
 
 	/*
 	 * First, validate allocation parameters.  Asserts seem sufficient because
 	 * nobody varies their parameters at runtime.  We somewhat arbitrarily
-	 * enforce a minimum 1K block size.
+	 * enforce a minimum 1K block size.  We restrict the maximum block size to
+	 * MEMORYCHUNK_MAX_BLOCKOFFSET as MemoryChunks are limited to this in
+	 * regards to addressing the offset between the chunk and the block that
+	 * the chunk is stored on.  We would be unable to store the offset between
+	 * the chunk and block for any chunks that were beyond
+	 * MEMORYCHUNK_MAX_BLOCKOFFSET bytes into the block if the block was to be
+	 * larger than this.
 	 */
 	Assert(initBlockSize == MAXALIGN(initBlockSize) &&
 		   initBlockSize >= 1024);
@@ -250,6 +182,7 @@ GenerationContextCreate(MemoryContext parent,
 		   (minContextSize == MAXALIGN(minContextSize) &&
 			minContextSize >= 1024 &&
 			minContextSize <= maxBlockSize));
+	Assert(maxBlockSize <= MEMORYCHUNK_MAX_BLOCKOFFSET);
 
 	/* Determine size of initial block */
 	allocSize = MAXALIGN(sizeof(GenerationContext)) +
@@ -284,7 +217,7 @@ GenerationContextCreate(MemoryContext parent,
 	block = (GenerationBlock *) (((char *) set) + MAXALIGN(sizeof(GenerationContext)));
 	/* determine the block size and initialize it */
 	firstBlockSize = allocSize - MAXALIGN(sizeof(GenerationContext));
-	GenerationBlockInit(block, firstBlockSize);
+	GenerationBlockInit(set, block, firstBlockSize);
 
 	/* add it to the doubly-linked list of blocks */
 	dlist_push_head(&set->blocks, &block->node);
@@ -306,9 +239,14 @@ GenerationContextCreate(MemoryContext parent,
 	/*
 	 * Compute the allocation chunk size limit for this context.
 	 *
-	 * Follows similar ideas as AllocSet, see aset.c for details ...
+	 * Limit the maximum size a non-dedicated chunk can be so that we can fit
+	 * at least Generation_CHUNK_FRACTION of chunks this big onto the maximum
+	 * sized block.  We must further limit this value so that it's no more
+	 * than MEMORYCHUNK_MAX_VALUE.  We're unable to have non-external chunks
+	 * larger than that value as we store the chunk size in the MemoryChunk
+	 * 'value' field in the call to MemoryChunkSetHdrMask().
 	 */
-	set->allocChunkLimit = maxBlockSize;
+	set->allocChunkLimit = Min(maxBlockSize, MEMORYCHUNK_MAX_VALUE);
 	while ((Size) (set->allocChunkLimit + Generation_CHUNKHDRSZ) >
 		   (Size) ((Size) (maxBlockSize - Generation_BLOCKHDRSZ) / Generation_CHUNK_FRACTION))
 		set->allocChunkLimit >>= 1;
@@ -316,7 +254,7 @@ GenerationContextCreate(MemoryContext parent,
 	/* Finally, do the type-independent part of context creation */
 	MemoryContextCreate((MemoryContext) set,
 						T_GenerationContext,
-						&GenerationMethods,
+						MCTX_GENERATION_ID,
 						parent,
 						name);
 
@@ -332,13 +270,13 @@ GenerationContextCreate(MemoryContext parent,
  * The code simply frees all the blocks in the context - we don't keep any
  * keeper blocks or anything like that.
  */
-static void
+void
 GenerationReset(MemoryContext context)
 {
 	GenerationContext *set = (GenerationContext *) context;
 	dlist_mutable_iter miter;
 
-	AssertArg(GenerationIsValid(set));
+	Assert(GenerationIsValid(set));
 
 #ifdef MEMORY_CONTEXT_CHECKING
 	/* Check for corruption and leaks before freeing */
@@ -377,7 +315,7 @@ GenerationReset(MemoryContext context)
  * GenerationDelete
  *		Free all memory which is allocated in the given context.
  */
-static void
+void
 GenerationDelete(MemoryContext context)
 {
 	/* Reset to release all releasable GenerationBlocks */
@@ -393,7 +331,7 @@ GenerationDelete(MemoryContext context)
  * Dummy function for PGSpider
  *
  */
-static void
+void
 GenerationFreeContextList(void)
 {
 	return;
@@ -413,14 +351,24 @@ GenerationFreeContextList(void)
  * is marked, as mcxt.c will set it to UNDEFINED.  In some paths we will
  * return space that is marked NOACCESS - GenerationRealloc has to beware!
  */
-static void *
+void *
 GenerationAlloc(MemoryContext context, Size size)
 {
 	GenerationContext *set = (GenerationContext *) context;
 	GenerationBlock *block;
-	GenerationChunk *chunk;
-	Size		chunk_size = MAXALIGN(size);
-	Size		required_size = chunk_size + Generation_CHUNKHDRSZ;
+	MemoryChunk *chunk;
+	Size		chunk_size;
+	Size		required_size;
+
+	Assert(GenerationIsValid(set));
+
+#ifdef MEMORY_CONTEXT_CHECKING
+	/* ensure there's always space for the sentinel byte */
+	chunk_size = MAXALIGN(size + 1);
+#else
+	chunk_size = MAXALIGN(size);
+#endif
+	required_size = chunk_size + Generation_CHUNKHDRSZ;
 
 	/* is it an over-sized chunk? if yes, allocate special block */
 	if (chunk_size > set->allocChunkLimit)
@@ -434,6 +382,7 @@ GenerationAlloc(MemoryContext context, Size size)
 		context->mem_allocated += blksize;
 
 		/* block with a single (used) chunk */
+		block->context = set;
 		block->blksize = blksize;
 		block->nchunks = 1;
 		block->nfree = 0;
@@ -441,33 +390,33 @@ GenerationAlloc(MemoryContext context, Size size)
 		/* the block is completely full */
 		block->freeptr = block->endptr = ((char *) block) + blksize;
 
-		chunk = (GenerationChunk *) (((char *) block) + Generation_BLOCKHDRSZ);
-		chunk->block = block;
-		chunk->context = set;
-		chunk->size = chunk_size;
+		chunk = (MemoryChunk *) (((char *) block) + Generation_BLOCKHDRSZ);
+
+		/* mark the MemoryChunk as externally managed */
+		MemoryChunkSetHdrMaskExternal(chunk, MCTX_GENERATION_ID);
 
 #ifdef MEMORY_CONTEXT_CHECKING
 		chunk->requested_size = size;
 		/* set mark to catch clobber of "unused" space */
-		if (size < chunk_size)
-			set_sentinel(GenerationChunkGetPointer(chunk), size);
+		Assert(size < chunk_size);
+		set_sentinel(MemoryChunkGetPointer(chunk), size);
 #endif
 #ifdef RANDOMIZE_ALLOCATED_MEMORY
 		/* fill the allocated space with junk */
-		randomize_mem((char *) GenerationChunkGetPointer(chunk), size);
+		randomize_mem((char *) MemoryChunkGetPointer(chunk), size);
 #endif
 
 		/* add the block to the list of allocated blocks */
 		dlist_push_head(&set->blocks, &block->node);
 
 		/* Ensure any padding bytes are marked NOACCESS. */
-		VALGRIND_MAKE_MEM_NOACCESS((char *) GenerationChunkGetPointer(chunk) + size,
+		VALGRIND_MAKE_MEM_NOACCESS((char *) MemoryChunkGetPointer(chunk) + size,
 								   chunk_size - size);
 
-		/* Disallow external access to private part of chunk header. */
-		VALGRIND_MAKE_MEM_NOACCESS(chunk, GENERATIONCHUNK_PRIVATE_LEN);
+		/* Disallow access to the chunk header. */
+		VALGRIND_MAKE_MEM_NOACCESS(chunk, Generation_CHUNKHDRSZ);
 
-		return GenerationChunkGetPointer(chunk);
+		return MemoryChunkGetPointer(chunk);
 	}
 
 	/*
@@ -536,7 +485,7 @@ GenerationAlloc(MemoryContext context, Size size)
 			context->mem_allocated += blksize;
 
 			/* initialize the new block */
-			GenerationBlockInit(block, blksize);
+			GenerationBlockInit(set, block, blksize);
 
 			/* add it to the doubly-linked list of blocks */
 			dlist_push_head(&set->blocks, &block->node);
@@ -553,7 +502,7 @@ GenerationAlloc(MemoryContext context, Size size)
 	Assert(block != NULL);
 	Assert((block->endptr - block->freeptr) >= Generation_CHUNKHDRSZ + chunk_size);
 
-	chunk = (GenerationChunk *) block->freeptr;
+	chunk = (MemoryChunk *) block->freeptr;
 
 	/* Prepare to initialize the chunk header. */
 	VALGRIND_MAKE_MEM_UNDEFINED(chunk, Generation_CHUNKHDRSZ);
@@ -563,29 +512,26 @@ GenerationAlloc(MemoryContext context, Size size)
 
 	Assert(block->freeptr <= block->endptr);
 
-	chunk->block = block;
-	chunk->context = set;
-	chunk->size = chunk_size;
-
+	MemoryChunkSetHdrMask(chunk, block, chunk_size, MCTX_GENERATION_ID);
 #ifdef MEMORY_CONTEXT_CHECKING
 	chunk->requested_size = size;
 	/* set mark to catch clobber of "unused" space */
-	if (size < chunk->size)
-		set_sentinel(GenerationChunkGetPointer(chunk), size);
+	Assert(size < chunk_size);
+	set_sentinel(MemoryChunkGetPointer(chunk), size);
 #endif
 #ifdef RANDOMIZE_ALLOCATED_MEMORY
 	/* fill the allocated space with junk */
-	randomize_mem((char *) GenerationChunkGetPointer(chunk), size);
+	randomize_mem((char *) MemoryChunkGetPointer(chunk), size);
 #endif
 
 	/* Ensure any padding bytes are marked NOACCESS. */
-	VALGRIND_MAKE_MEM_NOACCESS((char *) GenerationChunkGetPointer(chunk) + size,
+	VALGRIND_MAKE_MEM_NOACCESS((char *) MemoryChunkGetPointer(chunk) + size,
 							   chunk_size - size);
 
-	/* Disallow external access to private part of chunk header. */
-	VALGRIND_MAKE_MEM_NOACCESS(chunk, GENERATIONCHUNK_PRIVATE_LEN);
+	/* Disallow access to the chunk header. */
+	VALGRIND_MAKE_MEM_NOACCESS(chunk, Generation_CHUNKHDRSZ);
 
-	return GenerationChunkGetPointer(chunk);
+	return MemoryChunkGetPointer(chunk);
 }
 
 /*
@@ -594,8 +540,10 @@ GenerationAlloc(MemoryContext context, Size size)
  *		mem_allocated field.
  */
 static inline void
-GenerationBlockInit(GenerationBlock *block, Size blksize)
+GenerationBlockInit(GenerationContext *context, GenerationBlock *block,
+					Size blksize)
 {
+	block->context = context;
 	block->blksize = blksize;
 	block->nchunks = 0;
 	block->nfree = 0;
@@ -610,7 +558,7 @@ GenerationBlockInit(GenerationBlock *block, Size blksize)
 
 /*
  * GenerationBlockIsEmpty
- *		Returns true iif 'block' contains no chunks
+ *		Returns true iff 'block' contains no chunks
  */
 static inline bool
 GenerationBlockIsEmpty(GenerationBlock *block)
@@ -681,36 +629,68 @@ GenerationBlockFree(GenerationContext *set, GenerationBlock *block)
  *		Update number of chunks in the block, and if all chunks in the block
  *		are now free then discard the block.
  */
-static void
-GenerationFree(MemoryContext context, void *pointer)
+void
+GenerationFree(void *pointer)
 {
-	GenerationContext *set = (GenerationContext *) context;
-	GenerationChunk *chunk = GenerationPointerGetChunk(pointer);
+	MemoryChunk *chunk = PointerGetMemoryChunk(pointer);
 	GenerationBlock *block;
+	GenerationContext *set;
+#if (defined(MEMORY_CONTEXT_CHECKING) && defined(USE_ASSERT_CHECKING)) \
+	|| defined(CLOBBER_FREED_MEMORY)
+	Size		chunksize;
+#endif
 
-	/* Allow access to private part of chunk header. */
-	VALGRIND_MAKE_MEM_DEFINED(chunk, GENERATIONCHUNK_PRIVATE_LEN);
+	/* Allow access to the chunk header. */
+	VALGRIND_MAKE_MEM_DEFINED(chunk, Generation_CHUNKHDRSZ);
 
-	block = chunk->block;
+	if (MemoryChunkIsExternal(chunk))
+	{
+		block = ExternalChunkGetBlock(chunk);
+
+		/*
+		 * Try to verify that we have a sane block pointer: the block header
+		 * should reference a generation context.
+		 */
+		if (!GenerationBlockIsValid(block))
+			elog(ERROR, "could not find block containing chunk %p", chunk);
+
+#if (defined(MEMORY_CONTEXT_CHECKING) && defined(USE_ASSERT_CHECKING)) \
+	|| defined(CLOBBER_FREED_MEMORY)
+		chunksize = block->endptr - (char *) pointer;
+#endif
+	}
+	else
+	{
+		block = MemoryChunkGetBlock(chunk);
+
+		/*
+		 * In this path, for speed reasons we just Assert that the referenced
+		 * block is good.  Future field experience may show that this Assert
+		 * had better become a regular runtime test-and-elog check.
+		 */
+		Assert(GenerationBlockIsValid(block));
+
+#if (defined(MEMORY_CONTEXT_CHECKING) && defined(USE_ASSERT_CHECKING)) \
+	|| defined(CLOBBER_FREED_MEMORY)
+		chunksize = MemoryChunkGetValue(chunk);
+#endif
+	}
 
 #ifdef MEMORY_CONTEXT_CHECKING
 	/* Test for someone scribbling on unused space in chunk */
-	if (chunk->requested_size < chunk->size)
-		if (!sentinel_ok(pointer, chunk->requested_size))
-			elog(WARNING, "detected write past chunk end in %s %p",
-				 ((MemoryContext) set)->name, chunk);
+	Assert(chunk->requested_size < chunksize);
+	if (!sentinel_ok(pointer, chunk->requested_size))
+		elog(WARNING, "detected write past chunk end in %s %p",
+			 ((MemoryContext) block->context)->name, chunk);
 #endif
 
 #ifdef CLOBBER_FREED_MEMORY
-	wipe_mem(pointer, chunk->size);
+	wipe_mem(pointer, chunksize);
 #endif
 
-	/* Reset context to NULL in freed chunks */
-	chunk->context = NULL;
-
 #ifdef MEMORY_CONTEXT_CHECKING
-	/* Reset requested_size to 0 in freed chunks */
-	chunk->requested_size = 0;
+	/* Reset requested_size to InvalidAllocSize in freed chunks */
+	chunk->requested_size = InvalidAllocSize;
 #endif
 
 	block->nfree += 1;
@@ -721,6 +701,8 @@ GenerationFree(MemoryContext context, void *pointer)
 	/* If there are still allocated chunks in the block, we're done. */
 	if (block->nfree < block->nchunks)
 		return;
+
+	set = block->context;
 
 	/* Don't try to free the keeper block, just mark it empty */
 	if (block == set->keeper)
@@ -752,7 +734,7 @@ GenerationFree(MemoryContext context, void *pointer)
 	 */
 	dlist_delete(&block->node);
 
-	context->mem_allocated -= block->blksize;
+	set->header.mem_allocated -= block->blksize;
 	free(block);
 }
 
@@ -762,25 +744,53 @@ GenerationFree(MemoryContext context, void *pointer)
  *		and discard the old one. The only exception is when the new size fits
  *		into the old chunk - in that case we just update chunk header.
  */
-static void *
-GenerationRealloc(MemoryContext context, void *pointer, Size size)
+void *
+GenerationRealloc(void *pointer, Size size)
 {
-	GenerationContext *set = (GenerationContext *) context;
-	GenerationChunk *chunk = GenerationPointerGetChunk(pointer);
+	MemoryChunk *chunk = PointerGetMemoryChunk(pointer);
+	GenerationContext *set;
+	GenerationBlock *block;
 	GenerationPointer newPointer;
 	Size		oldsize;
 
-	/* Allow access to private part of chunk header. */
-	VALGRIND_MAKE_MEM_DEFINED(chunk, GENERATIONCHUNK_PRIVATE_LEN);
+	/* Allow access to the chunk header. */
+	VALGRIND_MAKE_MEM_DEFINED(chunk, Generation_CHUNKHDRSZ);
 
-	oldsize = chunk->size;
+	if (MemoryChunkIsExternal(chunk))
+	{
+		block = ExternalChunkGetBlock(chunk);
+
+		/*
+		 * Try to verify that we have a sane block pointer: the block header
+		 * should reference a generation context.
+		 */
+		if (!GenerationBlockIsValid(block))
+			elog(ERROR, "could not find block containing chunk %p", chunk);
+
+		oldsize = block->endptr - (char *) pointer;
+	}
+	else
+	{
+		block = MemoryChunkGetBlock(chunk);
+
+		/*
+		 * In this path, for speed reasons we just Assert that the referenced
+		 * block is good.  Future field experience may show that this Assert
+		 * had better become a regular runtime test-and-elog check.
+		 */
+		Assert(GenerationBlockIsValid(block));
+
+		oldsize = MemoryChunkGetValue(chunk);
+	}
+
+	set = block->context;
 
 #ifdef MEMORY_CONTEXT_CHECKING
 	/* Test for someone scribbling on unused space in chunk */
-	if (chunk->requested_size < oldsize)
-		if (!sentinel_ok(pointer, chunk->requested_size))
-			elog(WARNING, "detected write past chunk end in %s %p",
-				 ((MemoryContext) set)->name, chunk);
+	Assert(chunk->requested_size < oldsize);
+	if (!sentinel_ok(pointer, chunk->requested_size))
+		elog(WARNING, "detected write past chunk end in %s %p",
+			 ((MemoryContext) set)->name, chunk);
 #endif
 
 	/*
@@ -819,8 +829,7 @@ GenerationRealloc(MemoryContext context, void *pointer, Size size)
 									   oldsize - size);
 
 		/* set mark to catch clobber of "unused" space */
-		if (size < oldsize)
-			set_sentinel(pointer, size);
+		set_sentinel(pointer, size);
 #else							/* !MEMORY_CONTEXT_CHECKING */
 
 		/*
@@ -832,8 +841,8 @@ GenerationRealloc(MemoryContext context, void *pointer, Size size)
 		VALGRIND_MAKE_MEM_DEFINED(pointer, size);
 #endif
 
-		/* Disallow external access to private part of chunk header. */
-		VALGRIND_MAKE_MEM_NOACCESS(chunk, GENERATIONCHUNK_PRIVATE_LEN);
+		/* Disallow access to the chunk header. */
+		VALGRIND_MAKE_MEM_NOACCESS(chunk, Generation_CHUNKHDRSZ);
 
 		return pointer;
 	}
@@ -844,8 +853,8 @@ GenerationRealloc(MemoryContext context, void *pointer, Size size)
 	/* leave immediately if request was not completed */
 	if (newPointer == NULL)
 	{
-		/* Disallow external access to private part of chunk header. */
-		VALGRIND_MAKE_MEM_NOACCESS(chunk, GENERATIONCHUNK_PRIVATE_LEN);
+		/* Disallow access to the chunk header. */
+		VALGRIND_MAKE_MEM_NOACCESS(chunk, Generation_CHUNKHDRSZ);
 		return NULL;
 	}
 
@@ -868,9 +877,34 @@ GenerationRealloc(MemoryContext context, void *pointer, Size size)
 	memcpy(newPointer, pointer, oldsize);
 
 	/* free old chunk */
-	GenerationFree((MemoryContext) set, pointer);
+	GenerationFree(pointer);
 
 	return newPointer;
+}
+
+/*
+ * GenerationGetChunkContext
+ *		Return the MemoryContext that 'pointer' belongs to.
+ */
+MemoryContext
+GenerationGetChunkContext(void *pointer)
+{
+	MemoryChunk *chunk = PointerGetMemoryChunk(pointer);
+	GenerationBlock *block;
+
+	/* Allow access to the chunk header. */
+	VALGRIND_MAKE_MEM_DEFINED(chunk, Generation_CHUNKHDRSZ);
+
+	if (MemoryChunkIsExternal(chunk))
+		block = ExternalChunkGetBlock(chunk);
+	else
+		block = (GenerationBlock *) MemoryChunkGetBlock(chunk);
+
+	/* Disallow access to the chunk header. */
+	VALGRIND_MAKE_MEM_NOACCESS(chunk, Generation_CHUNKHDRSZ);
+
+	Assert(GenerationBlockIsValid(block));
+	return &block->context->header;
 }
 
 /*
@@ -878,27 +912,42 @@ GenerationRealloc(MemoryContext context, void *pointer, Size size)
  *		Given a currently-allocated chunk, determine the total space
  *		it occupies (including all memory-allocation overhead).
  */
-static Size
-GenerationGetChunkSpace(MemoryContext context, void *pointer)
+Size
+GenerationGetChunkSpace(void *pointer)
 {
-	GenerationChunk *chunk = GenerationPointerGetChunk(pointer);
-	Size		result;
+	MemoryChunk *chunk = PointerGetMemoryChunk(pointer);
+	Size		chunksize;
 
-	VALGRIND_MAKE_MEM_DEFINED(chunk, GENERATIONCHUNK_PRIVATE_LEN);
-	result = chunk->size + Generation_CHUNKHDRSZ;
-	VALGRIND_MAKE_MEM_NOACCESS(chunk, GENERATIONCHUNK_PRIVATE_LEN);
-	return result;
+	/* Allow access to the chunk header. */
+	VALGRIND_MAKE_MEM_DEFINED(chunk, Generation_CHUNKHDRSZ);
+
+	if (MemoryChunkIsExternal(chunk))
+	{
+		GenerationBlock *block = ExternalChunkGetBlock(chunk);
+
+		Assert(GenerationBlockIsValid(block));
+		chunksize = block->endptr - (char *) pointer;
+	}
+	else
+		chunksize = MemoryChunkGetValue(chunk);
+
+	/* Disallow access to the chunk header. */
+	VALGRIND_MAKE_MEM_NOACCESS(chunk, Generation_CHUNKHDRSZ);
+
+	return Generation_CHUNKHDRSZ + chunksize;
 }
 
 /*
  * GenerationIsEmpty
  *		Is a GenerationContext empty of any allocated space?
  */
-static bool
+bool
 GenerationIsEmpty(MemoryContext context)
 {
 	GenerationContext *set = (GenerationContext *) context;
 	dlist_iter	iter;
+
+	Assert(GenerationIsValid(set));
 
 	dlist_foreach(iter, &set->blocks)
 	{
@@ -923,7 +972,7 @@ GenerationIsEmpty(MemoryContext context)
  * XXX freespace only accounts for empty space at the end of the block, not
  * space of freed chunks (which is unknown).
  */
-static void
+void
 GenerationStats(MemoryContext context,
 				MemoryStatsPrintFunc printfunc, void *passthru,
 				MemoryContextCounters *totals, bool print_to_stderr)
@@ -935,6 +984,8 @@ GenerationStats(MemoryContext context,
 	Size		totalspace;
 	Size		freespace = 0;
 	dlist_iter	iter;
+
+	Assert(GenerationIsValid(set));
 
 	/* Include context header in totalspace */
 	totalspace = MAXALIGN(sizeof(GenerationContext));
@@ -981,7 +1032,7 @@ GenerationStats(MemoryContext context,
  * find yourself in an infinite loop when trouble occurs, because this
  * routine will be entered again when elog cleanup tries to release memory!
  */
-static void
+void
 GenerationCheck(MemoryContext context)
 {
 	GenerationContext *gen = (GenerationContext *) context;
@@ -996,6 +1047,7 @@ GenerationCheck(MemoryContext context)
 		int			nfree,
 					nchunks;
 		char	   *ptr;
+		bool		has_external_chunk = false;
 
 		total_allocated += block->blksize;
 
@@ -1007,6 +1059,11 @@ GenerationCheck(MemoryContext context)
 			elog(WARNING, "problem in Generation %s: number of free chunks %d in block %p exceeds %d allocated",
 				 name, block->nfree, block, block->nchunks);
 
+		/* check block belongs to the correct context */
+		if (block->context != gen)
+			elog(WARNING, "problem in Generation %s: bogus context link in block %p",
+				 name, block);
+
 		/* Now walk through the chunks and count them. */
 		nfree = 0;
 		nchunks = 0;
@@ -1014,55 +1071,57 @@ GenerationCheck(MemoryContext context)
 
 		while (ptr < block->freeptr)
 		{
-			GenerationChunk *chunk = (GenerationChunk *) ptr;
+			MemoryChunk *chunk = (MemoryChunk *) ptr;
+			GenerationBlock *chunkblock;
+			Size		chunksize;
 
-			/* Allow access to private part of chunk header. */
-			VALGRIND_MAKE_MEM_DEFINED(chunk, GENERATIONCHUNK_PRIVATE_LEN);
+			/* Allow access to the chunk header. */
+			VALGRIND_MAKE_MEM_DEFINED(chunk, Generation_CHUNKHDRSZ);
+
+			if (MemoryChunkIsExternal(chunk))
+			{
+				chunkblock = ExternalChunkGetBlock(chunk);
+				chunksize = block->endptr - (char *) MemoryChunkGetPointer(chunk);
+				has_external_chunk = true;
+			}
+			else
+			{
+				chunkblock = MemoryChunkGetBlock(chunk);
+				chunksize = MemoryChunkGetValue(chunk);
+			}
 
 			/* move to the next chunk */
-			ptr += (chunk->size + Generation_CHUNKHDRSZ);
+			ptr += (chunksize + Generation_CHUNKHDRSZ);
 
 			nchunks += 1;
 
 			/* chunks have both block and context pointers, so check both */
-			if (chunk->block != block)
+			if (chunkblock != block)
 				elog(WARNING, "problem in Generation %s: bogus block link in block %p, chunk %p",
 					 name, block, chunk);
 
-			/*
-			 * Check for valid context pointer.  Note this is an incomplete
-			 * test, since palloc(0) produces an allocated chunk with
-			 * requested_size == 0.
-			 */
-			if ((chunk->requested_size > 0 && chunk->context != gen) ||
-				(chunk->context != gen && chunk->context != NULL))
-				elog(WARNING, "problem in Generation %s: bogus context link in block %p, chunk %p",
-					 name, block, chunk);
-
-			/* now make sure the chunk size is correct */
-			if (chunk->size < chunk->requested_size ||
-				chunk->size != MAXALIGN(chunk->size))
-				elog(WARNING, "problem in Generation %s: bogus chunk size in block %p, chunk %p",
-					 name, block, chunk);
 
 			/* is chunk allocated? */
-			if (chunk->context != NULL)
+			if (chunk->requested_size != InvalidAllocSize)
 			{
-				/* check sentinel, but only in allocated blocks */
-				if (chunk->requested_size < chunk->size &&
-					!sentinel_ok(chunk, Generation_CHUNKHDRSZ + chunk->requested_size))
+				/* now make sure the chunk size is correct */
+				if (chunksize < chunk->requested_size ||
+					chunksize != MAXALIGN(chunksize))
+					elog(WARNING, "problem in Generation %s: bogus chunk size in block %p, chunk %p",
+						 name, block, chunk);
+
+				/* check sentinel */
+				Assert(chunk->requested_size < chunksize);
+				if (!sentinel_ok(chunk, Generation_CHUNKHDRSZ + chunk->requested_size))
 					elog(WARNING, "problem in Generation %s: detected write past chunk end in block %p, chunk %p",
 						 name, block, chunk);
 			}
 			else
 				nfree += 1;
 
-			/*
-			 * If chunk is allocated, disallow external access to private part
-			 * of chunk header.
-			 */
-			if (chunk->context != NULL)
-				VALGRIND_MAKE_MEM_NOACCESS(chunk, GENERATIONCHUNK_PRIVATE_LEN);
+			/* if chunk is allocated, disallow access to the chunk header */
+			if (chunk->requested_size != InvalidAllocSize)
+				VALGRIND_MAKE_MEM_NOACCESS(chunk, Generation_CHUNKHDRSZ);
 		}
 
 		/*
@@ -1076,6 +1135,11 @@ GenerationCheck(MemoryContext context)
 		if (nfree != block->nfree)
 			elog(WARNING, "problem in Generation %s: number of free chunks %d in block %p does not match header %d",
 				 name, nfree, block, block->nfree);
+
+		if (has_external_chunk && nchunks > 1)
+			elog(WARNING, "problem in Generation %s: external chunk on non-dedicated block %p",
+				 name, block);
+
 	}
 
 	Assert(total_allocated == context->mem_allocated);

@@ -1,5 +1,5 @@
-SET GLOBAL time_zone = '-8:00';
-SET time_zone = '-8:00';
+SET GLOBAL time_zone = '+00:00';
+SET time_zone = '+00:00';
 SET GLOBAL log_bin_trust_function_creators = 1;
 SET GLOBAL local_infile = 1;
 drop database if exists test;

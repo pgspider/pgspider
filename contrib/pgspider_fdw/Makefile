@@ -8,6 +8,14 @@ OBJS = \
 	option.o \
 	pgspider_fdw.o \
 	pgspider_data_compression_transfer.o \
+	dct_targetdb/dct_common.o \
+	dct_targetdb/dct_griddb.o \
+	dct_targetdb/dct_influxdb.o \
+	dct_targetdb/dct_mysql.o \
+	dct_targetdb/dct_oracle.o \
+	dct_targetdb/dct_pgspider.o \
+	dct_targetdb/dct_postgres.o \
+	dct_targetdb/dct_objstorage.o \
 	shippable.o
 PGFILEDESC = "pgspider_fdw - foreign data wrapper for PGSpider"
 

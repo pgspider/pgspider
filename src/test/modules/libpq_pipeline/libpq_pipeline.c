@@ -3,7 +3,7 @@
  * libpq_pipeline.c
  *		Verify libpq pipeline execution functionality
  *
- * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2023, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
@@ -15,10 +15,8 @@
 
 #include "postgres_fe.h"
 
-#include <sys/time.h>
-#ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
-#endif
+#include <sys/time.h>
 
 #include "catalog/pg_type_d.h"
 #include "common/fe_memutils.h"
@@ -961,7 +959,7 @@ test_prepared(PGconn *conn)
 		pg_fatal("pipeline sync failed: %s", PQerrorMessage(conn));
 	res = PQgetResult(conn);
 	if (res == NULL)
-		pg_fatal("expected NULL result");
+		pg_fatal("PQgetResult returned null");
 	if (PQresultStatus(res) != PGRES_COMMAND_OK)
 		pg_fatal("expected COMMAND_OK, got %s", PQresStatus(PQresultStatus(res)));
 
@@ -1155,11 +1153,11 @@ test_singlerowmode(PGconn *conn)
 	int			i;
 	bool		pipeline_ended = false;
 
-	/* 1 pipeline, 3 queries in it */
 	if (PQenterPipelineMode(conn) != 1)
 		pg_fatal("failed to enter pipeline mode: %s",
 				 PQerrorMessage(conn));
 
+	/* One series of three commands, using single-row mode for the first two. */
 	for (i = 0; i < 3; i++)
 	{
 		char	   *param[1];
@@ -1250,6 +1248,49 @@ test_singlerowmode(PGconn *conn)
 		if (!pipeline_ended && !saw_ending_tuplesok)
 			pg_fatal("didn't get expected terminating TUPLES_OK");
 	}
+
+	/*
+	 * Now issue one command, get its results in with single-row mode, then
+	 * issue another command, and get its results in normal mode; make sure
+	 * the single-row mode flag is reset as expected.
+	 */
+	if (PQsendQueryParams(conn, "SELECT generate_series(0, 0)",
+						  0, NULL, NULL, NULL, NULL, 0) != 1)
+		pg_fatal("failed to send query: %s",
+				 PQerrorMessage(conn));
+	if (PQsendFlushRequest(conn) != 1)
+		pg_fatal("failed to send flush request");
+	if (PQsetSingleRowMode(conn) != 1)
+		pg_fatal("PQsetSingleRowMode() failed");
+	res = PQgetResult(conn);
+	if (res == NULL)
+		pg_fatal("unexpected NULL");
+	if (PQresultStatus(res) != PGRES_SINGLE_TUPLE)
+		pg_fatal("Expected PGRES_SINGLE_TUPLE, got %s",
+				 PQresStatus(PQresultStatus(res)));
+	res = PQgetResult(conn);
+	if (res == NULL)
+		pg_fatal("unexpected NULL");
+	if (PQresultStatus(res) != PGRES_TUPLES_OK)
+		pg_fatal("Expected PGRES_TUPLES_OK, got %s",
+				 PQresStatus(PQresultStatus(res)));
+	if (PQgetResult(conn) != NULL)
+		pg_fatal("expected NULL result");
+
+	if (PQsendQueryParams(conn, "SELECT 1",
+						  0, NULL, NULL, NULL, NULL, 0) != 1)
+		pg_fatal("failed to send query: %s",
+				 PQerrorMessage(conn));
+	if (PQsendFlushRequest(conn) != 1)
+		pg_fatal("failed to send flush request");
+	res = PQgetResult(conn);
+	if (res == NULL)
+		pg_fatal("unexpected NULL");
+	if (PQresultStatus(res) != PGRES_TUPLES_OK)
+		pg_fatal("Expected PGRES_TUPLES_OK, got %s",
+				 PQresStatus(PQresultStatus(res)));
+	if (PQgetResult(conn) != NULL)
+		pg_fatal("expected NULL result");
 
 	if (PQexitPipelineMode(conn) != 1)
 		pg_fatal("failed to end pipeline mode: %s", PQerrorMessage(conn));
@@ -1664,13 +1705,10 @@ main(int argc, char **argv)
 	PGresult   *res;
 	int			c;
 
-	while ((c = getopt(argc, argv, "t:r:")) != -1)
+	while ((c = getopt(argc, argv, "r:t:")) != -1)
 	{
 		switch (c)
 		{
-			case 't':			/* trace file */
-				tracefile = pg_strdup(optarg);
-				break;
 			case 'r':			/* numrows */
 				errno = 0;
 				numrows = strtol(optarg, NULL, 10);
@@ -1680,6 +1718,9 @@ main(int argc, char **argv)
 							optarg);
 					exit(1);
 				}
+				break;
+			case 't':			/* trace file */
+				tracefile = pg_strdup(optarg);
 				break;
 		}
 	}
@@ -1719,9 +1760,9 @@ main(int argc, char **argv)
 	res = PQexec(conn, "SET lc_messages TO \"C\"");
 	if (PQresultStatus(res) != PGRES_COMMAND_OK)
 		pg_fatal("failed to set lc_messages: %s", PQerrorMessage(conn));
-	res = PQexec(conn, "SET force_parallel_mode = off");
+	res = PQexec(conn, "SET debug_parallel_query = off");
 	if (PQresultStatus(res) != PGRES_COMMAND_OK)
-		pg_fatal("failed to set force_parallel_mode: %s", PQerrorMessage(conn));
+		pg_fatal("failed to set debug_parallel_query: %s", PQerrorMessage(conn));
 
 	/* Set the trace file, if requested */
 	if (tracefile != NULL)

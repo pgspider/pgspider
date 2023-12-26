@@ -2,7 +2,7 @@
  *
  * UUID generation functions using the BSD, E2FS or OSSP UUID library
  *
- * Copyright (c) 2007-2022, PostgreSQL Global Development Group
+ * Copyright (c) 2007-2023, PostgreSQL Global Development Group
  *
  * Portions Copyright (c) 2009 Andrew Gierth
  *
@@ -19,6 +19,7 @@
 #include "port/pg_bswap.h"
 #include "utils/builtins.h"
 #include "utils/uuid.h"
+#include "varatt.h"
 
 /*
  * It's possible that there's more than one uuid.h header file present.
@@ -304,8 +305,7 @@ uuid_generate_internal(int v, unsigned char *ns, const char *ptr, int len)
 						if (ptr && len <= 36)
 							strcpy(strbuf + (36 - len), ptr);
 					}
-					if (str)
-						free(str);
+					free(str);
 				}
 
 				if (status != uuid_s_ok)
@@ -378,8 +378,7 @@ uuid_generate_internal(int v, unsigned char *ns, const char *ptr, int len)
 				if (status == uuid_s_ok)
 					strlcpy(strbuf, str, 37);
 
-				if (str)
-					free(str);
+				free(str);
 
 				if (status != uuid_s_ok)
 					ereport(ERROR,

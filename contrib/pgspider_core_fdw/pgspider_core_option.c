@@ -23,9 +23,8 @@
 #include "fmgr.h"
 #include "utils/hsearch.h"
 #include "pgspider_core_timemeasure.h"
-
 #include "libpq-fe.h"
-
+#include <arpa/inet.h>
 
 void
 			SpdFdwCreateSpi(char *sql_text, int expect_ret);
@@ -138,7 +137,7 @@ pgspider_core_fdw_validator(PG_FUNCTION_ARGS)
 			}
 			ereport(ERROR,
 					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
-					 errmsg("invalid option \"%s\"", def->defname),
+					 errmsg("pgspider_core_fdw: invalid option \"%s\"", def->defname),
 					 errhint("Valid options in this context are: %s",
 							 buf.data)));
 		}
@@ -252,8 +251,28 @@ pgspider_core_fdw_validator(PG_FUNCTION_ARGS)
 						(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 						 errmsg("\"%s\" must be an integer value greater than 0",
 								def->defname)));
-		}
+		} 
+		else if (strcmp(def->defname, "public_port") == 0)
+		{
+			char	   *value;
+			int			int_val;
+			bool		is_parsed;
 
+			value = defGetString(def);
+			is_parsed = parse_int(value, &int_val, 0, NULL);
+
+			if (!is_parsed)
+				ereport(ERROR,
+						(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+						 errmsg("pgspider_core_fdw: invalid value for integer option \"%s\": %s",
+								def->defname, value)));
+
+			if (int_val <= 0 || int_val >= 65536)
+				ereport(ERROR,
+						(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+						 errmsg("pgspider_core_fdw: \"%s\" must be an integer value greater than 0 and less than 65536",
+								def->defname)));
+		}
 	}
 
 	PG_RETURN_VOID();
@@ -295,6 +314,9 @@ InitSpdFdwOptions(void)
 		/* data compression transfer */
 		{"socket_port", ForeignTableRelationId, false},
 		{"function_timeout", ForeignTableRelationId, false},
+		{"public_host", ForeignTableRelationId, false},
+		{"public_port", ForeignTableRelationId, false},
+		{"ifconfig_service", ForeignTableRelationId, false},
 		{NULL, InvalidOid, false}
 	};
 

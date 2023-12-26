@@ -3,7 +3,7 @@
  * foreigncmds.c
  *	  foreign-data wrapper/server creation/manipulation commands
  *
- * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2023, PostgreSQL Global Development Group
  *
  *
  * IDENTIFICATION
@@ -106,6 +106,11 @@ typedef struct migrate_cmd_context
 
 	/* temporary table prefix temp_<time create> */
 	char	   *temp_prefix;
+
+	/* temporary host info*/
+	char       *public_host;
+	int         public_port;
+	char       *ifconfig_service;
 } migrate_cmd_context;
 
 #define DCT_DEFAULT_BATCH_SIZE 1000			/* Default batch size for Data Compression Transfer Feature */
@@ -421,15 +426,15 @@ AlterForeignServerOwner_internal(Relation rel, HeapTuple tup, Oid newOwnerId)
 			srvId = form->oid;
 
 			/* Must be owner */
-			if (!pg_foreign_server_ownercheck(srvId, GetUserId()))
+			if (!object_ownercheck(ForeignServerRelationId, srvId, GetUserId()))
 				aclcheck_error(ACLCHECK_NOT_OWNER, OBJECT_FOREIGN_SERVER,
 							   NameStr(form->srvname));
 
 			/* Must be able to become new owner */
-			check_is_member_of_role(GetUserId(), newOwnerId);
+			check_can_set_role(GetUserId(), newOwnerId);
 
 			/* New owner must have USAGE privilege on foreign-data wrapper */
-			aclresult = pg_foreign_data_wrapper_aclcheck(form->srvfdw, newOwnerId, ACL_USAGE);
+			aclresult = object_aclcheck(ForeignDataWrapperRelationId, form->srvfdw, newOwnerId, ACL_USAGE);
 			if (aclresult != ACLCHECK_OK)
 			{
 				ForeignDataWrapper *fdw = GetForeignDataWrapper(form->srvfdw);
@@ -954,7 +959,7 @@ CreateForeignServer(CreateForeignServerStmt *stmt)
 	 */
 	fdw = GetForeignDataWrapperByName(stmt->fdwname, false);
 
-	aclresult = pg_foreign_data_wrapper_aclcheck(fdw->fdwid, ownerId, ACL_USAGE);
+	aclresult = object_aclcheck(ForeignDataWrapperRelationId, fdw->fdwid, ownerId, ACL_USAGE);
 	if (aclresult != ACLCHECK_OK)
 		aclcheck_error(aclresult, OBJECT_FDW, fdw->fdwname);
 
@@ -1061,7 +1066,7 @@ AlterForeignServer(AlterForeignServerStmt *stmt)
 	/*
 	 * Only owner or a superuser can ALTER a SERVER.
 	 */
-	if (!pg_foreign_server_ownercheck(srvId, GetUserId()))
+	if (!object_ownercheck(ForeignServerRelationId, srvId, GetUserId()))
 		aclcheck_error(ACLCHECK_NOT_OWNER, OBJECT_FOREIGN_SERVER,
 					   stmt->servername);
 
@@ -1139,13 +1144,13 @@ user_mapping_ddl_aclcheck(Oid umuserid, Oid serverid, const char *servername)
 {
 	Oid			curuserid = GetUserId();
 
-	if (!pg_foreign_server_ownercheck(serverid, curuserid))
+	if (!object_ownercheck(ForeignServerRelationId, serverid, curuserid))
 	{
 		if (umuserid == curuserid)
 		{
 			AclResult	aclresult;
 
-			aclresult = pg_foreign_server_aclcheck(serverid, curuserid, ACL_USAGE);
+			aclresult = object_aclcheck(ForeignServerRelationId, serverid, curuserid, ACL_USAGE);
 			if (aclresult != ACLCHECK_OK)
 				aclcheck_error(aclresult, OBJECT_FOREIGN_SERVER, servername);
 		}
@@ -1496,7 +1501,7 @@ CreateForeignTable(CreateForeignTableStmt *stmt, Oid relid)
 	 * get the actual FDW for option validation etc.
 	 */
 	server = GetForeignServerByName(stmt->servername, false);
-	aclresult = pg_foreign_server_aclcheck(server->serverid, ownerId, ACL_USAGE);
+	aclresult = object_aclcheck(ForeignServerRelationId, server->serverid, ownerId, ACL_USAGE);
 	if (aclresult != ACLCHECK_OK)
 		aclcheck_error(aclresult, OBJECT_FOREIGN_SERVER, server->servername);
 
@@ -1580,7 +1585,7 @@ spd_FdwExecForeignDDL(RangeVar *relvar, ForeignDDLType operation, bool exists_fl
 	 */
 	server = GetForeignServer(GetForeignServerIdByRelId(relid));
 
-	aclresult = pg_foreign_server_aclcheck(server->serverid, ownerId, ACL_USAGE);
+	aclresult = object_aclcheck(ForeignServerRelationId, server->serverid, ownerId, ACL_USAGE);
 	if (aclresult != ACLCHECK_OK)
 		aclcheck_error(aclresult, OBJECT_FOREIGN_SERVER, server->servername);
 
@@ -1790,6 +1795,28 @@ spd_relation_get_full_name(Relation rel)
 }
 
 /**
+ * @brief Check if the option should be skipped for specific fdw
+ *
+ * @param[in] fdw_name foreign data wrapper name
+ * @param[in] option option name
+ * @return bool
+ */
+static bool
+spd_skip_fdw_option(char *fdw_name, char *option)
+{
+	/*
+	 * The following option cannot be passed into specific fdw.
+	 * For example, influxdb_fdw does not support "org" option.
+	 * It is added only for support data compression transfer feature.
+	 * Therefore, it should be skipped for influxdb_fdw.
+	 */
+	if (strcmp(fdw_name, "influxdb_fdw") == 0 && strcmp(option, "org") == 0)
+		return true;
+	else
+		return false;
+}
+
+/**
  * @brief create CREATE FOREIGN TABLE command
  *
  * @param buf returned sql
@@ -1798,10 +1825,9 @@ spd_relation_get_full_name(Relation rel)
  * @param server foreign table server info
  * @param need_spdurl flag to specify __spd_url column is needed or not
  * @param relay relay server name for data migrate transfer feature
- * @param need_org flag to specify org option is needed or not
  */
 static char *
-spd_deparse_create_foreign_table_sql(Relation srcrel, char *table_name, MigrateServerItem * server, bool need_spdurl, char *relay, bool need_org)
+spd_deparse_create_foreign_table_sql(Relation srcrel, char *table_name, MigrateServerItem * server, bool need_spdurl, char *relay)
 {
 	ListCell   *optcell;
 	bool		first = true;
@@ -1810,11 +1836,19 @@ spd_deparse_create_foreign_table_sql(Relation srcrel, char *table_name, MigrateS
 	char	   *table_mapping_opt;
 	StringInfoData buf;
 	char	   *server_name;
-	Oid			serverID;
-	Oid			userID;
+	Oid			serverID = InvalidOid;
+	Oid			userID = InvalidOid;
+	ForeignDataWrapper *fdw;
 
 	if (relay == NULL)
+	{
+		ForeignServer *fs_target;
+
 		server_name = server->dest_server_name;
+		fs_target = GetForeignServerByName(server->dest_server_name, false);
+		/* Get target fdw */
+		fdw = GetForeignDataWrapper(fs_target->fdwid);
+	}
 	else
 	{
 		ForeignServer *fs_target;
@@ -1828,6 +1862,9 @@ spd_deparse_create_foreign_table_sql(Relation srcrel, char *table_name, MigrateS
 		userID = fs_target->owner;
 
 		fs_relay = GetForeignServerByName(relay, false);
+
+		/* Get relay fdw */
+		fdw = GetForeignDataWrapper(fs_relay->fdwid);
 
 		/* check batch_size exists in relay server */
 		foreach(optcell, fs_relay->options)
@@ -1870,7 +1907,8 @@ spd_deparse_create_foreign_table_sql(Relation srcrel, char *table_name, MigrateS
 		if (strcmp(od->defname, "relay") == 0)
 			continue;
 
-		if (strcmp(od->defname, "org") == 0 && need_org == false)
+		/* If options cannot be passed into fdw, skip it */
+		if (spd_skip_fdw_option(fdw->fdwname, od->defname))
 			continue;
 
 		if (!first)
@@ -2020,9 +2058,9 @@ spd_build_drop_child_table_query(Oid foreigntableid)
 				   "                JOIN pg_foreign_server fs ON ft.ftserver = fs.oid GROUP BY srvname ORDER BY srvname),"
 				   "        regex_pattern AS "
 				   "            (SELECT '^' || relname || '\\_\\_' || srv.srvname  || '\\_\\_[0-9]+$' regex FROM pg_class "
-				   "                CROSS JOIN srv WHERE oid = %d)"
+				   "                CROSS JOIN srv WHERE oid = %u)"
 				   "        SELECT relname AS tname FROM pg_class "
-				   "            WHERE (relname ~ (SELECT string_agg(regex, '|') FROM regex_pattern)) "
+				   "            WHERE (relname ~ ANY(SELECT regex FROM regex_pattern)) "
 				   "              AND (relname NOT LIKE '%%\\_%%\\_seq') "
 				   "            ORDER BY relname"
 				   "    )"
@@ -2054,7 +2092,7 @@ spd_is_multitenant_table(Relation rel)
 		 */
 		src_server = GetForeignServer(GetForeignServerIdByRelId(RelationGetRelid(rel)));
 
-		aclresult = pg_foreign_server_aclcheck(src_server->serverid, ownerId, ACL_USAGE);
+		aclresult = object_aclcheck(ForeignServerRelationId, src_server->serverid, ownerId, ACL_USAGE);
 		if (aclresult != ACLCHECK_OK)
 			aclcheck_error(aclresult, OBJECT_FOREIGN_SERVER, src_server->servername);
 
@@ -2148,10 +2186,40 @@ spd_create_migrate_dest_table(MigrateTableStmt *stmt,
 	 */
 	if (data_compression_transfer_enabled)
 	{
-		multitenant_table = psprintf("CREATE FOREIGN TABLE %s(%s, __spd_url text) SERVER %s OPTIONS (socket_port '%d', function_timeout '%d');",
+		StringInfoData options;
+		initStringInfo(&options);
+		
+		/*
+		 * pgspider_fdw notify public_host to function in compression transfer
+		 */
+		if (context->public_host)
+		{
+			appendStringInfo(&options, ", public_host '%s'", context->public_host);
+		}
+
+		/* Default public_port is socket_port
+		 * psgpider_fdw notify public_port to function in compression transfer
+		 * pgspider_core_fdw listen socket_port
+		 */
+		if (context->public_port != context->socket_port)
+		{
+			appendStringInfo(&options, ", public_port '%d'", context->public_port);
+		}
+
+		/*
+		 * pgspider_fdw get ip from ifconfig_service then notify to function in compression transfer
+		 */
+		if (context->ifconfig_service)
+		{
+			appendStringInfo(&options, ", ifconfig_service '%s'", context->ifconfig_service);
+		}
+		
+		multitenant_table = psprintf("CREATE FOREIGN TABLE %s(%s, __spd_url text) SERVER %s OPTIONS (socket_port '%d', function_timeout '%d' %s);",
 										context->dest_table_fullname, collist,
 										quote_identifier(context->use_multitenant_server),
-										context->socket_port, context->function_timeout);
+										context->socket_port, 
+										context->function_timeout,
+										options.data);
 	}
 	else
 	{
@@ -2174,9 +2242,6 @@ spd_create_migrate_dest_table(MigrateTableStmt *stmt,
 		char	   *relay = NULL;
 		char	   *sql_drop_table_child_foreign_table;
 		char	   *sql_create_table_child_foreign_table;
-		char	   *org = NULL;		/*organization name of data store on InfluxDB */
-		ForeignServer *fs_target;
-		ForeignDataWrapper *fdw;
 
 		dest_server_item = (MigrateServerItem *) lfirst(lc);
 		child_idx = spd_server_get_child_idx(&child_svr_list, dest_server_item->dest_server_name);
@@ -2194,7 +2259,7 @@ spd_create_migrate_dest_table(MigrateTableStmt *stmt,
 		 * For all fdws, remove `relay` option from the list of server options
 		 * For influxdb fdw, remove `org` option from the list of server options
 		 */
-		sql_create_table_child_foreign_table = spd_deparse_create_foreign_table_sql(src_rel, child_table_name, dest_server_item, false, NULL, false);
+		sql_create_table_child_foreign_table = spd_deparse_create_foreign_table_sql(src_rel, child_table_name, dest_server_item, false, NULL);
 		sql_drop_table_child_foreign_table = psprintf("DROP FOREIGN TABLE %s;", child_table_name);
 
 		/* get relay and org option for each child destination server */
@@ -2203,24 +2268,11 @@ spd_create_migrate_dest_table(MigrateTableStmt *stmt,
 			DefElem    *def = (DefElem *) lfirst(lc);
 
 			if (strcmp(def->defname, "relay") == 0)
+			{
 				relay = defGetString(def);
-			else if (strcmp(def->defname, "org") == 0)
-				org = defGetString(def);
+				break;
+			}
 		}
-
-		/* validate options for infludDB FDW */
-		fs_target = GetForeignServerByName(dest_server_item->dest_server_name, true);
-		fdw = GetForeignDataWrapper(fs_target->fdwid);
-
-		if (strcmp(fdw->fdwname, "influxdb_fdw") == 0)
-		{
-			if (relay != NULL && org == NULL)
-				elog(ERROR, "PGSpider: org must be specified along with relay");
-		}
-
-		/* validate option for all fdws */
-		if (relay == NULL && org != NULL)
-			elog(ERROR, "PGSpider: org must not be specified if there is no relay");
 
 		if (relay != NULL)
 		{
@@ -2231,7 +2283,7 @@ spd_create_migrate_dest_table(MigrateTableStmt *stmt,
 
 			/* Create foreign table for relay server */
 			spd_add_query(context,
-						  spd_deparse_create_foreign_table_sql(src_rel, child_table_name, dest_server_item, false, relay, (org != NULL) ? true : false ),
+						  spd_deparse_create_foreign_table_sql(src_rel, child_table_name, dest_server_item, false, relay),
 						  psprintf("DROP FOREIGN TABLE %s;", child_table_name));
 
 			*relay_command_list = lappend(*relay_command_list, psprintf("DROP FOREIGN TABLE %s;", child_table_name));
@@ -2475,7 +2527,7 @@ CreateMigrateCommands(MigrateTableStmt * stmt, List **cmds, List **c_cmds)
 	char	   *collist = NULL;
 	migrate_cmd_context context;
 	List	   *relay_command_list = NIL;
-
+	bool        is_public_port_set = false;
 	/* context init */
 	spd_migrate_context_init(&context);
 
@@ -2498,7 +2550,9 @@ CreateMigrateCommands(MigrateTableStmt * stmt, List **cmds, List **c_cmds)
 		context.src_table_name = pstrdup(RelationGetRelationName(src_rel));
 		context.src_table_fullname = spd_relation_get_full_name(src_rel);
 		context.src_table_is_multitenant = spd_is_multitenant_table(src_rel);
-
+		context.public_host = NULL;
+		context.public_port = 0;
+		context.ifconfig_service = NULL;
 		/* Get option USE_MULTITENANT_SERVER */
 		foreach(lc, stmt->dest_table_options)
 		{
@@ -2516,12 +2570,36 @@ CreateMigrateCommands(MigrateTableStmt * stmt, List **cmds, List **c_cmds)
 			else if (strcmp(def->defname, "function_timeout") == 0)
 			{
 				(void) parse_int(defGetString(def), &context.function_timeout, 0, NULL);
+			} 
+			else if (strcmp(def->defname, "public_host") == 0)
+			{
+				context.public_host = defGetString(def);
+			}
+			else if (strcmp(def->defname, "public_port") == 0)
+			{
+				(void) parse_int(defGetString(def), &context.public_port, 0, NULL);
+				is_public_port_set = true;
+			}
+			else if (strcmp(def->defname, "ifconfig_service") == 0)
+			{
+				context.ifconfig_service = defGetString(def);
 			}
 			else
 			{
 				elog(ERROR, "PGSpider: unexpected option: %s", def->defname);
 			}
 		}
+
+		if (!is_public_port_set)
+		{
+			context.public_port = context.socket_port;
+		}
+		
+		if (context.public_host != NULL && context.ifconfig_service != NULL)
+		{
+			elog(ERROR, "PGSpider: unexpected both options, either public_host or ifconfig_service are specified");
+		}
+
 
 		/* dest table is multitenant table */
 		if (list_length(stmt->dest_server_list) > 1 || context.use_multitenant_server)
@@ -2661,7 +2739,7 @@ ImportForeignSchema(ImportForeignSchemaStmt *stmt)
 
 	/* Check that the foreign server exists and that we have USAGE on it */
 	server = GetForeignServerByName(stmt->server_name, false);
-	aclresult = pg_foreign_server_aclcheck(server->serverid, GetUserId(), ACL_USAGE);
+	aclresult = object_aclcheck(ForeignServerRelationId, server->serverid, GetUserId(), ACL_USAGE);
 	if (aclresult != ACLCHECK_OK)
 		aclcheck_error(aclresult, OBJECT_FOREIGN_SERVER, server->servername);
 

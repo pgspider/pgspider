@@ -293,7 +293,7 @@ spd_routing_candidate_spdurl(TupleTableSlot *slot, Relation rel, ChildInfo * pCh
 	if (!spdurl)
 		return;
 
-	spd_create_child_url(list_make1(spdurl), pChildInfo, node_num, true);
+	spd_create_child_url(list_make1(makeString(spdurl)), pChildInfo, node_num, true);
 
 	/* Check the number of candidates. */
 	spd_check_candidate_count(pChildInfo, node_num);

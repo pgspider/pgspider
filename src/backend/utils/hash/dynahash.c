@@ -52,7 +52,7 @@
  *   dynahash has better performance for large entries.
  * - Guarantees stable pointers to entries.
  *
- * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2023, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
@@ -304,7 +304,11 @@ static void *hash_seq_search_orig(HASH_SEQ_STATUS *status);
 /*
  * memory allocation support
  */
+#ifdef PGSPIDER
+static __thread MemoryContext CurrentDynaHashCxt = NULL;
+#else
 static MemoryContext CurrentDynaHashCxt = NULL;
+#endif
 
 #ifdef PGSPIDER
 #include "dynahash_thread.c"
@@ -314,7 +318,8 @@ static void *
 DynaHashAlloc(Size size)
 {
 	Assert(MemoryContextIsValid(CurrentDynaHashCxt));
-	return MemoryContextAlloc(CurrentDynaHashCxt, size);
+	return MemoryContextAllocExtended(CurrentDynaHashCxt, size,
+									  MCXT_ALLOC_NO_OOM);
 }
 
 
@@ -374,7 +379,7 @@ HTAB *
 #ifdef PGSPIDER
 hash_create_orig(const char *tabname, long nelem, HASHCTL *info, int flags)
 #else
-hash_create(const char *tabname, long nelem, HASHCTL *info, int flags)
+hash_create(const char *tabname, long nelem, const HASHCTL *info, int flags)
 #endif
 {
 	HTAB	   *hashp;
@@ -980,9 +985,7 @@ calc_bucket(HASHHDR *hctl, uint32 hash_val)
  *
  * HASH_ENTER will normally ereport a generic "out of memory" error if
  * it is unable to create a new entry.  The HASH_ENTER_NULL operation is
- * the same except it will return NULL if out of memory.  Note that
- * HASH_ENTER_NULL cannot be used with the default palloc-based allocator,
- * since palloc internally ereports on out-of-memory.
+ * the same except it will return NULL if out of memory.
  *
  * If foundPtr isn't NULL, then *foundPtr is set true if we found an
  * existing entry in the table, false otherwise.  This is needed in the
@@ -1137,12 +1140,8 @@ hash_search_with_hash_value(HTAB *hashp,
 			}
 			return NULL;
 
-		case HASH_ENTER_NULL:
-			/* ENTER_NULL does not work with palloc-based allocator */
-			Assert(hashp->alloc != DynaHashAlloc);
-			/* FALL THRU */
-
 		case HASH_ENTER:
+		case HASH_ENTER_NULL:
 			/* Return existing element if found, else create one */
 			if (currBucket != NULL)
 				return (void *) ELEMENTKEY(currBucket);
@@ -1891,10 +1890,15 @@ next_pow2_int(long num)
 
 #define MAX_SEQ_SCANS 100
 
+#ifdef PGSPIDER
+static __thread HTAB *seq_scan_tables[MAX_SEQ_SCANS];	/* tables being scanned */
+static __thread int	seq_scan_level[MAX_SEQ_SCANS];	/* subtransaction nest level */
+static __thread int	num_seq_scans = 0;
+#else
 static HTAB *seq_scan_tables[MAX_SEQ_SCANS];	/* tables being scanned */
 static int	seq_scan_level[MAX_SEQ_SCANS];	/* subtransaction nest level */
 static int	num_seq_scans = 0;
-
+#endif
 
 /* Register a table as having an active hash_seq_search scan */
 static void

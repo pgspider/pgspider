@@ -152,6 +152,7 @@ ALTER TABLE base_tbl SET (autovacuum_enabled = 'false');
 
 CREATE TABLE child_tbl (a int, b int);
 ALTER TABLE child_tbl SET (autovacuum_enabled = 'false');
+CREATE TABLE child_local (b text, c numeric, a int);
 
 -- ===================================================================
 -- JOIN queries
@@ -178,6 +179,7 @@ create table gloc1 (
   b int generated always as (a * 2) stored);
 alter table gloc1 set (autovacuum_enabled = 'false');
 
+create table tab_batch_sharded_p1_remote (id int, data text);
 -- ===================================================================
 
 -- test inheritance features
@@ -282,11 +284,9 @@ alter table ctrtest attach partition loct2_4 for values in (2);
 
 
 
-create table loc2_1 (f1 int, f2 text);
+create table loc2 (f1 int, f2 text);
 
-alter table loc2_1 set (autovacuum_enabled = 'false');
-
-alter table loc2_1 add constraint loc2_1_f1positive check (f1 >= 0);
+alter table loc2 set (autovacuum_enabled = 'false');
 
 -- test COPY FROM with foreign table created in the same transaction
 
@@ -411,10 +411,18 @@ CREATE TABLE batch_table_p0 ( x int );
 CREATE TABLE batch_table_p1 ( x int );
 
 CREATE TABLE batch_cp_upd_test1 (a int);
-
+CREATE TABLE batch_cp_upd_test3 (a int);
 CREATE TABLE batch_table_p2 ( x int, field1 text, field2 text);
 CREATE TABLE batch_table_p3 ( x int, field1 text, field2 text);
 
+-- CREATE TABLE cmdlog (cmd text);
+-- CREATE FUNCTION log_stmt() RETURNS TRIGGER LANGUAGE plpgsql AS $$
+-- 	BEGIN INSERT INTO public.cmdlog VALUES (TG_OP || ' on ' || TG_RELNAME); RETURN NULL; END;
+-- $$;
+-- CREATE TRIGGER stmt_trig AFTER INSERT ON batch_cp_upd_test1
+-- 	FOR EACH STATEMENT EXECUTE FUNCTION log_stmt();
+-- CREATE TRIGGER stmt_trig AFTER INSERT ON batch_cp_upd_test3
+-- 	FOR EACH STATEMENT EXECUTE FUNCTION log_stmt();
 -- ===================================================================
 -- test parallel commit
 -- ===================================================================

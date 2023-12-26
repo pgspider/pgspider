@@ -65,6 +65,20 @@ $$;
 CREATE OR REPLACE AGGREGATE agg_parent (col text) (sfunc = trans_parent, stype = text, INITCOND = '');
 -- Distributed function
 CREATE OR REPLACE DISTRIBUTED_FUNC agg_dist (col text) PARENT agg_parent(text) CHILD agg_child(col text);
+EXPLAIN SELECT agg_dist(val) FROM tbl;
+                         QUERY PLAN                          
+-------------------------------------------------------------
+ Aggregate  (cost=458.91..458.92 rows=1 width=32)
+   Node: loopback1
+     Child aggregate function CREATE SQL: public.trans_child
+     Child aggregate function CREATE SQL: public.agg_child
+     Child aggregate function SELECT SQL: public.agg_child
+   Node: loopback2
+     Child aggregate function CREATE SQL: public.trans_child
+     Child aggregate function CREATE SQL: public.agg_child
+     Child aggregate function SELECT SQL: public.agg_child
+(9 rows)
+
 SELECT agg_dist(val) FROM tbl;
        agg_dist       
 ----------------------
@@ -132,6 +146,87 @@ $$;
 CREATE OR REPLACE AGGREGATE upsert_parent (col text) (sfunc = upsert_parent_trans, stype = text, INITCOND = '');
 -- Distributed function
 CREATE OR REPLACE DISTRIBUTED_FUNC upsert (col text) PARENT upsert_parent(text) CHILD upsert_child(col text);
+EXPLAIN VERBOSE SELECT upsert(val1) FROM tbl_upsert;
+                                                        QUERY PLAN                                                         
+---------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=458.91..458.92 rows=1 width=32)
+   Output: upsert(val1)
+   Node: loopback1
+     Child aggregate function CREATE SQL: CREATE OR REPLACE FUNCTION public.upsert_child_trans(internal integer, col text)
+  RETURNS integer
+  LANGUAGE plpgsql
+ AS $function$
+ DECLARE
+ BEGIN
+     IF col = 'data1' THEN
+       return internal + 1;
+     ELSE
+       return internal;
+     END IF;
+ END;
+ $function$
+ 
+     Child aggregate function CREATE SQL: CREATE OR REPLACE FUNCTION public.upsert_child_final(internal integer)
+  RETURNS pg_catalog.text
+  LANGUAGE plpgsql
+ AS $function$
+ DECLARE
+ BEGIN
+     IF internal <> 0 THEN
+       UPDATE public.tbl_upsert SET val2 = val2 + 1 WHERE val1 = 'data1';
+       return 'updated';
+     ELSE
+       INSERT INTO public.tbl_upsert VALUES('data1', 1);
+       return 'inserted';
+     END IF;
+ END;
+ $function$
+ 
+     Child aggregate function CREATE SQL: CREATE OR REPLACE AGGREGATE public.upsert_child(col pg_catalog.text)(
+  SFUNC = public.upsert_child_trans,
+  STYPE = integer,
+  FINALFUNC = public.upsert_child_final,
+  INITCOND = '0')
+     Child aggregate function SELECT SQL: SELECT public.upsert_child(val1) FROM public.tbl_upsert
+   Node: loopback2
+     Child aggregate function CREATE SQL: CREATE OR REPLACE FUNCTION public.upsert_child_trans(internal integer, col text)
+  RETURNS integer
+  LANGUAGE plpgsql
+ AS $function$
+ DECLARE
+ BEGIN
+     IF col = 'data1' THEN
+       return internal + 1;
+     ELSE
+       return internal;
+     END IF;
+ END;
+ $function$
+ 
+     Child aggregate function CREATE SQL: CREATE OR REPLACE FUNCTION public.upsert_child_final(internal integer)
+  RETURNS pg_catalog.text
+  LANGUAGE plpgsql
+ AS $function$
+ DECLARE
+ BEGIN
+     IF internal <> 0 THEN
+       UPDATE public.tbl_upsert SET val2 = val2 + 1 WHERE val1 = 'data1';
+       return 'updated';
+     ELSE
+       INSERT INTO public.tbl_upsert VALUES('data1', 1);
+       return 'inserted';
+     END IF;
+ END;
+ $function$
+ 
+     Child aggregate function CREATE SQL: CREATE OR REPLACE AGGREGATE public.upsert_child(col pg_catalog.text)(
+  SFUNC = public.upsert_child_trans,
+  STYPE = integer,
+  FINALFUNC = public.upsert_child_final,
+  INITCOND = '0')
+     Child aggregate function SELECT SQL: SELECT public.upsert_child(val1) FROM public.tbl_upsert
+(76 rows)
+
 SELECT upsert(val1) FROM tbl_upsert;
        upsert       
 --------------------

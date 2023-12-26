@@ -230,7 +230,7 @@ spd_tm_time_set_current(SpdTmTime * time)
 		return;
 
 	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts);
-	time->cpu = (instr_time) ts;
+	time->cpu.ticks = ts.tv_sec * NS_PER_S + ts.tv_nsec;
 
 	INSTR_TIME_SET_CURRENT(time->wall);
 }

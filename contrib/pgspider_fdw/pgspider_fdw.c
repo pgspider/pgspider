@@ -3,7 +3,7 @@
  * pgspider_fdw.c
  *		  Foreign-data wrapper for remote PGSpider servers
  *
- * Portions Copyright (c) 2012-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 2012-2023, PostgreSQL Global Development Group
  * Portions Copyright (c) 2018, TOSHIBA CORPORATION
  *
  * IDENTIFICATION
@@ -31,6 +31,7 @@
 #include "optimizer/appendinfo.h"
 #include "optimizer/clauses.h"
 #include "optimizer/cost.h"
+#include "optimizer/inherit.h"
 #include "optimizer/optimizer.h"
 #include "optimizer/pathnode.h"
 #include "optimizer/paths.h"
@@ -114,7 +115,13 @@ enum FdwModifyPrivateIndex
 	/* Port of socket for DATA COMPRESSION TRANSFER */
 	FdwModifyPrivateSocketPort,
 	/* Function timeout of Rest request for DATA COMPRESSION TRANSFER */
-	FdwModifyPrivateFunctionTimeout
+	FdwModifyPrivateFunctionTimeout,
+	/* Public host address for DATA COMPRESSION TRANSFER */
+	FdwModifyPrivatePublicHostAddr,
+	/* Public host port for DATA COMPRESSION TRANSFER */
+	FdwModifyPrivatePublicHostPort,
+	/* Public Vendor IP for DATA COMPRESSION TRANSFER */
+	FdwModifyPrivateTrustVendorIP,
 };
 
 /*
@@ -434,42 +441,43 @@ static void fetch_more_data(ForeignScanState *node);
 static void close_cursor(PGconn *conn, unsigned int cursor_number,
 						 PGSpiderFdwConnState * conn_state);
 static PGSpiderFdwModifyState * create_foreign_modify(EState *estate,
-													  RangeTblEntry *rte,
-													  ResultRelInfo *resultRelInfo,
-													  CmdType operation,
-													  Plan *subplan,
-													  char *query,
-													  List *target_attrs,
-													  int len,
-													  bool has_returning,
-													  List *retrieved_attrs,
-													  int socket_port,
-													  int function_timeout,
-													  bool data_compression_transfer_enabled);
+											   RangeTblEntry *rte,
+											   ResultRelInfo *resultRelInfo,
+											   CmdType operation,
+											   Plan *subplan,
+											   char *query,
+											   List *target_attrs,
+											   int values_end,
+											   bool has_returning,
+											   List *retrieved_attrs,
+											   int socket_port,
+											   int function_timeout,
+											   PGSpiderPublicHostInfo *publicHostInfo,
+											   bool data_compression_transfer_enabled);
 static TupleTableSlot **execute_foreign_modify(EState *estate,
 											   ResultRelInfo *resultRelInfo,
 											   CmdType operation,
 											   TupleTableSlot **slots,
 											   TupleTableSlot **planSlots,
 											   int *numSlots);
-static void prepare_foreign_modify(PGSpiderFdwModifyState * fmstate);
-static const char **convert_prep_stmt_params(PGSpiderFdwModifyState * fmstate,
+static void prepare_foreign_modify(PGSpiderFdwModifyState *fmstate);
+static const char **convert_prep_stmt_params(PGSpiderFdwModifyState *fmstate,
 											 ItemPointer tupleid,
 											 TupleTableSlot **slots,
 											 int numSlots);
-static void store_returning_result(PGSpiderFdwModifyState * fmstate,
+static void store_returning_result(PGSpiderFdwModifyState *fmstate,
 								   TupleTableSlot *slot, PGresult *res);
-static void finish_foreign_modify(PGSpiderFdwModifyState * fmstate);
-static void deallocate_query(PGSpiderFdwModifyState * fmstate);
+static void finish_foreign_modify(PGSpiderFdwModifyState *fmstate);
+static void deallocate_query(PGSpiderFdwModifyState *fmstate);
 static List *build_remote_returning(Index rtindex, Relation rel,
 									List *returningList);
 static void rebuild_fdw_scan_tlist(ForeignScan *fscan, List *tlist);
 static void execute_dml_stmt(ForeignScanState *node);
 static TupleTableSlot *get_returning_data(ForeignScanState *node);
-static void init_returning_filter(PGSpiderFdwDirectModifyState * dmstate,
+static void init_returning_filter(PGSpiderFdwDirectModifyState *dmstate,
 								  List *fdw_scan_tlist,
 								  Index rtindex);
-static TupleTableSlot *apply_returning_filter(PGSpiderFdwDirectModifyState * dmstate,
+static TupleTableSlot *apply_returning_filter(PGSpiderFdwDirectModifyState *dmstate,
 											  ResultRelInfo *resultRelInfo,
 											  TupleTableSlot *slot,
 											  EState *estate);
@@ -521,11 +529,11 @@ static void add_foreign_final_paths(PlannerInfo *root,
 									RelOptInfo *input_rel,
 									RelOptInfo *final_rel,
 									FinalPathExtraData *extra);
-static void apply_server_options(PGSpiderFdwRelationInfo * fpinfo);
-static void apply_table_options(PGSpiderFdwRelationInfo * fpinfo);
-static void merge_fdw_options(PGSpiderFdwRelationInfo * fpinfo,
-							  const PGSpiderFdwRelationInfo * fpinfo_o,
-							  const PGSpiderFdwRelationInfo * fpinfo_i);
+static void apply_server_options(PGSpiderFdwRelationInfo *fpinfo);
+static void apply_table_options(PGSpiderFdwRelationInfo *fpinfo);
+static void merge_fdw_options(PGSpiderFdwRelationInfo *fpinfo,
+							  const PGSpiderFdwRelationInfo *fpinfo_o,
+							  const PGSpiderFdwRelationInfo *fpinfo_i);
 static int	get_batch_size_option(Relation rel);
 
 
@@ -610,7 +618,6 @@ pgspiderGetForeignRelSize(PlannerInfo *root,
 {
 	PGSpiderFdwRelationInfo *fpinfo;
 	ListCell   *lc;
-	RangeTblEntry *rte = planner_rt_fetch(baserel->relid, root);
 
 	/*
 	 * We use PGSpiderFdwRelationInfo to pass various information to
@@ -644,13 +651,14 @@ pgspiderGetForeignRelSize(PlannerInfo *root,
 	/*
 	 * If the table or the server is configured to use remote estimates,
 	 * identify which user to do remote access as during planning.  This
-	 * should match what ExecCheckRTEPerms() does.  If we fail due to lack of
-	 * permissions, the query would have failed at runtime anyway.
+	 * should match what ExecCheckPermissions() does.  If we fail due to lack
+	 * of permissions, the query would have failed at runtime anyway.
 	 */
 	if (fpinfo->use_remote_estimate)
 	{
-		Oid			userid = rte->checkAsUser ? rte->checkAsUser : GetUserId();
+		Oid			userid;
 
+		userid = OidIsValid(baserel->userid) ? baserel->userid : GetUserId();
 		fpinfo->user = GetUserMapping(userid, fpinfo->server->serverid);
 	}
 	else
@@ -968,7 +976,7 @@ get_useful_pathkeys_for_relation(PlannerInfo *root, RelOptInfo *rel)
 
 		/* Can't push down the sort if the EC's opfamily is not shippable. */
 		if (!pgspider_is_shippable(linitial_oid(cur_ec->ec_opfamilies),
-								   OperatorFamilyRelationId, fpinfo))
+						  OperatorFamilyRelationId, fpinfo))
 			continue;
 
 		/* If no pushable expression for this rel, skip it. */
@@ -1365,8 +1373,6 @@ pgspiderGetForeignPlan(PlannerInfo *root,
 		 */
 		if (outer_plan)
 		{
-			ListCell   *lc;
-
 			/*
 			 * Right now, we only consider grouping and aggregation beyond
 			 * joins. Queries involving aggregates or grouping do not require
@@ -1419,9 +1425,9 @@ pgspiderGetForeignPlan(PlannerInfo *root,
 	 */
 	initStringInfo(&sql);
 	PGSpiderDeparseSelectStmtForRel(&sql, root, foreignrel, fdw_scan_tlist,
-									remote_exprs, best_path->path.pathkeys,
-									has_final_sort, has_limit, false,
-									&retrieved_attrs, &params_list);
+							remote_exprs, best_path->path.pathkeys,
+							has_final_sort, has_limit, false,
+							&retrieved_attrs, &params_list);
 
 	/* Remember remote_exprs for possible use by pgspiderPlanDirectModify */
 	fpinfo->final_remote_exprs = remote_exprs;
@@ -1536,16 +1542,14 @@ pgspiderBeginForeignScan(ForeignScanState *node, int eflags)
 
 	/*
 	 * Identify which user to do the remote access as.  This should match what
-	 * ExecCheckRTEPerms() does.  In case of a join or aggregate, use the
-	 * lowest-numbered member RTE as a representative; we would get the same
-	 * result from any.
+	 * ExecCheckPermissions() does.
 	 */
+	userid = OidIsValid(fsplan->checkAsUser) ? fsplan->checkAsUser : GetUserId();
 	if (fsplan->scan.scanrelid > 0)
 		rtindex = fsplan->scan.scanrelid;
 	else
-		rtindex = bms_next_member(fsplan->fs_relids, -1);
+		rtindex = bms_next_member(fsplan->fs_base_relids, -1);
 	rte = exec_rt_fetch(rtindex, estate);
-	userid = rte->checkAsUser ? rte->checkAsUser : GetUserId();
 
 	/* Get info about foreign table. */
 	table = GetForeignTable(rte->relid);
@@ -1673,7 +1677,7 @@ pgspiderReScanForeignScan(ForeignScanState *node)
 		return;
 
 	/*
-	 * If the node is async-capable, and an asynchronous fetch for it has been
+	 * If the node is async-capable, and an asynchronous fetch for it has
 	 * begun, the asynchronous fetch might not have yet completed.  Check if
 	 * the node is async-capable, and an asynchronous fetch for it is still in
 	 * progress; if so, complete the asynchronous fetch before restarting the
@@ -1837,7 +1841,8 @@ pgspiderPlanForeignModify(PlannerInfo *root,
 	else if (operation == CMD_UPDATE)
 	{
 		int			col;
-		Bitmapset  *allUpdatedCols = bms_union(rte->updatedCols, rte->extraUpdatedCols);
+		RelOptInfo *rel = find_base_rel(root, resultRelation);
+		Bitmapset  *allUpdatedCols = get_rel_all_updated_cols(root, rel);
 
 		col = -1;
 		while ((col = bms_next_member(allUpdatedCols, col)) >= 0)
@@ -1883,20 +1888,20 @@ pgspiderPlanForeignModify(PlannerInfo *root,
 	{
 		case CMD_INSERT:
 			PGSpiderDeparseInsertSql(&sql, rte, resultRelation, rel,
-									 targetAttrs, doNothing,
-									 withCheckOptionList, returningList,
-									 &retrieved_attrs, &values_end_len);
+							 targetAttrs, doNothing,
+							 withCheckOptionList, returningList,
+							 &retrieved_attrs, &values_end_len);
 			break;
 		case CMD_UPDATE:
 			PGSpiderDeparseUpdateSql(&sql, rte, resultRelation, rel,
-									 targetAttrs,
-									 withCheckOptionList, returningList,
-									 &retrieved_attrs);
+							 targetAttrs,
+							 withCheckOptionList, returningList,
+							 &retrieved_attrs);
 			break;
 		case CMD_DELETE:
 			PGSpiderDeparseDeleteSql(&sql, rte, resultRelation, rel,
-									 returningList,
-									 &retrieved_attrs);
+							 returningList,
+							 &retrieved_attrs);
 			break;
 		default:
 			elog(ERROR, "unexpected operation: %d", (int) operation);
@@ -1936,6 +1941,7 @@ pgspiderBeginForeignModify(ModifyTableState *mtstate,
 	int			function_timeout = 0,
 				socket_port = 0;
 	bool		data_compression_transfer_enabled = false;
+	PGSpiderPublicHostInfo *public_host_info = NULL;
 	RangeTblEntry *rte;
 
 	/*
@@ -1962,6 +1968,10 @@ pgspiderBeginForeignModify(ModifyTableState *mtstate,
 	{
 		socket_port = intVal(list_nth(fdw_private, FdwModifyPrivateSocketPort));
 		function_timeout = intVal(list_nth(fdw_private, FdwModifyPrivateFunctionTimeout));
+		public_host_info = (PGSpiderPublicHostInfo*) palloc0(sizeof(PGSpiderPublicHostInfo));
+		public_host_info->public_host = strVal(list_nth(fdw_private, FdwModifyPrivatePublicHostAddr));
+		public_host_info->public_port = intVal(list_nth(fdw_private, FdwModifyPrivatePublicHostPort));
+		public_host_info->ifconfig_service = strVal(list_nth(fdw_private, FdwModifyPrivateTrustVendorIP));
 	}
 
 	/* Find RTE. */
@@ -1981,6 +1991,7 @@ pgspiderBeginForeignModify(ModifyTableState *mtstate,
 									retrieved_attrs,
 									socket_port,
 									function_timeout,
+									public_host_info,
 									data_compression_transfer_enabled);
 
 	resultRelInfo->ri_FdwState = fmstate;
@@ -2016,6 +2027,37 @@ pgspiderExecForeignInsert(EState *estate,
 }
 
 /*
+ * pgspiderSetupHostInfo
+ *      Check NAT option pass from foreigncmds.c: spd_create_migrate_dest_table
+ *
+*/
+static void pgspiderSetupHostInfo(PGSpiderFdwModifyState *fmstate , DataCompressionTransferOption *dct_option)
+{
+	PGSpiderPublicHostInfo *info = fmstate->public_host_info;
+	if(fmstate->public_host_info == NULL) 
+	{
+		return;
+	}
+
+	if (info->public_host != NULL)
+	{
+		dct_option->mode = MODE_MANUAL;
+		dct_option->public_host = info->public_host;
+	}
+
+	if (info->public_port > 0)
+	{
+		dct_option->public_port = info->public_port;
+	}
+
+	if (info->ifconfig_service != NULL)
+	{
+		dct_option->mode = MODE_AUTO;
+		dct_option->ifconfig_service = info->ifconfig_service;
+	}
+}
+
+/*
  * pgspiderExecForeignBatchInsert
  *		Insert multiple rows into a foreign table
  */
@@ -2037,8 +2079,6 @@ pgspiderExecForeignBatchInsert(EState *estate,
 		int			err;
 		SocketInfo *socketInfo;
 		sigset_t	old_mask;
-		AuthenticationData authData;
-		ConnectionURLData connData;
 		int			compressedlength;
 		DataCompressionTransferOption dct_option;
 		MemoryContext oldcontext;
@@ -2053,11 +2093,8 @@ pgspiderExecForeignBatchInsert(EState *estate,
 
 		init_InsertData(&insertData);
 
-		/* Set tablename */
-		insertData.tableName = dct_option.table_name;
-
 		/* Set ColumnInfo */
-		insertData.columnInfos = create_column_info_array(fmstate->rel, fmstate->target_attrs, dct_option.tagsList);
+		insertData.columnInfos = create_column_info_array(fmstate->rel, fmstate->target_attrs);
 
 		/* Set TransferValue */
 		insertData.values = create_values_array(fmstate, slots, *numSlots);
@@ -2096,16 +2133,10 @@ pgspiderExecForeignBatchInsert(EState *estate,
 			ereport(ERROR, (errmsg("pgspider_fdw: Cannot create thread! error=%d", err)));
 		SPD_SIGBLOCK_END_TRY(old_mask);
 
-		init_AuthenticationData(&authData);
-		init_ConnectionURLData(&connData);
-
-		pgspiderPrepareAuthenticationData(&authData, &dct_option);
-		pgspiderPrepareConnectionURLData(&connData, fmstate->rel, &dct_option);
-
 		dct_option.function_timeout = fmstate->function_timeout;
-
+		pgspiderSetupHostInfo(fmstate, &dct_option);
 		/* Send request to Function */
-		PGSpiderRequestFunctionStart(BATCH_INSERT, &dct_option, fmstate, &authData, &connData, NULL);
+		PGSpiderRequestFunctionStart(BATCH_INSERT, &dct_option, fmstate, fmstate->rel, false);
 
 		err = pthread_join(fmstate->socket_thread, NULL);
 		if (err != 0)
@@ -2149,16 +2180,15 @@ static int
 pgspiderGetForeignModifyBatchSize(ResultRelInfo *resultRelInfo)
 {
 	int			batch_size;
-	PGSpiderFdwModifyState *fmstate = resultRelInfo->ri_FdwState ?
-	(PGSpiderFdwModifyState *) resultRelInfo->ri_FdwState :
-	NULL;
+	PGSpiderFdwModifyState *fmstate = (PGSpiderFdwModifyState *) resultRelInfo->ri_FdwState;
 
 	/* should be called only once */
 	Assert(resultRelInfo->ri_BatchSize == 0);
 
 	/*
-	 * Should never get called when the insert is being performed as part of a
-	 * row movement operation.
+	 * Should never get called when the insert is being performed on a table
+	 * that is also among the target relations of an UPDATE operation, because
+	 * postgresBeginForeignInsert() currently rejects such insert attempts.
 	 */
 	Assert(fmstate == NULL || fmstate->aux_fmstate == NULL);
 
@@ -2187,6 +2217,15 @@ pgspiderGetForeignModifyBatchSize(ResultRelInfo *resultRelInfo)
 		(resultRelInfo->ri_TrigDesc &&
 		 (resultRelInfo->ri_TrigDesc->trig_insert_before_row ||
 		  resultRelInfo->ri_TrigDesc->trig_insert_after_row)))
+		return 1;
+
+	/*
+	 * If the foreign table has no columns, disable batching as the INSERT
+	 * syntax doesn't allow batching multiple empty rows into a zero-column
+	 * table in a single statement.  This is needed for COPY FROM, in which
+	 * case fmstate must be non-NULL.
+	 */
+	if (fmstate && list_length(fmstate->target_attrs) == 0)
 		return 1;
 
 	/*
@@ -2356,9 +2395,9 @@ pgspiderBeginForeignInsert(ModifyTableState *mtstate,
 
 	/* Construct the SQL command string. */
 	PGSpiderDeparseInsertSql(&sql, rte, resultRelation, rel, targetAttrs, doNothing,
-							 resultRelInfo->ri_WithCheckOptions,
-							 resultRelInfo->ri_returningList,
-							 &retrieved_attrs, &values_end_len);
+					 resultRelInfo->ri_WithCheckOptions,
+					 resultRelInfo->ri_returningList,
+					 &retrieved_attrs, &values_end_len);
 
 	/* Construct an execution state. */
 	fmstate = create_foreign_modify(mtstate->ps.state,
@@ -2371,7 +2410,7 @@ pgspiderBeginForeignInsert(ModifyTableState *mtstate,
 									values_end_len,
 									retrieved_attrs != NIL,
 									retrieved_attrs,
-									0, 0, false);
+									0, 0, NULL, false);
 
 	/*
 	 * If the given resultRelInfo already has PGSpiderFdwModifyState set, it
@@ -2539,7 +2578,7 @@ find_modifytable_subplan(PlannerInfo *root,
 	{
 		ForeignScan *fscan = (ForeignScan *) subplan;
 
-		if (bms_is_member(rtindex, fscan->fs_relids))
+		if (bms_is_member(rtindex, fscan->fs_base_relids))
 			return fscan;
 	}
 
@@ -2686,17 +2725,17 @@ pgspiderPlanDirectModify(PlannerInfo *root,
 	{
 		case CMD_UPDATE:
 			PGSpiderDeparseDirectUpdateSql(&sql, root, resultRelation, rel,
-										   foreignrel,
-										   processed_tlist,
-										   targetAttrs,
-										   remote_exprs, &params_list,
-										   returningList, &retrieved_attrs);
+								   foreignrel,
+								   processed_tlist,
+								   targetAttrs,
+								   remote_exprs, &params_list,
+								   returningList, &retrieved_attrs);
 			break;
 		case CMD_DELETE:
 			PGSpiderDeparseDirectDeleteSql(&sql, root, resultRelation, rel,
-										   foreignrel,
-										   remote_exprs, &params_list,
-										   returningList, &retrieved_attrs);
+								   foreignrel,
+								   remote_exprs, &params_list,
+								   returningList, &retrieved_attrs);
 			break;
 		default:
 			elog(ERROR, "unexpected operation: %d", (int) operation);
@@ -2758,7 +2797,6 @@ pgspiderBeginDirectModify(ForeignScanState *node, int eflags)
 	EState	   *estate = node->ss.ps.state;
 	PGSpiderFdwDirectModifyState *dmstate;
 	Index		rtindex;
-	RangeTblEntry *rte;
 	Oid			userid;
 	ForeignTable *table;
 	UserMapping *user;
@@ -2778,13 +2816,12 @@ pgspiderBeginDirectModify(ForeignScanState *node, int eflags)
 
 	/*
 	 * Identify which user to do the remote access as.  This should match what
-	 * ExecCheckRTEPerms() does.
+	 * ExecCheckPermissions() does.
 	 */
-	rtindex = node->resultRelInfo->ri_RangeTableIndex;
-	rte = exec_rt_fetch(rtindex, estate);
-	userid = rte->checkAsUser ? rte->checkAsUser : GetUserId();
+	userid = OidIsValid(fsplan->checkAsUser) ? fsplan->checkAsUser : GetUserId();
 
 	/* Get info about foreign table. */
+	rtindex = node->resultRelInfo->ri_RangeTableIndex;
 	if (fsplan->scan.scanrelid == 0)
 		dmstate->rel = ExecOpenScanRelation(estate, rtindex, eflags);
 	else
@@ -2924,8 +2961,7 @@ pgspiderEndDirectModify(ForeignScanState *node)
 		return;
 
 	/* Release PGresult */
-	if (dmstate->result)
-		PQclear(dmstate->result);
+	PQclear(dmstate->result);
 
 	/* Release remote connection */
 	PGSpiderReleaseConnection(dmstate->conn);
@@ -2966,8 +3002,8 @@ pgspiderExplainForeignScan(ForeignScanState *node, ExplainState *es)
 		 * that setrefs.c won't update the string when flattening the
 		 * rangetable.  To find out what rtoffset was applied, identify the
 		 * minimum RT index appearing in the string and compare it to the
-		 * minimum member of plan->fs_relids.  (We expect all the relids in
-		 * the join will have been offset by the same amount; the Asserts
+		 * minimum member of plan->fs_base_relids.  (We expect all the relids
+		 * in the join will have been offset by the same amount; the Asserts
 		 * below should catch it if that ever changes.)
 		 */
 		minrti = INT_MAX;
@@ -2984,7 +3020,7 @@ pgspiderExplainForeignScan(ForeignScanState *node, ExplainState *es)
 			else
 				ptr++;
 		}
-		rtoffset = bms_next_member(plan->fs_relids, -1) - minrti;
+		rtoffset = bms_next_member(plan->fs_base_relids, -1) - minrti;
 
 		/* Now we can translate the string */
 		relations = makeStringInfo();
@@ -2999,7 +3035,7 @@ pgspiderExplainForeignScan(ForeignScanState *node, ExplainState *es)
 				char	   *refname;
 
 				rti += rtoffset;
-				Assert(bms_is_member(rti, plan->fs_relids));
+				Assert(bms_is_member(rti, plan->fs_base_relids));
 				rte = rt_fetch(rti, es->rtable);
 				Assert(rte->rtekind == RTE_RELATION);
 				/* This logic should agree with explain.c's ExplainTargetRel */
@@ -3266,10 +3302,10 @@ estimate_path_cost_size(PlannerInfo *root,
 		initStringInfo(&sql);
 		appendStringInfoString(&sql, "EXPLAIN ");
 		PGSpiderDeparseSelectStmtForRel(&sql, root, foreignrel, fdw_scan_tlist,
-										remote_conds, pathkeys,
-										fpextra ? fpextra->has_final_sort : false,
-										fpextra ? fpextra->has_limit : false,
-										false, &retrieved_attrs, NULL);
+								remote_conds, pathkeys,
+								fpextra ? fpextra->has_final_sort : false,
+								fpextra ? fpextra->has_limit : false,
+								false, &retrieved_attrs, NULL);
 
 		/* Get the remote estimate */
 		conn = PGSpiderGetConnection(fpinfo->user, false, NULL);
@@ -3473,9 +3509,9 @@ estimate_path_cost_size(PlannerInfo *root,
 			}
 
 			/* Get number of grouping columns and possible number of groups */
-			numGroupCols = list_length(root->parse->groupClause);
+			numGroupCols = list_length(root->processed_groupClause);
 			numGroups = estimate_num_groups(root,
-											get_sortgrouplist_exprs(root->parse->groupClause,
+											get_sortgrouplist_exprs(root->processed_groupClause,
 																	fpinfo->grouped_tlist),
 											input_rows, NULL, NULL);
 
@@ -3483,7 +3519,7 @@ estimate_path_cost_size(PlannerInfo *root,
 			 * Get the retrieved_rows and rows estimates.  If there are HAVING
 			 * quals, account for their selectivity.
 			 */
-			if (root->parse->havingQual)
+			if (root->hasHavingQual)
 			{
 				/* Factor in the selectivity of the remotely-checked quals */
 				retrieved_rows =
@@ -3531,7 +3567,7 @@ estimate_path_cost_size(PlannerInfo *root,
 			run_cost += cpu_tuple_cost * numGroups;
 
 			/* Account for the eval cost of HAVING quals, if any */
-			if (root->parse->havingQual)
+			if (root->hasHavingQual)
 			{
 				QualCost	remote_cost;
 
@@ -3738,8 +3774,7 @@ get_remote_estimate(const char *sql, PGconn *conn,
 	}
 	PG_FINALLY();
 	{
-		if (res)
-			PQclear(res);
+		PQclear(res);
 	}
 	PG_END_TRY();
 }
@@ -3765,7 +3800,7 @@ adjust_foreign_grouping_path_cost(PlannerInfo *root,
 	 * pathkeys, adjust the costs with that function.  Otherwise, adjust the
 	 * costs by applying the same heuristic as for the scan or join case.
 	 */
-	if (!grouping_is_sortable(root->parse->groupClause) ||
+	if (!grouping_is_sortable(root->processed_groupClause) ||
 		!pathkeys_contained_in(pathkeys, root->group_pathkeys))
 	{
 		Path		sort_path;	/* dummy for result of cost_sort */
@@ -3987,8 +4022,7 @@ fetch_more_data(ForeignScanState *node)
 	}
 	PG_FINALLY();
 	{
-		if (res)
-			PQclear(res);
+		PQclear(res);
 	}
 	PG_END_TRY();
 
@@ -4093,6 +4127,7 @@ create_foreign_modify(EState *estate,
 					  List *retrieved_attrs,
 					  int socket_port,
 					  int function_timeout,
+                      PGSpiderPublicHostInfo *publicHostInfo,
 					  bool data_compression_transfer_enabled)
 {
 	PGSpiderFdwModifyState *fmstate;
@@ -4110,11 +4145,8 @@ create_foreign_modify(EState *estate,
 	fmstate = (PGSpiderFdwModifyState *) palloc0(sizeof(PGSpiderFdwModifyState));
 	fmstate->rel = rel;
 
-	/*
-	 * Identify which user to do the remote access as.  This should match what
-	 * ExecCheckRTEPerms() does.
-	 */
-	userid = rte->checkAsUser ? rte->checkAsUser : GetUserId();
+	/* Identify which user to do the remote access as. */
+	userid = ExecGetResultRelCheckAsUser(resultRelInfo, estate);
 
 	/* Get info about foreign table. */
 	table = GetForeignTable(RelationGetRelid(rel));
@@ -4128,6 +4160,7 @@ create_foreign_modify(EState *estate,
 			fmstate->socketThreadInfo.tableoid = table->relid;
 			fmstate->socket_port = socket_port;
 			fmstate->function_timeout = function_timeout;
+			fmstate->public_host_info = publicHostInfo;
 			fmstate->data_compression_transfer_enabled = data_compression_transfer_enabled;
 		}
 		else
@@ -4260,9 +4293,9 @@ execute_foreign_modify(EState *estate,
 		/* Build INSERT string with numSlots records in its VALUES clause. */
 		initStringInfo(&sql);
 		PGSpiderRebuildInsertSql(&sql, fmstate->rel,
-								 fmstate->orig_query, fmstate->target_attrs,
-								 fmstate->values_end, fmstate->p_nums,
-								 *numSlots - 1);
+						 fmstate->orig_query, fmstate->target_attrs,
+						 fmstate->values_end, fmstate->p_nums,
+						 *numSlots - 1);
 		pfree(fmstate->query);
 		fmstate->query = sql.data;
 		fmstate->num_slots = *numSlots;
@@ -4500,8 +4533,7 @@ store_returning_result(PGSpiderFdwModifyState * fmstate,
 	}
 	PG_CATCH();
 	{
-		if (res)
-			PQclear(res);
+		PQclear(res);
 		PG_RE_THROW();
 	}
 	PG_END_TRY();
@@ -4727,7 +4759,7 @@ execute_dml_stmt(ForeignScanState *node)
 	if (PQresultStatus(dmstate->result) !=
 		(dmstate->has_returning ? PGRES_TUPLES_OK : PGRES_COMMAND_OK))
 		pgspiderfdw_report_error(ERROR, dmstate->result, dmstate->conn, true,
-								 dmstate->query);
+						   dmstate->query);
 
 	/* Get the number of rows affected. */
 	if (dmstate->has_returning)
@@ -4789,8 +4821,7 @@ get_returning_data(ForeignScanState *node)
 		}
 		PG_CATCH();
 		{
-			if (dmstate->result)
-				PQclear(dmstate->result);
+			PQclear(dmstate->result);
 			PG_RE_THROW();
 		}
 		PG_END_TRY();
@@ -5119,8 +5150,7 @@ pgspiderAnalyzeForeignTable(Relation relation,
 	}
 	PG_FINALLY();
 	{
-		if (res)
-			PQclear(res);
+		PQclear(res);
 	}
 	PG_END_TRY();
 
@@ -5130,9 +5160,71 @@ pgspiderAnalyzeForeignTable(Relation relation,
 }
 
 /*
- * Acquire a random sample of rows from foreign table managed by pgspider_fdw.
+ * postgresGetAnalyzeInfoForForeignTable
+ *		Count tuples in foreign table (just get pg_class.reltuples).
  *
- * We fetch the whole table from the remote side and pick out some sample rows.
+ * can_tablesample determines if the remote relation supports acquiring the
+ * sample using TABLESAMPLE.
+ */
+static double
+pgspiderGetAnalyzeInfoForForeignTable(Relation relation, bool *can_tablesample)
+{
+	ForeignTable *table;
+	UserMapping *user;
+	PGconn	   *conn;
+	StringInfoData sql;
+	PGresult   *volatile res = NULL;
+	volatile double reltuples = -1;
+	volatile char relkind = 0;
+
+	/* assume the remote relation does not support TABLESAMPLE */
+	*can_tablesample = false;
+
+	/*
+	 * Get the connection to use.  We do the remote access as the table's
+	 * owner, even if the ANALYZE was started by some other user.
+	 */
+	table = GetForeignTable(RelationGetRelid(relation));
+	user = GetUserMapping(relation->rd_rel->relowner, table->serverid);
+	conn = PGSpiderGetConnection(user, false, NULL);
+
+	/*
+	 * Construct command to get page count for relation.
+	 */
+	initStringInfo(&sql);
+	PGSpiderDeparseAnalyzeInfoSql(&sql, relation);
+
+	/* In what follows, do not risk leaking any PGresults. */
+	PG_TRY();
+	{
+		res = pgspiderfdw_exec_query(conn, sql.data, NULL);
+		if (PQresultStatus(res) != PGRES_TUPLES_OK)
+			pgspiderfdw_report_error(ERROR, res, conn, false, sql.data);
+
+		if (PQntuples(res) != 1 || PQnfields(res) != 2)
+			elog(ERROR, "unexpected result from deparseAnalyzeInfoSql query");
+		reltuples = strtod(PQgetvalue(res, 0, 0), NULL);
+		relkind = *(PQgetvalue(res, 0, 1));
+	}
+	PG_FINALLY();
+	{
+		if (res)
+			PQclear(res);
+	}
+	PG_END_TRY();
+
+	PGSpiderReleaseConnection(conn);
+
+	/* TABLESAMPLE is supported only for regular tables and matviews */
+	*can_tablesample = (relkind == RELKIND_RELATION ||
+						relkind == RELKIND_MATVIEW ||
+						relkind == RELKIND_PARTITIONED_TABLE);
+
+	return reltuples;
+}
+
+/*
+ * Acquire a random sample of rows from foreign table managed by pgspider_fdw.
  *
  * Selected rows are returned in the caller-allocated array rows[],
  * which must have at least targrows entries.
@@ -5156,9 +5248,14 @@ pgspiderAcquireSampleRowsFunc(Relation relation, int elevel,
 	ForeignServer *server;
 	UserMapping *user;
 	PGconn	   *conn;
+	int			server_version_num;
+	PGSpiderFdwSamplingMethod method = ANALYZE_SAMPLE_AUTO;	/* auto is default */
+	double		sample_frac = -1.0;
+	double		reltuples;
 	unsigned int cursor_number;
 	StringInfoData sql;
 	PGresult   *volatile res = NULL;
+	ListCell   *lc;
 
 	/* Initialize workspace state */
 	astate.rel = relation;
@@ -5186,20 +5283,158 @@ pgspiderAcquireSampleRowsFunc(Relation relation, int elevel,
 	user = GetUserMapping(relation->rd_rel->relowner, table->serverid);
 	conn = PGSpiderGetConnection(user, false, NULL);
 
+	/* We'll need server version, so fetch it now. */
+	server_version_num = PQserverVersion(conn);
+
+	/*
+	 * What sampling method should we use?
+	 */
+	foreach(lc, server->options)
+	{
+		DefElem    *def = (DefElem *) lfirst(lc);
+
+		if (strcmp(def->defname, "analyze_sampling") == 0)
+		{
+			char	   *value = defGetString(def);
+
+			if (strcmp(value, "off") == 0)
+				method = ANALYZE_SAMPLE_OFF;
+			else if (strcmp(value, "auto") == 0)
+				method = ANALYZE_SAMPLE_AUTO;
+			else if (strcmp(value, "random") == 0)
+				method = ANALYZE_SAMPLE_RANDOM;
+			else if (strcmp(value, "system") == 0)
+				method = ANALYZE_SAMPLE_SYSTEM;
+			else if (strcmp(value, "bernoulli") == 0)
+				method = ANALYZE_SAMPLE_BERNOULLI;
+
+			break;
+		}
+	}
+
+	foreach(lc, table->options)
+	{
+		DefElem    *def = (DefElem *) lfirst(lc);
+
+		if (strcmp(def->defname, "analyze_sampling") == 0)
+		{
+			char	   *value = defGetString(def);
+
+			if (strcmp(value, "off") == 0)
+				method = ANALYZE_SAMPLE_OFF;
+			else if (strcmp(value, "auto") == 0)
+				method = ANALYZE_SAMPLE_AUTO;
+			else if (strcmp(value, "random") == 0)
+				method = ANALYZE_SAMPLE_RANDOM;
+			else if (strcmp(value, "system") == 0)
+				method = ANALYZE_SAMPLE_SYSTEM;
+			else if (strcmp(value, "bernoulli") == 0)
+				method = ANALYZE_SAMPLE_BERNOULLI;
+
+			break;
+		}
+	}
+
+	/*
+	 * Error-out if explicitly required one of the TABLESAMPLE methods, but
+	 * the server does not support it.
+	 */
+	if ((server_version_num < 95000) &&
+		(method == ANALYZE_SAMPLE_SYSTEM ||
+		 method == ANALYZE_SAMPLE_BERNOULLI))
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("remote server does not support TABLESAMPLE feature")));
+
+	/*
+	 * If we've decided to do remote sampling, calculate the sampling rate. We
+	 * need to get the number of tuples from the remote server, but skip that
+	 * network round-trip if not needed.
+	 */
+	if (method != ANALYZE_SAMPLE_OFF)
+	{
+		bool		can_tablesample;
+
+		reltuples = pgspiderGetAnalyzeInfoForForeignTable(relation,
+														  &can_tablesample);
+
+		/*
+		 * Make sure we're not choosing TABLESAMPLE when the remote relation
+		 * does not support that. But only do this for "auto" - if the user
+		 * explicitly requested BERNOULLI/SYSTEM, it's better to fail.
+		 */
+		if (!can_tablesample && (method == ANALYZE_SAMPLE_AUTO))
+			method = ANALYZE_SAMPLE_RANDOM;
+
+		/*
+		 * Remote's reltuples could be 0 or -1 if the table has never been
+		 * vacuumed/analyzed.  In that case, disable sampling after all.
+		 */
+		if ((reltuples <= 0) || (targrows >= reltuples))
+			method = ANALYZE_SAMPLE_OFF;
+		else
+		{
+			/*
+			 * All supported sampling methods require sampling rate, not
+			 * target rows directly, so we calculate that using the remote
+			 * reltuples value. That's imperfect, because it might be off a
+			 * good deal, but that's not something we can (or should) address
+			 * here.
+			 *
+			 * If reltuples is too low (i.e. when table grew), we'll end up
+			 * sampling more rows - but then we'll apply the local sampling,
+			 * so we get the expected sample size. This is the same outcome as
+			 * without remote sampling.
+			 *
+			 * If reltuples is too high (e.g. after bulk DELETE), we will end
+			 * up sampling too few rows.
+			 *
+			 * We can't really do much better here - we could try sampling a
+			 * bit more rows, but we don't know how off the reltuples value is
+			 * so how much is "a bit more"?
+			 *
+			 * Furthermore, the targrows value for partitions is determined
+			 * based on table size (relpages), which can be off in different
+			 * ways too. Adjusting the sampling rate here might make the issue
+			 * worse.
+			 */
+			sample_frac = targrows / reltuples;
+
+			/*
+			 * We should never get sampling rate outside the valid range
+			 * (between 0.0 and 1.0), because those cases should be covered by
+			 * the previous branch that sets ANALYZE_SAMPLE_OFF.
+			 */
+			Assert(sample_frac >= 0.0 && sample_frac <= 1.0);
+		}
+	}
+
+	/*
+	 * For "auto" method, pick the one we believe is best. For servers with
+	 * TABLESAMPLE support we pick BERNOULLI, for old servers we fall-back to
+	 * random() to at least reduce network transfer.
+	 */
+	if (method == ANALYZE_SAMPLE_AUTO)
+	{
+		if (server_version_num < 95000)
+			method = ANALYZE_SAMPLE_RANDOM;
+		else
+			method = ANALYZE_SAMPLE_BERNOULLI;
+	}
+
 	/*
 	 * Construct cursor that retrieves whole rows from remote.
 	 */
 	cursor_number = PGSpiderGetCursorNumber(conn);
 	initStringInfo(&sql);
 	appendStringInfo(&sql, "DECLARE c%u CURSOR FOR ", cursor_number);
-	PGSpiderDeparseAnalyzeSql(&sql, relation, &astate.retrieved_attrs);
+	PGSpiderDeparseAnalyzeSql(&sql, relation, method, sample_frac, &astate.retrieved_attrs);
 
 	/* In what follows, do not risk leaking any PGresults. */
 	PG_TRY();
 	{
 		char		fetch_sql[64];
 		int			fetch_size;
-		ListCell   *lc;
 
 		res = pgspiderfdw_exec_query(conn, sql.data, NULL);
 		if (PQresultStatus(res) != PGRES_COMMAND_OK)
@@ -5276,8 +5511,7 @@ pgspiderAcquireSampleRowsFunc(Relation relation, int elevel,
 	}
 	PG_CATCH();
 	{
-		if (res)
-			PQclear(res);
+		PQclear(res);
 		PG_RE_THROW();
 	}
 	PG_END_TRY();
@@ -5287,8 +5521,15 @@ pgspiderAcquireSampleRowsFunc(Relation relation, int elevel,
 	/* We assume that we have no dead tuple. */
 	*totaldeadrows = 0.0;
 
-	/* We've retrieved all living tuples from foreign server. */
-	*totalrows = astate.samplerows;
+	/*
+	 * Without sampling, we've retrieved all living tuples from foreign
+	 * server, so report that as totalrows.  Otherwise use the reltuples
+	 * estimate we got from the remote side.
+	 */
+	if (method == ANALYZE_SAMPLE_OFF)
+		*totalrows = astate.samplerows;
+	else
+		*totalrows = reltuples;
 
 	/*
 	 * Emit some interesting relation info
@@ -5296,7 +5537,7 @@ pgspiderAcquireSampleRowsFunc(Relation relation, int elevel,
 	ereport(elevel,
 			(errmsg("\"%s\": table contains %.0f rows, %d rows in sample",
 					RelationGetRelationName(relation),
-					astate.samplerows, astate.numrows)));
+					*totalrows, astate.numrows)));
 
 	return astate.numrows;
 }
@@ -5407,7 +5648,7 @@ pgspiderImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 		else
 			ereport(ERROR,
 					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
-					 errmsg("invalid option \"%s\"", def->defname)));
+					 errmsg("pgspider_fdw: invalid option \"%s\"", def->defname)));
 	}
 
 	/*
@@ -5601,6 +5842,7 @@ pgspiderImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 			appendStringInfoChar(&buf, ')');
 		}
 
+		/* Append ORDER BY at the end of query to ensure output ordering */
 		appendStringInfoString(&buf, " ORDER BY c.relname, a.attnum");
 
 		/* Append a closing parenthesis and alias name for first statement. */
@@ -5757,8 +5999,7 @@ pgspiderImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	}
 	PG_FINALLY();
 	{
-		if (res)
-			PQclear(res);
+		PQclear(res);
 	}
 	PG_END_TRY();
 
@@ -6459,7 +6700,11 @@ foreign_grouping_ok(PlannerInfo *root, RelOptInfo *grouped_rel,
 		Index		sgref = get_pathtarget_sortgroupref(grouping_target, i);
 		ListCell   *l;
 
-		/* Check whether this expression is part of GROUP BY clause */
+		/*
+		 * Check whether this expression is part of GROUP BY clause.  Note we
+		 * check the whole GROUP BY clause not just processed_groupClause,
+		 * because we will ship all of it, cf. appendGroupByClause.
+		 */
 		if (sgref && get_sortgroupref_clause_noerr(sgref, query->groupClause))
 		{
 			TargetEntry *tle;
@@ -6531,10 +6776,10 @@ foreign_grouping_ok(PlannerInfo *root, RelOptInfo *grouped_rel,
 				 */
 				foreach(l, aggvars)
 				{
-					Expr	   *expr = (Expr *) lfirst(l);
+					Expr	   *aggref = (Expr *) lfirst(l);
 
-					if (IsA(expr, Aggref))
-						tlist = add_to_flat_tlist(tlist, list_make1(expr));
+					if (IsA(aggref, Aggref))
+						tlist = add_to_flat_tlist(tlist, list_make1(aggref));
 				}
 			}
 		}
@@ -6548,8 +6793,6 @@ foreign_grouping_ok(PlannerInfo *root, RelOptInfo *grouped_rel,
 	 */
 	if (havingQual)
 	{
-		ListCell   *lc;
-
 		foreach(lc, (List *) havingQual)
 		{
 			Expr	   *expr = (Expr *) lfirst(lc);
@@ -6563,6 +6806,7 @@ foreign_grouping_ok(PlannerInfo *root, RelOptInfo *grouped_rel,
 			rinfo = make_restrictinfo(root,
 									  expr,
 									  true,
+									  false,
 									  false,
 									  false,
 									  root->qual_security_level,
@@ -6583,7 +6827,6 @@ foreign_grouping_ok(PlannerInfo *root, RelOptInfo *grouped_rel,
 	if (fpinfo->local_conds)
 	{
 		List	   *aggvars = NIL;
-		ListCell   *lc;
 
 		foreach(lc, fpinfo->local_conds)
 		{
@@ -6646,8 +6889,6 @@ foreign_grouping_ok(PlannerInfo *root, RelOptInfo *grouped_rel,
  * pgspiderGetForeignUpperPaths
  *		Add paths for post-join operations like aggregation, grouping etc. if
  *		corresponding operations are safe to push down.
- *
- * Right now, we only support aggregate, grouping and having clause pushdown.
  */
 static void
 pgspiderGetForeignUpperPaths(PlannerInfo *root, UpperRelationKind stage,
@@ -7917,9 +8158,6 @@ ExecForeignDDL(Oid serverOid,
 			   bool exists_flag)
 {
 	bool		data_compression_transfer_enabled;
-	AuthenticationData authData;
-	ConnectionURLData connData;
-	DDLData		ddlData;
 	PGSpiderExecuteMode mode;
 	DataCompressionTransferOption *dct_option = (DataCompressionTransferOption *) palloc0(sizeof(DataCompressionTransferOption));
 
@@ -7931,15 +8169,6 @@ ExecForeignDDL(Oid serverOid,
 	/* get information to send request to Function */
 	get_data_compression_transfer_option(DDL_CREATE, rel, dct_option);
 
-	/* Send request to Function */
-	init_AuthenticationData(&authData);
-	init_ConnectionURLData(&connData);
-	init_DDLData(&ddlData);
-
-	pgspiderPrepareAuthenticationData(&authData, dct_option);
-	pgspiderPrepareConnectionURLData(&connData, rel, dct_option);
-	pgspiderPrepareDDLData(&ddlData, rel, exists_flag, dct_option);
-
 	/* create query */
 	if (operation == 0)
 		mode = DDL_CREATE;
@@ -7949,8 +8178,7 @@ ExecForeignDDL(Oid serverOid,
 
 	/* set default timeout for execute DDL request */
 	dct_option->function_timeout = CURL_TIMEOUT_GCP;
-	PGSpiderRequestFunctionStart(mode, dct_option, NULL,
-								 &authData, &connData, &ddlData);
+	PGSpiderRequestFunctionStart(mode, dct_option, NULL, rel, exists_flag);
 
 	return 0;
 }

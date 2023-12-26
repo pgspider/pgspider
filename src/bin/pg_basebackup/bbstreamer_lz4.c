@@ -2,7 +2,7 @@
  *
  * bbstreamer_lz4.c
  *
- * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2023, PostgreSQL Global Development Group
  *
  * IDENTIFICATION
  *		  src/bin/pg_basebackup/bbstreamer_lz4.c
@@ -97,7 +97,7 @@ bbstreamer_lz4_compressor_new(bbstreamer *next, pg_compress_specification *compr
 
 	return &streamer->base;
 #else
-	pg_fatal("this build does not support lz4 compression");
+	pg_fatal("this build does not support compression with %s", "LZ4");
 	return NULL;				/* keep compiler quiet */
 #endif
 }
@@ -295,7 +295,7 @@ bbstreamer_lz4_decompressor_new(bbstreamer *next)
 
 	return &streamer->base;
 #else
-	pg_fatal("this build does not support lz4 compression");
+	pg_fatal("this build does not support compression with %s", "LZ4");
 	return NULL;				/* keep compiler quiet */
 #endif
 }

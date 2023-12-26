@@ -229,10 +229,10 @@ EXPLAIN VERBOSE
 SELECT sqrt_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                   QUERY PLAN                                                                                   
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (sqrt_all()), tag1
    Sort Key: (sqrt_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (sqrt_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -567,10 +567,10 @@ EXPLAIN VERBOSE
 SELECT log_all(50) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                             QUERY PLAN                                                                                            
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (log_all('50'::double precision)), tag1
    Sort Key: (log_all('50'::double precision))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (log_all('50'::double precision)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -667,10 +667,10 @@ EXPLAIN VERBOSE
 SELECT log2_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                   QUERY PLAN                                                                                   
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (log2_all()), tag1
    Sort Key: (log2_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (log2_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -770,10 +770,10 @@ EXPLAIN VERBOSE
 SELECT log10_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                    QUERY PLAN                                                                                   
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (log10_all()), tag1
    Sort Key: (log10_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (log10_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -1144,10 +1144,10 @@ EXPLAIN VERBOSE
 SELECT abs_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                   QUERY PLAN                                                                                  
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (abs_all()), tag1
    Sort Key: (abs_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (abs_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -1600,10 +1600,10 @@ EXPLAIN VERBOSE
 SELECT sqrt(abs(value3)),min(value1) FROM s3 GROUP BY value3 HAVING sqrt(abs(value3)) > 0 ORDER BY 1,2;
                                                              QUERY PLAN                                                              
 -------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=359.15..359.16 rows=1 width=24)
+ Sort  (cost=339.53..339.54 rows=1 width=24)
    Output: (sqrt(abs(value3))), (min(value1)), value3
    Sort Key: (sqrt(abs(s3.value3))), (min(s3.value1))
-   ->  Foreign Scan  (cost=205.69..359.14 rows=1 width=24)
+   ->  Foreign Scan  (cost=200.00..339.52 rows=1 width=24)
          Output: sqrt(abs(value3)), (min(value1)), value3
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -2474,10 +2474,10 @@ EXPLAIN VERBOSE
 SELECT cumulative_sum_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                        QUERY PLAN                                                                                        
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (cumulative_sum_all()), tag1
    Sort Key: (cumulative_sum_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (cumulative_sum_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -2509,10 +2509,10 @@ EXPLAIN VERBOSE
 SELECT cumulative_sum('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                                QUERY PLAN                                                                                                
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (cumulative_sum('/value[1,4]/'::text)), tag1
    Sort Key: (cumulative_sum('/value[1,4]/'::text))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (cumulative_sum('/value[1,4]/'::text)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -2706,10 +2706,10 @@ EXPLAIN VERBOSE
 SELECT derivative_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                      QUERY PLAN                                                                                      
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (derivative_all()), tag1
    Sort Key: (derivative_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (derivative_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -2739,10 +2739,10 @@ EXPLAIN VERBOSE
 SELECT derivative('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                              QUERY PLAN                                                                                              
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (derivative('/value[1,4]/'::text)), tag1
    Sort Key: (derivative('/value[1,4]/'::text))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (derivative('/value[1,4]/'::text)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -2956,10 +2956,10 @@ EXPLAIN VERBOSE
 SELECT non_negative_derivative_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                             QUERY PLAN                                                                                            
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (non_negative_derivative_all()), tag1
    Sort Key: (non_negative_derivative_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (non_negative_derivative_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -2989,10 +2989,10 @@ EXPLAIN VERBOSE
 SELECT non_negative_derivative('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                                     QUERY PLAN                                                                                                    
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (non_negative_derivative('/value[1,4]/'::text)), tag1
    Sort Key: (non_negative_derivative('/value[1,4]/'::text))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (non_negative_derivative('/value[1,4]/'::text)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -3176,10 +3176,10 @@ EXPLAIN VERBOSE
 SELECT difference_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                      QUERY PLAN                                                                                      
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (difference_all()), tag1
    Sort Key: (difference_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (difference_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -3209,10 +3209,10 @@ EXPLAIN VERBOSE
 SELECT difference('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                              QUERY PLAN                                                                                              
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (difference('/value[1,4]/'::text)), tag1
    Sort Key: (difference('/value[1,4]/'::text))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (difference('/value[1,4]/'::text)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -3396,10 +3396,10 @@ EXPLAIN VERBOSE
 SELECT non_negative_difference_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                             QUERY PLAN                                                                                            
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (non_negative_difference_all()), tag1
    Sort Key: (non_negative_difference_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (non_negative_difference_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -3429,10 +3429,10 @@ EXPLAIN VERBOSE
 SELECT non_negative_difference('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                                     QUERY PLAN                                                                                                    
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (non_negative_difference('/value[1,4]/'::text)), tag1
    Sort Key: (non_negative_difference('/value[1,4]/'::text))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (non_negative_difference('/value[1,4]/'::text)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -3644,10 +3644,10 @@ EXPLAIN VERBOSE
 SELECT elapsed_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                     QUERY PLAN                                                                                    
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (elapsed_all()), tag1
    Sort Key: (elapsed_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (elapsed_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -3677,10 +3677,10 @@ EXPLAIN VERBOSE
 SELECT elapsed('/value[1,4]/') FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                             QUERY PLAN                                                                                            
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (elapsed('/value[1,4]/'::text)), tag1
    Sort Key: (elapsed('/value[1,4]/'::text))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (elapsed('/value[1,4]/'::text)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -3864,10 +3864,10 @@ EXPLAIN VERBOSE
 SELECT moving_average_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                         QUERY PLAN                                                                                        
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (moving_average_all(2)), tag1
    Sort Key: (moving_average_all(2))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (moving_average_all(2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -3897,10 +3897,10 @@ EXPLAIN VERBOSE
 SELECT moving_average('/value[1,4]/', 2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                                  QUERY PLAN                                                                                                 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (moving_average('/value[1,4]/'::text, 2)), tag1
    Sort Key: (moving_average('/value[1,4]/'::text, 2))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (moving_average('/value[1,4]/'::text, 2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -4110,10 +4110,10 @@ EXPLAIN VERBOSE
 SELECT chande_momentum_oscillator_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                               QUERY PLAN                                                                                              
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (chande_momentum_oscillator_all(2)), tag1
    Sort Key: (chande_momentum_oscillator_all(2))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (chande_momentum_oscillator_all(2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -4143,10 +4143,10 @@ EXPLAIN VERBOSE
 SELECT chande_momentum_oscillator('/value[1,4]/',2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                                        QUERY PLAN                                                                                                       
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (chande_momentum_oscillator('/value[1,4]/'::text, 2)), tag1
    Sort Key: (chande_momentum_oscillator('/value[1,4]/'::text, 2))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (chande_momentum_oscillator('/value[1,4]/'::text, 2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -4356,10 +4356,10 @@ EXPLAIN VERBOSE
 SELECT exponential_moving_average_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                               QUERY PLAN                                                                                              
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (exponential_moving_average_all(2)), tag1
    Sort Key: (exponential_moving_average_all(2))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (exponential_moving_average_all(2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -4389,10 +4389,10 @@ EXPLAIN VERBOSE
 SELECT exponential_moving_average('/value[1,4]/',2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                                        QUERY PLAN                                                                                                       
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (exponential_moving_average('/value[1,4]/'::text, 2)), tag1
    Sort Key: (exponential_moving_average('/value[1,4]/'::text, 2))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (exponential_moving_average('/value[1,4]/'::text, 2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -4538,10 +4538,10 @@ EXPLAIN VERBOSE
 SELECT double_exponential_moving_average_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                                  QUERY PLAN                                                                                                  
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (double_exponential_moving_average_all(2)), tag1
    Sort Key: (double_exponential_moving_average_all(2))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (double_exponential_moving_average_all(2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -4571,10 +4571,10 @@ EXPLAIN VERBOSE
 SELECT double_exponential_moving_average('/value[1,4]/',2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                                           QUERY PLAN                                                                                                           
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (double_exponential_moving_average('/value[1,4]/'::text, 2)), tag1
    Sort Key: (double_exponential_moving_average('/value[1,4]/'::text, 2))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (double_exponential_moving_average('/value[1,4]/'::text, 2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -4714,10 +4714,10 @@ EXPLAIN VERBOSE
 SELECT kaufmans_efficiency_ratio_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                              QUERY PLAN                                                                                              
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (kaufmans_efficiency_ratio_all(2)), tag1
    Sort Key: (kaufmans_efficiency_ratio_all(2))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (kaufmans_efficiency_ratio_all(2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -4745,10 +4745,10 @@ EXPLAIN VERBOSE
 SELECT kaufmans_efficiency_ratio('/value[1,4]/',2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                                       QUERY PLAN                                                                                                       
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (kaufmans_efficiency_ratio('/value[1,4]/'::text, 2)), tag1
    Sort Key: (kaufmans_efficiency_ratio('/value[1,4]/'::text, 2))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (kaufmans_efficiency_ratio('/value[1,4]/'::text, 2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -4946,10 +4946,10 @@ EXPLAIN VERBOSE
 SELECT kaufmans_adaptive_moving_average_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                                  QUERY PLAN                                                                                                 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (kaufmans_adaptive_moving_average_all(2)), tag1
    Sort Key: (kaufmans_adaptive_moving_average_all(2))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (kaufmans_adaptive_moving_average_all(2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -4977,10 +4977,10 @@ EXPLAIN VERBOSE
 SELECT kaufmans_adaptive_moving_average('/value[1,4]/',2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                                           QUERY PLAN                                                                                                          
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (kaufmans_adaptive_moving_average('/value[1,4]/'::text, 2)), tag1
    Sort Key: (kaufmans_adaptive_moving_average('/value[1,4]/'::text, 2))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (kaufmans_adaptive_moving_average('/value[1,4]/'::text, 2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -5124,10 +5124,10 @@ EXPLAIN VERBOSE
 SELECT triple_exponential_moving_average_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                                  QUERY PLAN                                                                                                  
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (triple_exponential_moving_average_all(2)), tag1
    Sort Key: (triple_exponential_moving_average_all(2))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (triple_exponential_moving_average_all(2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -5157,10 +5157,10 @@ EXPLAIN VERBOSE
 SELECT triple_exponential_moving_average('/value[1,4]/',2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                                           QUERY PLAN                                                                                                           
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (triple_exponential_moving_average('/value[1,4]/'::text, 2)), tag1
    Sort Key: (triple_exponential_moving_average('/value[1,4]/'::text, 2))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (triple_exponential_moving_average('/value[1,4]/'::text, 2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -5300,10 +5300,10 @@ EXPLAIN VERBOSE
 SELECT triple_exponential_derivative_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                                QUERY PLAN                                                                                                
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (triple_exponential_derivative_all(2)), tag1
    Sort Key: (triple_exponential_derivative_all(2))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (triple_exponential_derivative_all(2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -5331,10 +5331,10 @@ EXPLAIN VERBOSE
 SELECT triple_exponential_derivative('/value[1,4]/',2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                                         QUERY PLAN                                                                                                         
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (triple_exponential_derivative('/value[1,4]/'::text, 2)), tag1
    Sort Key: (triple_exponential_derivative('/value[1,4]/'::text, 2))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (triple_exponential_derivative('/value[1,4]/'::text, 2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -5472,10 +5472,10 @@ EXPLAIN VERBOSE
 SELECT relative_strength_index_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                             QUERY PLAN                                                                                             
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (relative_strength_index_all(2)), tag1
    Sort Key: (relative_strength_index_all(2))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (relative_strength_index_all(2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -5503,10 +5503,10 @@ EXPLAIN VERBOSE
 SELECT relative_strength_index('/value[1,4]/',2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                                      QUERY PLAN                                                                                                      
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (relative_strength_index('/value[1,4]/'::text, 2)), tag1
    Sort Key: (relative_strength_index('/value[1,4]/'::text, 2))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (relative_strength_index('/value[1,4]/'::text, 2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -8326,10 +8326,10 @@ EXPLAIN VERBOSE
 SELECT percentile_all(50) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                       QUERY PLAN                                                                                       
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (percentile_all(50)), tag1
    Sort Key: (percentile_all(50))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (percentile_all(50)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -8358,10 +8358,10 @@ EXPLAIN VERBOSE
 SELECT percentile_all(70.5) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                                 QUERY PLAN                                                                                                 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (percentile_all('70.5'::double precision)), tag1
    Sort Key: (percentile_all('70.5'::double precision))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (percentile_all('70.5'::double precision)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -8508,10 +8508,10 @@ EXPLAIN VERBOSE
 SELECT percentile('/value[1,4]/', 70.5) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                                          QUERY PLAN                                                                                                          
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (percentile('/value[1,4]/'::text, '70.5'::double precision)), tag1
    Sort Key: (percentile('/value[1,4]/'::text, '70.5'::double precision))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (percentile('/value[1,4]/'::text, '70.5'::double precision)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -8963,10 +8963,10 @@ EXPLAIN VERBOSE
 SELECT acos_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                   QUERY PLAN                                                                                   
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (acos_all()), tag1
    Sort Key: (acos_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (acos_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -9316,10 +9316,10 @@ EXPLAIN VERBOSE
 SELECT asin_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                   QUERY PLAN                                                                                   
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (asin_all()), tag1
    Sort Key: (asin_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (asin_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -9677,10 +9677,10 @@ EXPLAIN VERBOSE
 SELECT atan_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                   QUERY PLAN                                                                                   
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (atan_all()), tag1
    Sort Key: (atan_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (atan_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -10313,10 +10313,10 @@ EXPLAIN VERBOSE
 SELECT ceil_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                   QUERY PLAN                                                                                   
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (ceil_all()), tag1
    Sort Key: (ceil_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (ceil_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -10670,10 +10670,10 @@ EXPLAIN VERBOSE
 SELECT cos_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                   QUERY PLAN                                                                                  
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (cos_all()), tag1
    Sort Key: (cos_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (cos_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -10993,10 +10993,10 @@ EXPLAIN VERBOSE
 SELECT exp_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                   QUERY PLAN                                                                                  
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (exp_all()), tag1
    Sort Key: (exp_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (exp_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -11322,10 +11322,10 @@ EXPLAIN VERBOSE
 SELECT floor_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                    QUERY PLAN                                                                                   
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (floor_all()), tag1
    Sort Key: (floor_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (floor_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -11677,10 +11677,10 @@ EXPLAIN VERBOSE
 SELECT ln_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                  QUERY PLAN                                                                                  
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (ln_all()), tag1
    Sort Key: (ln_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (ln_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -12006,10 +12006,10 @@ EXPLAIN VERBOSE
 SELECT pow_all(2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                   QUERY PLAN                                                                                   
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (pow_all(2)), tag1
    Sort Key: (pow_all(2))
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (pow_all(2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -12363,10 +12363,10 @@ EXPLAIN VERBOSE
 SELECT round_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                    QUERY PLAN                                                                                   
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (round_all()), tag1
    Sort Key: (round_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (round_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -12722,10 +12722,10 @@ EXPLAIN VERBOSE
 SELECT sin_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                   QUERY PLAN                                                                                  
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (sin_all()), tag1
    Sort Key: (sin_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (sin_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -13045,10 +13045,10 @@ EXPLAIN VERBOSE
 SELECT tan_all() FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                   QUERY PLAN                                                                                  
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=331.44..331.45 rows=0 width=64)
+ Sort  (cost=322.96..322.96 rows=0 width=64)
    Output: (tan_all()), tag1
    Sort Key: (tan_all())
-   ->  Foreign Scan  (cost=200.09..331.43 rows=0 width=64)
+   ->  Foreign Scan  (cost=200.00..322.95 rows=0 width=64)
          Output: (tan_all()), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no
@@ -13325,10 +13325,10 @@ EXPLAIN VERBOSE
 SELECT influx_distinct(value2) FROM s3 WHERE time >= to_timestamp(0) and time <= to_timestamp(4) GROUP BY tag1 ORDER BY 1;
                                                                                          QUERY PLAN                                                                                         
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=323.44..323.45 rows=1 width=40)
+ Sort  (cost=322.46..322.46 rows=1 width=40)
    Output: (influx_distinct(value2)), tag1
    Sort Key: (influx_distinct(s3.value2))
-   ->  Foreign Scan  (cost=200.09..323.43 rows=1 width=40)
+   ->  Foreign Scan  (cost=200.00..322.45 rows=1 width=40)
          Output: (influx_distinct(value2)), tag1
          Node: pgspider_svr1 / Status: Alive
            Sort push-down: no

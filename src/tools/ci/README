@@ -38,7 +38,7 @@ commit history / PRs, and can also be viewed in the cirrus-ci UI at
 https://cirrus-ci.com/github/<username>/<reponame>/
 
 Hint: all build log files are uploaded to cirrus-ci and can be downloaded
-from the "Artifacts" section fron the cirrus-ci UI after clicking into a
+from the "Artifacts" section from the cirrus-ci UI after clicking into a
 specific task on a build's summary page.
 
 
@@ -61,7 +61,24 @@ Controlling CI via commit messages
 The behavior of CI can be controlled by special content in commit
 messages. Currently the following controls are available:
 
-- ci-os-only: {(freebsd|linux|macos|windows)}
+- ci-os-only: {(freebsd|linux|macos|windows|mingw)}
 
   Only runs CI on operating systems specified. This can be useful when
   addressing portability issues affecting only a subset of platforms.
+
+
+Using custom compute resources for CI
+=====================================
+
+When running a lot of tests in a repository, cirrus-ci's free credits do not
+suffice. In those cases a repository can be configured to use other
+infrastructure for running tests. To do so, the REPO_CI_CONFIG_GIT_URL
+variable can be configured for the repository in the cirrus-ci web interface,
+at https://cirrus-ci.com/github/<user or organization>. The file referenced
+(see https://cirrus-ci.org/guide/programming-tasks/#fs) by the variable can
+overwrite the default execution method for different operating systems,
+defined in .cirrus.yml, by redefining the relevant yaml anchors.
+
+Custom compute resources can be provided using
+- https://cirrus-ci.org/guide/supported-computing-services/
+- https://cirrus-ci.org/guide/persistent-workers/

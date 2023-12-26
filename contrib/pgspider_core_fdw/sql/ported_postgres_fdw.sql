@@ -36,14 +36,11 @@ DO $d$
     END;
 $d$;
 
---Testcase 6:
-CREATE USER MAPPING FOR public SERVER pgspider_srv
-  OPTIONS (user 'postgres', password 'postgres');
 --Testcase 7:
-CREATE USER MAPPING FOR public SERVER postgres_srv
+CREATE USER MAPPING FOR CURRENT_USER SERVER postgres_srv
   OPTIONS (user 'postgres', password 'postgres');
 --Testcase 8:
-CREATE USER MAPPING FOR public SERVER postgres_srv2
+CREATE USER MAPPING FOR CURRENT_USER SERVER postgres_srv2
   OPTIONS (user 'postgres', password 'postgres');
 --Testcase 9:
 CREATE USER MAPPING FOR public SERVER postgres_srv3
@@ -274,7 +271,8 @@ CREATE FOREIGN TABLE ft6__postgres_srv2__0 (
 -- 	sslcrl 'value',
 -- 	--requirepeer 'value',
 -- 	krbsrvname 'value',
--- 	gsslib 'value'
+-- 	gsslib 'value',
+-- 	gssdelegation 'value'
 -- 	--replication 'value'
 --);
 -- Error, invalid list syntax
@@ -283,10 +281,6 @@ CREATE FOREIGN TABLE ft6__postgres_srv2__0 (
 -- OK but gets a warning
 -- ALTER SERVER pgspider_srv OPTIONS (ADD extensions 'foo, bar');
 -- ALTER SERVER pgspider_srv OPTIONS (DROP extensions);
-
---Testcase 34:
-ALTER USER MAPPING FOR public SERVER pgspider_srv
-	OPTIONS (DROP user, DROP password);
 
 -- Skip, pgspider_core_fdw does not support ssl
 -- Attempt to add a valid option that's not allowed in a user mapping
@@ -495,7 +489,7 @@ EXPLAIN (VERBOSE, COSTS OFF) SELECT * FROM ft1 t1 WHERE c8 = 'foo';  -- can't be
 EXPLAIN (VERBOSE, COSTS OFF)
   SELECT * FROM "S 1"."T 1" a, ft2 b WHERE a."C 1" = 47 AND b.c1 = a.c2;
 --Testcase 94:
-SELECT * FROM ft2 a, ft2 b WHERE a.c1 = 47 AND b.c1 = a.c2;
+SELECT * FROM "S 1"."T 1" a, ft2 b WHERE a."C 1" = 47 AND b.c1 = a.c2;
 
 -- check both safe and unsafe join conditions
 --Testcase 95:
@@ -630,7 +624,8 @@ SELECT * FROM ft1 WHERE CASE c3 WHEN c6 THEN true ELSE c3 < 'bar' END;
 EXPLAIN (VERBOSE, COSTS OFF)
 SELECT * FROM ft1 WHERE CASE c3 COLLATE "C" WHEN c6 THEN true ELSE c3 < 'bar' END;
 
--- check schema-qualification of regconfig constant
+-- a regconfig constant referring to this text search configuration
+-- is initially unshippable
 --Testcase 1244:
 CREATE TEXT SEARCH CONFIGURATION public.custom_search
   (COPY = pg_catalog.english);
@@ -639,6 +634,22 @@ EXPLAIN (VERBOSE, COSTS OFF)
 SELECT c1, to_tsvector('custom_search'::regconfig, c3) FROM ft1
 WHERE c1 = 642 AND length(to_tsvector('custom_search'::regconfig, c3)) > 0;
 --Testcase 1246:
+SELECT c1, to_tsvector('custom_search'::regconfig, c3) FROM ft1
+WHERE c1 = 642 AND length(to_tsvector('custom_search'::regconfig, c3)) > 0;
+
+-- but if it's in a shippable extension, it can be shipped
+ALTER EXTENSION postgres_fdw ADD TEXT SEARCH CONFIGURATION public.custom_search;
+-- however, that doesn't flush the shippability cache, so do a quick reconnect
+\c -
+--dblink needs to be reconnected, too
+--Testcase 1253:
+select dblink_connect('dbname=postdb host=127.0.0.1
+  port=15432 user=postgres password=postgres');
+--Testcase 1254:
+EXPLAIN (VERBOSE, COSTS OFF)
+SELECT c1, to_tsvector('custom_search'::regconfig, c3) FROM ft1
+WHERE c1 = 642 AND length(to_tsvector('custom_search'::regconfig, c3)) > 0;
+--Testcase 1255:
 SELECT c1, to_tsvector('custom_search'::regconfig, c3) FROM ft1
 WHERE c1 = 642 AND length(to_tsvector('custom_search'::regconfig, c3)) > 0;
 
@@ -901,6 +912,10 @@ EXPLAIN (VERBOSE, COSTS OFF)
 SELECT t1."C 1" FROM "S 1"."T 1" t1, LATERAL (SELECT DISTINCT t2.c1, t3.c1 FROM ft1 t2, ft2 t3 WHERE t2.c1 = t3.c1 AND t2.c2 = t1.c2) q ORDER BY t1."C 1" OFFSET 10 LIMIT 10;
 --Testcase 202:
 SELECT t1."C 1" FROM "S 1"."T 1" t1, LATERAL (SELECT DISTINCT t2.c1, t3.c1 FROM ft1 t2, ft2 t3 WHERE t2.c1 = t3.c1 AND t2.c2 = t1.c2) q ORDER BY t1."C 1" OFFSET 10 LIMIT 10;
+-- join with pseudoconstant quals, not pushed down.
+--Testcase 1256:
+EXPLAIN (VERBOSE, COSTS OFF)
+SELECT t1.c1, t2.c1 FROM ft1 t1 JOIN ft2 t2 ON (t1.c1 = t2.c1 AND CURRENT_USER = SESSION_USER) ORDER BY t1.c3, t1.c1 OFFSET 100 LIMIT 10;
 
 -- non-Var items in targetlist of the nullable rel of a join preventing
 -- push-down in some cases
@@ -962,7 +977,7 @@ ALTER SERVER postgres_srv OPTIONS (DROP extensions);
 ALTER SERVER postgres_srv OPTIONS (ADD fdw_startup_cost '10000.0');
 --Testcase 1250:
 EXPLAIN (VERBOSE, COSTS OFF)
-SELECT * FROM local_tbl LEFT JOIN (SELECT ft1.* FROM ft1 INNER JOIN ft2 ON (ft1.c1 = ft2.c1 AND ft1.c1 < 100 AND ft1.c1 = postgres_fdw_abs(ft2.c2))) ss ON (local_tbl.c3 = ss.c3) ORDER BY local_tbl.c1 FOR UPDATE OF local_tbl;
+SELECT * FROM local_tbl LEFT JOIN (SELECT ft1.* FROM ft1 INNER JOIN ft2 ON (ft1.c1 = ft2.c1 AND ft1.c1 < 100 AND (ft1.c1 - postgres_fdw_abs(ft2.c2)) = 0)) ss ON (local_tbl.c3 = ss.c3) ORDER BY local_tbl.c1 FOR UPDATE OF local_tbl;
 --Testcase 1251:
 ALTER SERVER postgres_srv OPTIONS (DROP fdw_startup_cost);
 --Testcase 1252:
@@ -975,7 +990,11 @@ DROP TABLE local_tbl;
 --Testcase 219:
 CREATE ROLE regress_view_owner SUPERUSER;
 --Testcase 220:
-CREATE USER MAPPING FOR regress_view_owner SERVER postgres_srv;
+-- It is required to add `user` option for USER MAPPING, so that postgres_fdw can connect to remote server.
+-- If `user` is not set, by default, postgres_fdw gets current user and uses it to connect to remote server,
+-- which causes error because remote server may not have the same user.
+--Testcase 1257:
+CREATE USER MAPPING FOR regress_view_owner SERVER postgres_srv options (user 'postgres');
 GRANT SELECT ON ft4 TO regress_view_owner;
 GRANT SELECT ON ft5 TO regress_view_owner;
 
@@ -1012,6 +1031,34 @@ SELECT t1.c1, t2.c2 FROM v4 t1 LEFT JOIN ft5 t2 ON (t1.c1 = t2.c1) ORDER BY t1.c
 SELECT t1.c1, t2.c2 FROM v4 t1 LEFT JOIN ft5 t2 ON (t1.c1 = t2.c1) ORDER BY t1.c1, t2.c1 OFFSET 10 LIMIT 10;
 --Testcase 234:
 ALTER VIEW v4 OWNER TO regress_view_owner;
+
+-- ====================================================================
+-- Check that userid to use when querying the remote table is correctly
+-- propagated into foreign rels present in subqueries under an UNION ALL
+-- Note: User is used at the planning phase is different from the one at the exection phase
+-- Need to investigate to find solution for this issue. Temporary comment out this test.
+-- ====================================================================
+-- CREATE ROLE regress_view_owner_another;
+-- ALTER VIEW v4 OWNER TO regress_view_owner_another;
+-- GRANT SELECT ON ft4 TO regress_view_owner_another;
+-- GRANT SELECT ON ft4__postgres_srv__0 TO regress_view_owner_another;
+-- ALTER FOREIGN TABLE ft4__postgres_srv__0 OPTIONS (ADD use_remote_estimate 'true');
+-- The following should query the remote backing table of ft4 as user
+-- regress_view_owner_another, the view owner, though it fails as expected
+-- due to the lack of a user mapping for that user.
+-- EXPLAIN (VERBOSE, COSTS OFF) SELECT * FROM v4;
+-- Likewise, but with the query under an UNION ALL
+-- EXPLAIN (VERBOSE, COSTS OFF) SELECT * FROM (SELECT * FROM v4 UNION ALL SELECT * FROM v4);
+-- SELECT * FROM (SELECT * FROM v4 UNION ALL SELECT * FROM v4);
+-- Should not get that error once a user mapping is created
+-- CREATE USER MAPPING FOR regress_view_owner_another SERVER postgres_srv OPTIONS (password_required 'false');
+-- EXPLAIN (VERBOSE, COSTS OFF) SELECT * FROM v4;
+-- EXPLAIN (VERBOSE, COSTS OFF) SELECT * FROM (SELECT * FROM v4 UNION ALL SELECT * FROM v4);
+-- SELECT * FROM (SELECT * FROM v4 UNION ALL SELECT * FROM v4);
+-- DROP USER MAPPING FOR regress_view_owner_another SERVER postgres_srv;
+-- DROP OWNED BY regress_view_owner_another;
+-- DROP ROLE regress_view_owner_another;
+-- ALTER FOREIGN TABLE ft4__postgres_srv__0 OPTIONS (SET use_remote_estimate 'false');
 
 -- cleanup
 --Testcase 235:
@@ -1062,11 +1109,13 @@ select c2/2, sum(c2) * (c2/2) from ft1 group by c2/2 order by c2/2;
 select c2/2, sum(c2) * (c2/2) from ft1 group by c2/2 order by c2/2;
 
 -- Aggregates in subquery are pushed down.
+set enable_incremental_sort = off;
 --Testcase 247:
 explain (verbose, costs off)
 select count(x.a), sum(x.a) from (select c2 a, sum(c1) b from ft1 group by c2, sqrt(c1) order by 1, 2) x;
 --Testcase 248:
 select count(x.a), sum(x.a) from (select c2 a, sum(c1) b from ft1 group by c2, sqrt(c1) order by 1, 2) x;
+reset enable_incremental_sort;
 
 -- Aggregate is still pushed down by taking unshippable expression out
 --Testcase 249:
@@ -1341,11 +1390,13 @@ alter extension pgspider_core_fdw add operator public.>^(int, int);
 alter server postgres_srv options (set extensions 'postgres_fdw');
 
 -- PGSpider can not push down this operator
+alter server postgres_srv options (add fdw_tuple_cost '0.5');
 --Testcase 319:
 explain (verbose, costs off)
 select array_agg(c1 order by c1 using operator(public.<^)) from ft2 where c2 = 6 and c1 < 100 group by c2;
 --Testcase 320:
 select array_agg(c1 order by c1 using operator(public.<^)) from ft2 where c2 = 6 and c1 < 100 group by c2;
+alter server postgres_srv options (drop fdw_tuple_cost);
 
 -- This should not be pushed too.
 --Testcase 1197:
@@ -2304,29 +2355,42 @@ CREATE VIEW rw_view AS SELECT * FROM parent_tbl
 --Testcase 571:
 \d+ rw_view
 
---EXPLAIN (VERBOSE, COSTS OFF)
---INSERT INTO rw_view VALUES (0, 5);
---INSERT INTO rw_view VALUES (0, 5); -- should fail
---EXPLAIN (VERBOSE, COSTS OFF)
---INSERT INTO rw_view VALUES (0, 15);
---INSERT INTO rw_view VALUES (0, 15); -- ok
---SELECT * FROM foreign_tbl;
+--Testcase 1258:
+EXPLAIN (VERBOSE, COSTS OFF)
+INSERT INTO rw_view VALUES (0, 5);
+--Testcase 1259:
+INSERT INTO rw_view VALUES (0, 5); -- should fail
+--Testcase 1260:
+EXPLAIN (VERBOSE, COSTS OFF)
+INSERT INTO rw_view VALUES (0, 15);
+--Testcase 1261:
+INSERT INTO rw_view VALUES (0, 15); -- ok
+--Testcase 1262:
+SELECT * FROM foreign_tbl;
 
---EXPLAIN (VERBOSE, COSTS OFF)
---UPDATE rw_view SET b = b + 5;
---UPDATE rw_view SET b = b + 5; -- should fail
---EXPLAIN (VERBOSE, COSTS OFF)
---UPDATE rw_view SET b = b + 15;
---UPDATE rw_view SET b = b + 15; -- ok
---SELECT * FROM foreign_tbl;
+--Testcase 1263:
+EXPLAIN (VERBOSE, COSTS OFF)
+UPDATE rw_view SET b = b + 5;
+--Testcase 1264:
+UPDATE rw_view SET b = b + 5; -- should fail
+--Testcase 1265:
+EXPLAIN (VERBOSE, COSTS OFF)
+UPDATE rw_view SET b = b + 15;
+--Testcase 1266:
+UPDATE rw_view SET b = b + 15; -- ok
+--Testcase 1267:
+SELECT * FROM foreign_tbl;
 
--- -- We don't allow batch insert when there are any WCO constraints
--- ALTER SERVER postgres_srv OPTIONS (ADD batch_size '10');
--- EXPLAIN (VERBOSE, COSTS OFF)
--- INSERT INTO rw_view VALUES (0, 15), (0, 5);
--- INSERT INTO rw_view VALUES (0, 15), (0, 5); -- should fail
--- SELECT * FROM foreign_tbl;
--- ALTER SERVER postgres_srv OPTIONS (DROP batch_size);
+-- We don't allow batch insert when there are any WCO constraints
+ALTER SERVER postgres_srv OPTIONS (ADD batch_size '10');
+--Testcase 1268:
+EXPLAIN (VERBOSE, COSTS OFF)
+INSERT INTO rw_view VALUES (0, 15), (0, 5);
+--Testcase 1269:
+INSERT INTO rw_view VALUES (0, 15), (0, 5); -- should fail
+--Testcase 1270:
+SELECT * FROM foreign_tbl;
+ALTER SERVER postgres_srv OPTIONS (DROP batch_size);
 
 --Testcase 572:
 DROP FOREIGN TABLE foreign_tbl CASCADE;
@@ -2339,6 +2403,41 @@ DROP TABLE parent_tbl CASCADE;
 
 --Testcase 576:
 DROP FUNCTION row_before_insupd_trigfunc;
+
+-- Try a more complex permutation of WCO where there are multiple levels of
+-- partitioned tables with columns not all in the same order
+--Testcase 1271:
+CREATE TABLE parent_tbl (a int, b text, c numeric) PARTITION BY RANGE(a);
+--Testcase 1272:
+CREATE TABLE sub_parent (c numeric, a int, b text) PARTITION BY RANGE(a);
+ALTER TABLE parent_tbl ATTACH PARTITION sub_parent FOR VALUES FROM (1) TO (10);
+--Testcase 1273:
+CREATE FOREIGN TABLE child_foreign (b text, c numeric, a int)
+  SERVER postgres_srv OPTIONS (table_name 'child_local');
+ALTER TABLE sub_parent ATTACH PARTITION child_foreign FOR VALUES FROM (1) TO (10);
+--Testcase 1274:
+CREATE VIEW rw_view AS SELECT * FROM parent_tbl WHERE a < 5 WITH CHECK OPTION;
+
+--Testcase 1275:
+INSERT INTO parent_tbl (a) VALUES(1),(5);
+--Testcase 1276:
+EXPLAIN (VERBOSE, COSTS OFF)
+UPDATE rw_view SET b = 'text', c = 123.456;
+--Testcase 1277:
+UPDATE rw_view SET b = 'text', c = 123.456;
+--Testcase 1278:
+SELECT * FROM parent_tbl ORDER BY a;
+
+--Testcase 1279:
+DROP VIEW rw_view;
+--Testcase 1280:
+select dblink_exec('DROP TABLE child_local;');
+--Testcase 1281:
+DROP FOREIGN TABLE child_foreign;
+--Testcase 1282:
+DROP TABLE sub_parent;
+--Testcase 1283:
+DROP TABLE parent_tbl;
 
 -- ===================================================================
 -- test serial columns (ie, sequence-based defaults)
@@ -2396,7 +2495,7 @@ select * from grem1__postgres_srv__0;
 delete from grem1__postgres_srv__0;
 
 -- test copy from
-copy grem1__postgres_srv__0 from stdin;
+copy grem1 from stdin;
 1
 2
 \.
@@ -2420,6 +2519,33 @@ select * from grem1;
 select * from grem1__postgres_srv__0;
 --Testcase 1216:
 delete from grem1__postgres_srv__0;
+
+-- batch insert with foreign partitions.
+-- This schema uses two partitions, one local and one remote with a modulo
+-- to loop across all of them in batches.
+--Testcase 1284:
+create table tab_batch_local (id int, data text);
+--Testcase 1285:
+insert into tab_batch_local select i, 'test'|| i from generate_series(1, 45) i;
+--Testcase 1286:
+create table tab_batch_sharded (id int, data text) partition by hash(id);
+--Testcase 1287:
+create table tab_batch_sharded_p0 partition of tab_batch_sharded
+  for values with (modulus 2, remainder 0);
+--Testcase 1288:
+create foreign table tab_batch_sharded_p1 partition of tab_batch_sharded
+  for values with (modulus 2, remainder 1)
+  server postgres_srv options (table_name 'tab_batch_sharded_p1_remote');
+--Testcase 1289:
+insert into tab_batch_sharded select * from tab_batch_local;
+--Testcase 1290:
+select count(*) from tab_batch_sharded;
+--Testcase 1291:
+drop table tab_batch_local;
+--Testcase 1292:
+drop table tab_batch_sharded;
+--Testcase 1293:
+SELECT dblink_exec('drop table tab_batch_sharded_p1_remote;');
 alter server postgres_srv options (drop batch_size);
 
 -- ===================================================================
@@ -2436,10 +2562,10 @@ BEGIN
 END;$$;
 
 --Testcase 592:
-CREATE TRIGGER trig_stmt_before BEFORE DELETE OR INSERT OR UPDATE ON rem1__postgres_srv__0
+CREATE TRIGGER trig_stmt_before BEFORE DELETE OR INSERT OR UPDATE OR TRUNCATE ON rem1__postgres_srv__0
 	FOR EACH STATEMENT EXECUTE PROCEDURE trigger_func();
 --Testcase 593:
-CREATE TRIGGER trig_stmt_after AFTER DELETE OR INSERT OR UPDATE ON rem1__postgres_srv__0
+CREATE TRIGGER trig_stmt_after AFTER DELETE OR INSERT OR UPDATE OR TRUNCATE ON rem1__postgres_srv__0
 	FOR EACH STATEMENT EXECUTE PROCEDURE trigger_func();
 
 --Testcase 594:
@@ -2501,7 +2627,7 @@ insert into rem1__postgres_srv__0 values(1,'insert');
 update rem1__postgres_srv__0 set f2  = 'update' where f1 = 1;
 --Testcase 600:
 update rem1__postgres_srv__0 set f2 = f2 || f2;
-
+truncate rem1__postgres_srv__0;
 
 -- cleanup
 --Testcase 601:
@@ -3202,50 +3328,33 @@ drop table parent;
 
 -- Test insert tuple routing
 --Testcase 817:
-create foreign table itrtest (a int, b text, __spd_url text)
-  server pgspider_srv;
---Testcase 818:
-create foreign table itrtest__postgres_srv__0 (a int, b text)
-  server postgres_srv options (table_name 'itrtest');
---Testcase 819:
-SELECT dblink_exec('create foreign table remp1
-  (a int check (a in (1)), b text) server postgres_srv
-  options (table_name ''loct1_3'');');
-
+create table itrtest (a int, b text, __spd_url text) partition by list (a);
 --Testcase 820:
 create foreign table remp1 (a int check (a in (1)), b text, __spd_url text)
   server pgspider_srv;
 --Testcase 821:
 create foreign table remp1__postgres_srv__0 (a int check (a in (1)), b text)
-  server postgres_srv options (table_name 'remp1');
---Testcase 822:
-SELECT dblink_exec('create foreign table remp2
-  (b text, a int check (a in (2))) server postgres_srv
-   options (table_name ''loct2_3'');');
-
+  server postgres_srv options (table_name 'loct1_3');
 --Testcase 823:
 create foreign table remp2 (b text, a int check (a in (2)), __spd_url text)
   server pgspider_srv;
 --Testcase 824:
 create foreign table remp2__postgres_srv__0 (b text, a int check (a in (2)))
-  server postgres_srv options (table_name 'remp2');
+  server postgres_srv options (table_name 'loct2_3');
 
--- Does not support attach partition on foreign table
---Testcase 825:
-SELECT dblink_exec('alter table itrtest attach partition remp1 for values in (1);');
---Testcase 826:
-SELECT dblink_exec('alter table itrtest attach partition remp2 for values in (2);');
+alter table itrtest attach partition remp1 for values in (1);
+alter table itrtest attach partition remp2 for values in (2);
 
 --Testcase 827:
-insert into itrtest__postgres_srv__0 values (1, 'foo');
+insert into itrtest values (1, 'foo');
 --Testcase 828:
-insert into itrtest__postgres_srv__0 values (1, 'bar') returning *;
+insert into itrtest values (1, 'bar') returning *;
 --Testcase 829:
-insert into itrtest__postgres_srv__0 values (2, 'baz');
+insert into itrtest values (2, 'baz');
 --Testcase 830:
-insert into itrtest__postgres_srv__0 values (2, 'qux') returning *;
+insert into itrtest values (2, 'qux') returning *;
 --Testcase 831:
-insert into itrtest__postgres_srv__0 values (1, 'test1'), (2, 'test2') returning *;
+insert into itrtest values (1, 'test1'), (2, 'test2') returning *;
 
 --Testcase 832:
 select tableoid::regclass, * FROM itrtest;
@@ -3255,29 +3364,33 @@ select tableoid::regclass, * FROM remp1;
 select tableoid::regclass, * FROM remp2;
 
 --Testcase 835:
-delete from itrtest__postgres_srv__0;
+delete from itrtest;
+
+-- MERGE ought to fail cleanly
+merge into itrtest using (select 1, 'foo') as source on (true)
+  when matched then do nothing;
 
 --Testcase 836:
 SELECT dblink_exec('create unique index loct1_idx on loct1_3 (a);');
 
 -- DO NOTHING without an inference specification is supported
 --Testcase 837:
-insert into itrtest__postgres_srv__0 values (1, 'foo') on conflict do nothing returning *;
+insert into itrtest values (1, 'foo') on conflict do nothing returning *;
 --Testcase 838:
-insert into itrtest__postgres_srv__0 values (1, 'foo') on conflict do nothing returning *;
+insert into itrtest values (1, 'foo') on conflict do nothing returning *;
 
 -- But other cases are not supported
 --Testcase 839:
-insert into itrtest__postgres_srv__0 values (1, 'bar') on conflict (a) do nothing;
+insert into itrtest values (1, 'bar') on conflict (a) do nothing;
 --Testcase 840:
-insert into itrtest__postgres_srv__0 values (1, 'bar') on conflict (a) do update set b = excluded.b;
+insert into itrtest values (1, 'bar') on conflict (a) do update set b = excluded.b;
 
 --Testcase 841:
 select tableoid::regclass, * FROM itrtest;
 
 -- delete from itrtest;
 --Testcase 842:
-delete from itrtest__postgres_srv__0;
+delete from itrtest;
 
 --Testcase 843:
 SELECT dblink_exec('drop index loct1_idx;');
@@ -3298,13 +3411,13 @@ SELECT dblink_exec('create trigger loct2_br_insert_trigger before insert on loct
 	for each row execute procedure br_insert_trigfunc();');
 -- The new values are concatenated with ' triggered !'
 --Testcase 847:
-insert into itrtest__postgres_srv__0 values (1, 'foo') returning *;
+insert into itrtest values (1, 'foo') returning *;
 --Testcase 848:
-insert into itrtest__postgres_srv__0 values (2, 'qux') returning *;
+insert into itrtest values (2, 'qux') returning *;
 --Testcase 849:
-insert into itrtest__postgres_srv__0 values (1, 'test1'), (2, 'test2') returning *;
+insert into itrtest values (1, 'test1'), (2, 'test2') returning *;
 --Testcase 850:
-with result as (insert into itrtest__postgres_srv__0 values (1, 'test1'), (2, 'test2') returning *) select * from result;
+with result as (insert into itrtest values (1, 'test1'), (2, 'test2') returning *) select * from result;
 
 --Testcase 851:
 SELECT dblink_exec('drop trigger loct1_br_insert_trigger on loct1_3;');
@@ -3320,44 +3433,27 @@ drop foreign table remp1__postgres_srv__0;
 --Testcase 856:
 drop foreign table remp2__postgres_srv__0;
 --Testcase 857:
-drop foreign table itrtest;
---Testcase 858:
-drop foreign table itrtest__postgres_srv__0;
+drop table itrtest;
 
 -- Test update tuple routing
 --Testcase 859:
-create foreign table utrtest (a int, b text)
-  server pgspider_srv;
---Testcase 860:
-create foreign table utrtest__postgres_srv__0 (a int, b text)
-  server postgres_srv options (table_name 'utrtest');
---Testcase 861:
-SELECT dblink_exec('create foreign table remp
-  (a int check (a in (1)), b text)
-  server postgres_srv options (table_name ''loct_2'');');
-
+create table utrtest (a int, b text) partition by list (a);
 --Testcase 862:
-create foreign table remp (a int check (a in (1)), b text, __spd_url text)
+create foreign table remp (a int check (a in (1)), b text)
   server pgspider_srv;
 --Testcase 863:
 create foreign table remp__postgres_srv__0 (a int check (a in (1)), b text)
-  server postgres_srv options (table_name 'remp');
-
+  server postgres_srv options (table_name 'loct_2');
 --Testcase 864:
-create foreign table locp (a int check (a in (2)), b text, __spd_url text)
-  server pgspider_srv;
---Testcase 865:
-create foreign table locp__postgres_srv__0 (a int check (a in (2)), b text)
-  server postgres_srv options (table_name 'locp_2');
---Testcase 866:
-SELECT dblink_exec('alter table utrtest attach partition remp for values in (1);');
+create table locp (a int check (a in (2)), b text);
 --Testcase 867:
-SELECT dblink_exec('alter table utrtest attach partition locp_2 for values in (2);');
+alter table utrtest attach partition remp for values in (1);
+alter table utrtest attach partition locp for values in (2);
 
 --Testcase 868:
-insert into utrtest__postgres_srv__0 values (1, 'foo');
+insert into utrtest values (1, 'foo');
 --Testcase 869:
-insert into utrtest__postgres_srv__0 values (2, 'qux');
+insert into utrtest values (2, 'qux');
 
 --Testcase 870:
 select tableoid::regclass, * FROM utrtest;
@@ -3367,12 +3463,15 @@ select tableoid::regclass, * FROM remp;
 select tableoid::regclass, * FROM locp;
 
 -- It's not allowed to move a row from a partition that is foreign to another
+-- Because the previous INSERT test case failed due to not supported,
+-- no row is updated in this test case.
 --Testcase 873:
-update utrtest__postgres_srv__0 set a = 2 where b = 'foo' returning *;
+update utrtest set a = 2 where b = 'foo';
 
 -- But the reverse is allowed
+-- INSERT foreign partition is not supported, so error is returned.
 --Testcase 874:
-update utrtest__postgres_srv__0 set a = 1 where b = 'qux' returning *;
+update utrtest set a = 1 where b = 'qux';
 
 --Testcase 875:
 select tableoid::regclass, * FROM utrtest;
@@ -3382,8 +3481,10 @@ select tableoid::regclass, * FROM remp;
 select tableoid::regclass, * FROM locp;
 
 -- The executor should not let unexercised FDWs shut down
+-- Because the previous INSERT test case failed due to not supported,
+-- no row is updated in this test case.
 --Testcase 878:
-update utrtest__postgres_srv__0 set a = 1 where b = 'foo';
+update utrtest set a = 1 where b = 'foo';
 
 -- Test that remote triggers work with update tuple routing
 --Testcase 879:
@@ -3391,28 +3492,32 @@ SELECT dblink_exec('create trigger loct_br_insert_trigger before insert on loct_
 	for each row execute procedure br_insert_trigfunc();');
 
 --Testcase 880:
-delete from utrtest__postgres_srv__0;
+delete from utrtest;
 --Testcase 881:
-insert into utrtest__postgres_srv__0 values (2, 'qux');
+insert into utrtest values (2, 'qux');
 
 -- Check case where the foreign partition is a subplan target rel
--- explain (verbose, costs off)
--- update utrtest set a = 1 where a = 1 or a = 2 returning *;
+--Testcase 1294:
+explain (verbose, costs off)
+update utrtest set a = 1 where a = 1 or a = 2;
 -- The new values are concatenated with ' triggered !'
+-- INSERT foreign partition is not supported, so error is returned.
 --Testcase 882:
-update utrtest__postgres_srv__0 set a = 1 where a = 1 or a = 2 returning *;
+update utrtest set a = 1 where a = 1 or a = 2;
 
 --Testcase 883:
-delete from utrtest__postgres_srv__0;
+delete from utrtest;
 --Testcase 884:
-insert into utrtest__postgres_srv__0 values (2, 'qux');
+insert into utrtest values (2, 'qux');
 
 -- Check case where the foreign partition isn't a subplan target rel
--- explain (verbose, costs off)
--- update utrtest set a = 1 where a = 2 returning *;
+--Testcase 1295:
+explain (verbose, costs off)
+update utrtest set a = 1 where a = 2;
 -- The new values are concatenated with ' triggered !'
+-- INSERT foreign partition is not supported, so error is returned.
 --Testcase 885:
-update utrtest__postgres_srv__0 set a = 1 where a = 2 returning *;
+update utrtest set a = 1 where a = 2;
 
 --Testcase 886:
 SELECT dblink_exec('drop trigger loct_br_insert_trigger on loct_2;');
@@ -3421,40 +3526,41 @@ SELECT dblink_exec('drop trigger loct_br_insert_trigger on loct_2;');
 -- but can't move rows to a foreign partition that hasn't been updated yet
 
 --Testcase 887:
-delete from utrtest__postgres_srv__0;
+delete from utrtest;
 --Testcase 888:
-insert into utrtest__postgres_srv__0 values (1, 'foo');
+insert into utrtest values (1, 'foo');
 --Testcase 889:
-insert into utrtest__postgres_srv__0 values (2, 'qux');
+insert into utrtest values (2, 'qux');
 
 -- Test the former case:
 -- with a direct modification plan
--- explain (verbose, costs off)
--- update utrtest set a = 1 returning *;
+--Testcase 1296:
+explain (verbose, costs off)
+update utrtest set a = 1;
+-- INSERT foreign partition is not supported, so error is returned.
 --Testcase 890:
-update utrtest__postgres_srv__0 set a = 1 returning *;
+update utrtest set a = 1;
 
 --Testcase 891:
-delete from utrtest__postgres_srv__0;
+delete from utrtest;
 --Testcase 892:
-insert into utrtest__postgres_srv__0 values (1, 'foo');
+insert into utrtest values (1, 'foo');
 --Testcase 893:
-insert into utrtest__postgres_srv__0 values (2, 'qux');
+insert into utrtest values (2, 'qux');
 
 -- with a non-direct modification plan
--- explain (verbose, costs off)
--- update utrtest set a = 1 from (values (1), (2)) s(x) where a = s.x returning *;
+--Testcase 1297:
+explain (verbose, costs off)
+update utrtest set a = 1 from (values (1), (2)) s(x) where a = s.x returning *;
 --Testcase 894:
-update utrtest__postgres_srv__0 set a = 1 from (values (1), (2)) s(x) where a = s.x returning *;
+update utrtest set a = 1 from (values (1), (2)) s(x) where a = s.x returning *;
 
 -- Change the definition of utrtest so that the foreign partition get updated
 -- after the local partition
 --Testcase 895:
-delete from utrtest__postgres_srv__0;
+delete from utrtest;
 --Testcase 896:
-SELECT dblink_exec('alter table utrtest detach partition remp;');
---Testcase 897:
-SELECT dblink_exec('drop foreign table remp;');
+alter table utrtest detach partition remp;
 --Testcase 898:
 drop foreign table remp;
 --Testcase 899:
@@ -3464,60 +3570,57 @@ SELECT dblink_exec('alter table loct_2 drop constraint loct_2_a_check;');
 --Testcase 901:
 SELECT dblink_exec('alter table loct_2 add check (a in (3));');
 --Testcase 902:
-SELECT dblink_exec('create foreign table remp (a int check (a in (3)), b text)
-  server postgres_srv options (table_name ''loct_2'');');
+create foreign table remp (a int check (a in (3)), b text)
+  server pgspider_srv;
 --Testcase 903:
-SELECT dblink_exec('alter table utrtest attach partition remp for values in (3);');
+create foreign table remp__postgres_srv__0 (a int check (a in (3)), b text)
+  server postgres_srv options (table_name 'loct_2');
 
+alter table utrtest attach partition remp for values in (3);
 --Testcase 904:
-insert into utrtest__postgres_srv__0 values (2, 'qux');
+insert into utrtest values (2, 'qux');
 --Testcase 905:
-insert into utrtest__postgres_srv__0 values (3, 'xyzzy');
+insert into utrtest values (3, 'xyzzy');
 
 -- Test the latter case:
 -- with a direct modification plan
--- explain (verbose, costs off)
--- update utrtest set a = 3 returning *;
+--Testcase 1298:
+explain (verbose, costs off)
+update utrtest set a = 3 returning *;
 --Testcase 906:
-update utrtest__postgres_srv__0 set a = 3 returning *; -- ERROR
-
+update utrtest set a = 3; -- ERROR
 -- -- with a non-direct modification plan
--- explain (verbose, costs off)
--- update utrtest set a = 3 from (values (2), (3)) s(x) where a = s.x returning *;
+--Testcase 1299:
+explain (verbose, costs off)
+update utrtest set a = 3 from (values (2), (3)) s(x) where a = s.x;
+-- INSERT foreign partition is not supported, so error is returned.
 --Testcase 907:
-update utrtest__postgres_srv__0 set a = 3 from (values (2), (3)) s(x) where a = s.x returning *; -- ERROR
+update utrtest set a = 3 from (values (2), (3)) s(x) where a = s.x; -- ERROR
 
 --Testcase 908:
-drop foreign table utrtest;
---Testcase 909:
-drop foreign table utrtest__postgres_srv__0;
+drop table utrtest;
 --drop table loct;
 
 -- Test copy tuple routing
----create table ctrtest (a int, b text, __spd_url text) partition by list (a);
 ---create table loct1 (a int check (a in (1)), b text);
 --Testcase 910:
-create foreign table ctrtest (a int, b text, __spd_url text)
-  server pgspider_srv;
---Testcase 911:
-create foreign table ctrtest__postgres_srv__0 (a int, b text)
-  server postgres_srv options (table_name 'ctrtest');
+create table ctrtest (a int, b text) partition by list (a);
 --Testcase 912:
-create foreign table remp1 (a int check (a in (1)), b text, __spd_url text)
+create foreign table remp1 (a int check (a in (1)), b text)
   server pgspider_srv;
 --Testcase 913:
 create foreign table remp1__postgres_srv__0 (a int check (a in (1)), b text)
   server postgres_srv options (table_name 'loct1_4');
 --Testcase 914:
-create foreign table remp2 (b text, a int check (a in (2)), __spd_url text)
+create foreign table remp2 (b text, a int check (a in (2)))
   server pgspider_srv;
 --Testcase 915:
 create foreign table remp2__postgres_srv__0 (b text, a int check (a in (2)))
   server postgres_srv options (table_name 'loct2_4');
---alter table ctrtest attach partition remp1 for values in (1);
---alter table ctrtest attach partition remp2 for values in (2);
+alter table ctrtest attach partition remp1 for values in (1);
+alter table ctrtest attach partition remp2 for values in (2);
 
-copy ctrtest__postgres_srv__0 from stdin;
+copy ctrtest from stdin;
 1	foo
 2	qux
 \.
@@ -3530,12 +3633,39 @@ select tableoid::regclass, * FROM remp1;
 select tableoid::regclass, * FROM remp2;
 
 -- Copying into foreign partitions directly should work as well
-copy remp1__postgres_srv__0 from stdin;
+copy remp1 from stdin;
 1	bar
 \.
 
 --Testcase 919:
 select tableoid::regclass, * FROM remp1;
+
+--Testcase 1300:
+delete from ctrtest;
+
+-- Test copy tuple routing with the batch_size option enabled
+alter server postgres_srv options (add batch_size '2');
+
+copy ctrtest from stdin;
+1	foo
+1	bar
+2	baz
+2	qux
+1	test1
+2	test2
+\.
+
+--Testcase 1301:
+select tableoid::regclass, * FROM ctrtest;
+--Testcase 1302:
+select tableoid::regclass, * FROM remp1;
+--Testcase 1303:
+select tableoid::regclass, * FROM remp2;
+
+--Testcase 1304:
+delete from ctrtest;
+
+alter server postgres_srv options (drop batch_size);
 
 --Testcase 920:
 drop foreign table remp1;
@@ -3546,10 +3676,7 @@ drop foreign table remp1__postgres_srv__0;
 --Testcase 923:
 drop foreign table remp2__postgres_srv__0;
 --Testcase 924:
-drop foreign table ctrtest;
---Testcase 925:
-drop foreign table ctrtest__postgres_srv__0;
-
+drop table ctrtest;
 
 -- ===================================================================
 -- test COPY FROM
@@ -3560,10 +3687,10 @@ create foreign table rem2 (f1 int, f2 text, __spd_url text)
   server pgspider_srv;
 --Testcase 927:
 create foreign table rem2__postgres_srv__0 (f1 int, f2 text)
-  server postgres_srv options(table_name 'loc2_1');
+  server postgres_srv options(table_name 'loc2');
 
 -- Test basic functionality
-copy rem2__postgres_srv__0 from stdin;
+copy rem2 from stdin;
 1	foo
 2	bar
 \.
@@ -3571,18 +3698,19 @@ copy rem2__postgres_srv__0 from stdin;
 select * from rem2;
 
 --Testcase 929:
-delete from rem2__postgres_srv__0;
+delete from rem2;
 
 -- Test check constraints
 --Testcase 930:
+SELECT dblink_exec('alter table loc2 add constraint loc2_f1positive check (f1 >= 0);');
 alter foreign table rem2 add constraint rem2_f1positive check (f1 >= 0);
 
 -- check constraint is enforced on the remote side, not locally
-copy rem2__postgres_srv__0 from stdin;
+copy rem2 from stdin;
 1	foo
 2	bar
 \.
-copy rem2__postgres_srv__0 from stdin; -- ERROR
+copy rem2 from stdin; -- ERROR
 -1	xyzzy
 \.
 --Testcase 931:
@@ -3590,6 +3718,8 @@ select * from rem2;
 
 --Testcase 932:
 alter foreign table rem2 drop constraint rem2_f1positive;
+--Testcase 1305:
+SELECT dblink_exec('alter table loc2 drop constraint loc2_f1positive;');
 
 --Testcase 933:
 delete from rem2__postgres_srv__0;
@@ -3608,7 +3738,7 @@ create trigger trig_row_before before insert on rem2__postgres_srv__0
 create trigger trig_row_after after insert on rem2__postgres_srv__0
 	for each row execute procedure trigger_data(23,'skidoo');
 
-copy rem2__postgres_srv__0 from stdin;
+copy rem2 from stdin;
 1	foo
 2	bar
 \.
@@ -3632,7 +3762,7 @@ create trigger trig_row_before_insert before insert on rem2__postgres_srv__0
 	for each row execute procedure trig_row_before_insupdate();
 
 -- The new values are concatenated with ' triggered !'
-copy rem2__postgres_srv__0 from stdin;
+copy rem2 from stdin;
 1	foo
 2	bar
 \.
@@ -3650,7 +3780,7 @@ create trigger trig_null before insert on rem2__postgres_srv__0
 	for each row execute procedure trig_null();
 
 -- Nothing happens
-copy rem2__postgres_srv__0 from stdin;
+copy rem2 from stdin;
 1	foo
 2	bar
 \.
@@ -3665,11 +3795,11 @@ delete from rem2__postgres_srv__0;
 
 -- Test remote triggers
 --Testcase 952:
-SELECT dblink_exec('create trigger trig_row_before_insert before insert on loc2_1
+SELECT dblink_exec('create trigger trig_row_before_insert before insert on loc2
 	for each row execute procedure trig_row_before_insupdate();');
 
 -- The new values are concatenated with ' triggered !'
-copy rem2__postgres_srv__0 from stdin;
+copy rem2 from stdin;
 1	foo
 2	bar
 \.
@@ -3677,17 +3807,17 @@ copy rem2__postgres_srv__0 from stdin;
 select * from rem2;
 
 --Testcase 954:
-SELECT dblink_exec('drop trigger trig_row_before_insert on loc2_1;');
+SELECT dblink_exec('drop trigger trig_row_before_insert on loc2;');
 
 --Testcase 955:
 delete from rem2__postgres_srv__0;
 
 --Testcase 956:
-SELECT dblink_exec('create trigger trig_null before insert on loc2_1
+SELECT dblink_exec('create trigger trig_null before insert on loc2
 	for each row execute procedure trig_null();');
 
 -- Nothing happens
-copy rem2__postgres_srv__0 from stdin;
+copy rem2 from stdin;
 1	foo
 2	bar
 \.
@@ -3695,7 +3825,7 @@ copy rem2__postgres_srv__0 from stdin;
 select * from rem2;
 
 --Testcase 958:
-SELECT dblink_exec('drop trigger trig_null on loc2_1;');
+SELECT dblink_exec('drop trigger trig_null on loc2;');
 
 --Testcase 959:
 delete from rem2__postgres_srv__0;
@@ -3708,10 +3838,10 @@ create trigger rem2_trig_row_before before insert on rem2__postgres_srv__0
 create trigger rem2_trig_row_after after insert on rem2__postgres_srv__0
 	for each row execute procedure trigger_data(23,'skidoo');
 --Testcase 962:
-SELECT dblink_exec('create trigger loc2_trig_row_before_insert before insert on loc2_1
+SELECT dblink_exec('create trigger loc2_trig_row_before_insert before insert on loc2
 	for each row execute procedure trig_row_before_insupdate();');
 
-copy rem2__postgres_srv__0 from stdin;
+copy rem2 from stdin;
 1	foo
 2	bar
 \.
@@ -3723,7 +3853,7 @@ drop trigger rem2_trig_row_before on rem2__postgres_srv__0;
 --Testcase 965:
 drop trigger rem2_trig_row_after on rem2__postgres_srv__0;
 --Testcase 966:
-SELECT dblink_exec('drop trigger loc2_trig_row_before_insert on loc2_1;');
+SELECT dblink_exec('drop trigger loc2_trig_row_before_insert on loc2;');
 
 --Testcase 967:
 delete from rem2__postgres_srv__0;
@@ -3736,7 +3866,7 @@ create foreign table rem3 (f1 int, f2 text, __spd_url text)
 --Testcase 969:
 create foreign table rem3__postgres_srv__0 (f1 int, f2 text)
 	server postgres_srv options(table_name 'loc3_1');
-copy rem3__postgres_srv__0 from stdin;
+copy rem3 from stdin;
 1	foo
 2	bar
 \.
@@ -3747,6 +3877,107 @@ select * from rem3;
 drop foreign table rem3;
 --Testcase 972:
 drop foreign table rem3__postgres_srv__0;
+
+-- Test COPY FROM with the batch_size option enabled
+alter server postgres_srv options (add batch_size '2');
+
+-- Test basic functionality
+copy rem2 from stdin;
+1	foo
+2	bar
+3	baz
+\.
+--Testcase 1306:
+select * from rem2;
+
+--Testcase 1307:
+delete from rem2;
+
+-- Test check constraints
+--Testcase 1308:
+SELECT dblink_exec('alter table loc2 add constraint loc2_f1positive check (f1 >= 0)');
+alter foreign table rem2 add constraint rem2_f1positive check (f1 >= 0);
+
+-- check constraint is enforced on the remote side, not locally
+copy rem2 from stdin;
+1	foo
+2	bar
+3	baz
+\.
+copy rem2 from stdin; -- ERROR
+-1	xyzzy
+\.
+--Testcase 1309:
+select * from rem2;
+
+alter foreign table rem2 drop constraint rem2_f1positive;
+--Testcase 1310:
+SELECT dblink_exec('alter table loc2 drop constraint loc2_f1positive');
+
+--Testcase 1311:
+delete from rem2;
+
+-- Test remote triggers
+--Testcase 1312:
+SELECT dblink_exec('create trigger trig_row_before_insert before insert on loc2
+	for each row execute procedure trig_row_before_insupdate();');
+
+-- The new values are concatenated with ' triggered !'
+copy rem2 from stdin;
+1	foo
+2	bar
+3	baz
+\.
+--Testcase 1313:
+select * from rem2;
+
+--Testcase 1314:
+SELECT dblink_exec('drop trigger trig_row_before_insert on loc2;');
+
+--Testcase 1315:
+delete from rem2;
+
+--Testcase 1316:
+SELECT dblink_exec('create trigger trig_null before insert on loc2
+	for each row execute procedure trig_null();');
+
+-- Nothing happens
+copy rem2 from stdin;
+1	foo
+2	bar
+3	baz
+\.
+--Testcase 1317:
+select * from rem2;
+
+--Testcase 1318:
+SELECT dblink_exec('drop trigger trig_null on loc2;');
+
+--Testcase 1319:
+delete from rem2;
+
+-- Check with zero-column foreign table; batch insert will be disabled
+--Testcase 1320:
+SELECT dblink_exec('alter table loc2 drop column f1;');
+--Testcase 1321:
+SELECT dblink_exec('alter table loc2 drop column f2;');
+alter foreign table rem2__postgres_srv__0 drop column f1;
+alter foreign table rem2__postgres_srv__0 drop column f2;
+alter foreign table rem2 drop column f1;
+alter foreign table rem2 drop column f2;
+alter foreign table rem2 drop column __spd_url;
+copy rem2 from stdin;
+
+
+
+\.
+--Testcase 1322:
+select * from rem2;
+
+--Testcase 1323:
+delete from rem2;
+
+alter server postgres_srv options (drop batch_size);
 
 -- ===================================================================
 -- test for TRUNCATE
@@ -4233,11 +4464,7 @@ SELECT 1 FROM ft1_nopw LIMIT 1;
 -- If we add a password to the connstr it'll fail, because we don't allow passwords
 -- in connstrs only in user mappings.
 
-DO $d$
-    BEGIN
-        EXECUTE $$ALTER SERVER loopback_nopw OPTIONS (ADD password 'dummypw')$$;
-    END;
-$d$;
+ALTER SERVER loopback_nopw OPTIONS (ADD password 'dummypw');
 
 -- If we add a password for our user mapping instead, we should get a different
 -- error because the password wasn't actually *used* when we run with trust auth.
@@ -4309,18 +4536,16 @@ ROLLBACK;
 -- so that we can easily terminate the connection later.
 ALTER SERVER loopback OPTIONS (application_name 'fdw_retry_check');
 
--- If debug_discard_caches is active, it results in
--- dropping remote connections after every transaction, making it
--- impossible to test termination meaningfully.  So turn that off
--- for this test.
-SET debug_discard_caches = 0;
-
 -- Make sure we have a remote connection.
 SELECT 1 FROM ft1 LIMIT 1;
 
 -- Terminate the remote connection and wait for the termination to complete.
-SELECT pg_terminate_backend(pid, 180000) FROM pg_stat_activity
+-- (If a cache flush happens, the remote connection might have already been
+-- dropped; so code this step in a way that doesn't fail if no connection.)
+DO $$ BEGIN
+PERFORM pg_terminate_backend(pid, 180000) FROM pg_stat_activity
 	WHERE application_name = 'fdw_retry_check';
+END $$;
 
 -- This query should detect the broken connection when starting new remote
 -- transaction, reestablish new connection, and then succeed.
@@ -4330,16 +4555,16 @@ SELECT 1 FROM ft1 LIMIT 1;
 -- If we detect the broken connection when starting a new remote
 -- subtransaction, we should fail instead of establishing a new connection.
 -- Terminate the remote connection and wait for the termination to complete.
-SELECT pg_terminate_backend(pid, 180000) FROM pg_stat_activity
+DO $$ BEGIN
+PERFORM pg_terminate_backend(pid, 180000) FROM pg_stat_activity
 	WHERE application_name = 'fdw_retry_check';
+END $$;
 SAVEPOINT s;
 -- The text of the error might vary across platforms, so only show SQLSTATE.
 \set VERBOSITY sqlstate
 SELECT 1 FROM ft1 LIMIT 1;    -- should fail
 \set VERBOSITY default
 COMMIT;
-
-RESET debug_discard_caches;
 
 -- =============================================================================
 -- test connection invalidation cases and postgres_fdw_get_connections function
@@ -4530,17 +4755,6 @@ TRUNCATE batch_table;
 --Testcase 1114:
 DROP FOREIGN TABLE ftable;
 
--- try if large batches exceed max number of bind parameters
---Testcase 1115:
-CREATE FOREIGN TABLE ftable ( x int ) SERVER postgres_srv OPTIONS ( table_name 'batch_table', batch_size '100000' );
---Testcase 1116:
-INSERT INTO ftable SELECT * FROM generate_series(1, 70000) i;
---Testcase 1117:
-SELECT COUNT(*) FROM ftable;
-TRUNCATE batch_table;
---Testcase 1118:
-DROP FOREIGN TABLE ftable;
-
 -- Disable batch insert
 --Testcase 1119:
 CREATE FOREIGN TABLE ftable ( x int ) SERVER postgres_srv OPTIONS ( table_name 'batch_table', batch_size '1' );
@@ -4571,6 +4785,8 @@ DROP TRIGGER trig_row_before ON ftable;
 DROP FOREIGN TABLE ftable;
 --Testcase 1124:
 DROP FOREIGN TABLE batch_table;
+--Testcase 1324:
+SELECT dblink_exec('DROP TABLE batch_table');
 
 -- Use partitioning
 --Testcase 1125:
@@ -4600,8 +4816,16 @@ INSERT INTO batch_table SELECT * FROM generate_series(1, 66) i;
 --Testcase 1130:
 SELECT COUNT(*) FROM batch_table;
 
--- Check that enabling batched inserts doesn't interfere with cross-partition
--- updates
+-- Clean up
+--Testcase 1325:
+DROP TABLE batch_table;
+--Testcase 1326:
+SELECT dblink_exec('DROP TABLE batch_table_p0;');
+--Testcase 1327:
+SELECT dblink_exec('DROP TABLE batch_table_p1;');
+
+-- Check that batched mode also works for some inserts made during
+-- cross-partition updates
 --Testcase 1131:
 CREATE TABLE batch_cp_upd_test (a int) PARTITION BY LIST (a);
 
@@ -4612,20 +4836,69 @@ CREATE FOREIGN TABLE batch_cp_upd_test1_f
 	SERVER postgres_srv
 	OPTIONS (table_name 'batch_cp_upd_test1', batch_size '10');
 --Testcase 1133:
-CREATE TABLE batch_cp_up_test1 PARTITION OF batch_cp_upd_test
+CREATE TABLE batch_cp_upd_test2 PARTITION OF batch_cp_upd_test
 	FOR VALUES IN (2);
 --Testcase 1134:
-INSERT INTO batch_cp_upd_test VALUES (1), (2);
+CREATE FOREIGN TABLE batch_cp_upd_test3_f
+	PARTITION OF batch_cp_upd_test
+	FOR VALUES IN (3)
+	SERVER postgres_srv
+	OPTIONS (table_name 'batch_cp_upd_test3', batch_size '1');
 
--- The following moves a row from the local partition to the foreign one
---Testcase 1135:
-UPDATE batch_cp_upd_test t SET a = 1 FROM (VALUES (1), (2)) s(a) WHERE t.a = s.a;
---Testcase 1136:
-SELECT tableoid::regclass, * FROM batch_cp_upd_test;
+-- Create statement triggers on remote tables that "log" any INSERTs
+-- performed on them.
+--Testcase 1328:
+CREATE FOREIGN TABLE cmdlog (cmd text) SERVER postgres_srv;
+--Testcase 1329:
+SELECT dblink_exec('CREATE TABLE cmdlog (cmd text);');
+--Testcase 1330:
+SELECT dblink_exec('CREATE FUNCTION log_stmt() RETURNS TRIGGER LANGUAGE plpgsql AS $$
+	BEGIN INSERT INTO public.cmdlog VALUES (TG_OP || '' on '' || TG_RELNAME); RETURN NULL; END;
+$$;');
+--Testcase 1331:
+SELECT dblink_exec('CREATE TRIGGER stmt_trig AFTER INSERT ON batch_cp_upd_test1
+	FOR EACH STATEMENT EXECUTE FUNCTION log_stmt();');
+--Testcase 1332:
+SELECT dblink_exec('CREATE TRIGGER stmt_trig AFTER INSERT ON batch_cp_upd_test3
+	FOR EACH STATEMENT EXECUTE FUNCTION log_stmt();');
+
+-- This update moves rows from the local partition 'batch_cp_upd_test2' to the
+-- foreign partition 'batch_cp_upd_test1', one that has insert batching
+-- enabled, so a single INSERT for both rows.
+--Testcase 1333:
+INSERT INTO batch_cp_upd_test VALUES (2), (2);
+--Testcase 1334:
+UPDATE batch_cp_upd_test t SET a = 1 FROM (VALUES (1), (2)) s(a) WHERE t.a = s.a AND s.a = 2;
+
+-- This one moves rows from the local partition 'batch_cp_upd_test2' to the
+-- foreign partition 'batch_cp_upd_test2', one that has insert batching
+-- disabled, so separate INSERTs for the two rows.
+--Testcase 1335:
+INSERT INTO batch_cp_upd_test VALUES (2), (2);
+--Testcase 1336:
+UPDATE batch_cp_upd_test t SET a = 3 FROM (VALUES (1), (2)) s(a) WHERE t.a = s.a AND s.a = 2;
+
+--Testcase 1337:
+SELECT tableoid::regclass, * FROM batch_cp_upd_test ORDER BY 1;
+
+-- Should see 1 INSERT on batch_cp_upd_test1 and 2 on batch_cp_upd_test3 as
+-- described above.
+--Testcase 1338:
+SELECT * FROM cmdlog ORDER BY 1;
 
 -- Clean up
 --Testcase 1137:
-DROP TABLE batch_table, batch_cp_upd_test CASCADE;
+DROP TABLE batch_cp_upd_test;
+--Testcase 1339:
+SELECT dblink_exec('DROP TABLE batch_cp_upd_test1;');
+--Testcase 1340:
+SELECT dblink_exec('DROP TABLE batch_cp_upd_test3;');
+--Testcase 1341:
+SELECT dblink_exec('DROP TABLE cmdlog;');
+--Testcase 1342:
+DROP FOREIGN TABLE cmdlog;
+--Testcase 1343:
+SELECT dblink_exec('DROP FUNCTION log_stmt();');
 
 -- Use partitioning
 --Testcase 1138:
@@ -4633,7 +4906,8 @@ ALTER SERVER postgres_srv OPTIONS (ADD batch_size '10');
 
 --Testcase 1139:
 CREATE TABLE batch_table ( x int, field1 text, field2 text) PARTITION BY HASH (x);
-
+--Testcase 1344:
+SELECT dblink_exec('CREATE TABLE batch_table_p0 (x int, field1 text, field2 text);');
 --Testcase 1140:
 CREATE FOREIGN TABLE batch_table_p2f
 	PARTITION OF batch_table
@@ -4655,8 +4929,137 @@ SELECT COUNT(*) FROM batch_table;
 --Testcase 1144:
 SELECT * FROM batch_table ORDER BY x;
 
+-- Clean up
+--Testcase 1345:
+DROP TABLE batch_table;
+--Testcase 1346:
+SELECT dblink_exec('DROP TABLE batch_table_p2;');
+--Testcase 1347:
+SELECT dblink_exec('DROP TABLE batch_table_p3;');
+
 --Testcase 1145:
 ALTER SERVER postgres_srv OPTIONS (DROP batch_size);
+
+-- Test that pending inserts are handled properly when needed
+--Testcase 1348:
+SELECT dblink_exec('CREATE TABLE batch_table (a text, b int);');
+--Testcase 1349:
+CREATE FOREIGN TABLE ftable__postgres_srv__0 (a text, b int)
+	SERVER postgres_srv
+	OPTIONS (table_name 'batch_table', batch_size '2');
+--Testcase 1350:
+CREATE FOREIGN TABLE ftable (a text, b int, __spd_url text) SERVER pgspider_srv;
+--Testcase 1351:
+CREATE TABLE ltable (a text, b int);
+--Testcase 1352:
+CREATE FUNCTION ftable_rowcount_trigf() RETURNS trigger LANGUAGE plpgsql AS
+$$
+begin
+	raise notice '%: there are % rows in ftable',
+		TG_NAME, (SELECT count(*) FROM ftable);
+	if TG_OP = 'DELETE' then
+		return OLD;
+	else
+		return NEW;
+	end if;
+end;
+$$;
+--Testcase 1353:
+CREATE TRIGGER ftable_rowcount_trigger
+BEFORE INSERT OR UPDATE OR DELETE ON ltable
+FOR EACH ROW EXECUTE PROCEDURE ftable_rowcount_trigf();
+
+-- For PGSpider, INSERT is executed in a thread with a separated connection.
+-- It is only committed after query finished. The query in trigger uses different
+-- connection to select from ftable. It cannot read uncommited data. Therefore,
+-- it shows the values before inserting.
+--Testcase 1354:
+WITH t AS (
+	INSERT INTO ltable VALUES ('AAA', 42), ('BBB', 42) RETURNING *
+)
+INSERT INTO ftable SELECT * FROM t;
+
+--Testcase 1355:
+SELECT * FROM ltable;
+--Testcase 1356:
+SELECT * FROM ftable;
+--Testcase 1357:
+DELETE FROM ftable;
+
+--Testcase 1358:
+WITH t AS (
+	UPDATE ltable SET b = b + 100 RETURNING *
+)
+INSERT INTO ftable SELECT * FROM t;
+
+--Testcase 1359:
+SELECT * FROM ltable;
+--Testcase 1360:
+SELECT * FROM ftable;
+--Testcase 1361:
+DELETE FROM ftable;
+
+--Testcase 1362:
+WITH t AS (
+	DELETE FROM ltable RETURNING *
+)
+INSERT INTO ftable SELECT * FROM t;
+
+--Testcase 1363:
+SELECT * FROM ltable;
+--Testcase 1364:
+SELECT * FROM ftable;
+--Testcase 1365:
+DELETE FROM ftable;
+
+-- Clean up
+--Testcase 1366:
+DROP FOREIGN TABLE ftable;
+--Testcase 1367:
+SELECT dblink_exec('DROP TABLE batch_table;');
+--Testcase 1368:
+DROP TRIGGER ftable_rowcount_trigger ON ltable;
+--Testcase 1369:
+DROP TABLE ltable;
+
+--Testcase 1370:
+CREATE TABLE parent (a text, b int) PARTITION BY LIST (a);
+--Testcase 1371:
+SELECT dblink_exec('CREATE TABLE batch_table (a text, b int);');
+--Testcase 1372:
+CREATE FOREIGN TABLE ftable
+	PARTITION OF parent
+	FOR VALUES IN ('AAA')
+	SERVER postgres_srv
+	OPTIONS (table_name 'batch_table', batch_size '2');
+--Testcase 1373:
+CREATE TABLE ltable
+	PARTITION OF parent
+	FOR VALUES IN ('BBB');
+--Testcase 1374:
+CREATE TRIGGER ftable_rowcount_trigger
+BEFORE INSERT ON ltable
+FOR EACH ROW EXECUTE PROCEDURE ftable_rowcount_trigf();
+
+--Testcase 1375:
+INSERT INTO parent VALUES ('AAA', 42), ('BBB', 42), ('AAA', 42), ('BBB', 42);
+
+--Testcase 1376:
+SELECT tableoid::regclass, * FROM parent;
+
+-- Clean up
+--Testcase 1377:
+DROP FOREIGN TABLE ftable;
+--Testcase 1378:
+SELECT dblink_exec('DROP TABLE batch_table;');
+--Testcase 1379:
+DROP TRIGGER ftable_rowcount_trigger ON ltable;
+--Testcase 1380:
+DROP TABLE ltable;
+--Testcase 1381:
+DROP TABLE parent;
+--Testcase 1382:
+DROP FUNCTION ftable_rowcount_trigf;
 
 -- ===================================================================
 -- skip this test, pgspider_core_fdw does not support asynchronous execution
@@ -4992,38 +5395,45 @@ ALTER FOREIGN DATA WRAPPER postgres_fdw OPTIONS (nonexistent 'fdw');
 -- ===================================================================
 -- test postgres_fdw.application_name GUC
 -- ===================================================================
---- Turn debug_discard_caches off for this test to make sure that
---- the remote connection is alive when checking its application_name.
-SET debug_discard_caches = 0;
+-- To avoid race conditions in checking the remote session's application_name,
+-- use this view to make the remote session itself read its application_name.
+CREATE VIEW my_application_name AS
+  SELECT application_name FROM pg_stat_activity WHERE pid = pg_backend_pid();
+
+CREATE FOREIGN TABLE remote_application_name (application_name text)
+  SERVER loopback2
+  OPTIONS (schema_name 'public', table_name 'my_application_name');
+
+SELECT count(*) FROM remote_application_name;
 
 -- Specify escape sequences in application_name option of a server
 -- object so as to test that they are replaced with status information
--- expectedly.
+-- expectedly.  Note that we are also relying on ALTER SERVER to force
+-- the remote session to be restarted with its new application name.
 --
 -- Since pg_stat_activity.application_name may be truncated to less than
 -- NAMEDATALEN characters, note that substring() needs to be used
 -- at the condition of test query to make sure that the string consisting
 -- of database name and process ID is also less than that.
 ALTER SERVER postgres_srv2 OPTIONS (application_name 'fdw_%d%p');
-SELECT 1 FROM ft6 LIMIT 1;
-SELECT pg_terminate_backend(pid, 180000) FROM pg_stat_activity
+SELECT count(*) FROM remote_application_name
   WHERE application_name =
     substring('fdw_' || current_database() || pg_backend_pid() for
       current_setting('max_identifier_length')::int);
 
 -- postgres_fdw.application_name overrides application_name option
 -- of a server object if both settings are present.
+ALTER SERVER loopback2 OPTIONS (SET application_name 'fdw_wrong');
 SET postgres_fdw.application_name TO 'fdw_%a%u%%';
-SELECT 1 FROM ft6 LIMIT 1;
-SELECT pg_terminate_backend(pid, 180000) FROM pg_stat_activity
+SELECT count(*) FROM remote_application_name
   WHERE application_name =
     substring('fdw_' || current_setting('application_name') ||
       CURRENT_USER || '%' for current_setting('max_identifier_length')::int);
+RESET postgres_fdw.application_name;
 
 -- Test %c (session ID) and %C (cluster name) escape sequences.
-SET postgres_fdw.application_name TO 'fdw_%C%c';
-SELECT 1 FROM ft6 LIMIT 1;
-SELECT pg_terminate_backend(pid, 180000) FROM pg_stat_activity
+ALTER SERVER loopback2 OPTIONS (SET application_name 'fdw_%C%c');
+SELECT count(*) FROM remote_application_name
   WHERE application_name =
     substring('fdw_' || current_setting('cluster_name') ||
       to_hex(trunc(EXTRACT(EPOCH FROM (SELECT backend_start FROM
@@ -5031,15 +5441,17 @@ SELECT pg_terminate_backend(pid, 180000) FROM pg_stat_activity
       to_hex(pg_backend_pid())
       for current_setting('max_identifier_length')::int);
 
---Clean up
-RESET postgres_fdw.application_name;
-RESET debug_discard_caches;
+-- Clean up.
+DROP FOREIGN TABLE remote_application_name;
+DROP VIEW my_application_name;
 */
 -- ===================================================================
--- test parallel commit
+-- test parallel commit and parallel abort
 -- ===================================================================
 ALTER SERVER postgres_srv OPTIONS (ADD parallel_commit 'true');
+ALTER SERVER postgres_srv OPTIONS (ADD parallel_abort 'true');
 ALTER SERVER postgres_srv2 OPTIONS (ADD parallel_commit 'true');
+ALTER SERVER postgres_srv2 OPTIONS (ADD parallel_abort 'true');
 
 --Testcase 1228:
 CREATE FOREIGN TABLE prem1 (f1 int, f2 text)
@@ -5093,8 +5505,82 @@ SELECT * FROM prem1;
 --Testcase 1243:
 SELECT * FROM prem2;
 
+BEGIN;
+--Testcase 1383:
+INSERT INTO prem1 VALUES (105, 'test1');
+--Testcase 1384:
+INSERT INTO prem2 VALUES (205, 'test2');
+ABORT;
+--Testcase 1385:
+SELECT * FROM prem1;
+--Testcase 1386:
+SELECT * FROM prem2;
+
+-- This tests executing DEALLOCATE ALL against foreign servers in parallel
+-- during post-abort
+BEGIN;
+SAVEPOINT s;
+--Testcase 1387:
+INSERT INTO prem1 VALUES (105, 'test1');
+--Testcase 1388:
+INSERT INTO prem2 VALUES (205, 'test2');
+ROLLBACK TO SAVEPOINT s;
+RELEASE SAVEPOINT s;
+--Testcase 1389:
+INSERT INTO prem1 VALUES (105, 'test1');
+--Testcase 1390:
+INSERT INTO prem2 VALUES (205, 'test2');
+ABORT;
+--Testcase 1391:
+SELECT * FROM prem1;
+--Testcase 1392:
+SELECT * FROM prem2;
+
 ALTER SERVER postgres_srv OPTIONS (DROP parallel_commit);
+ALTER SERVER postgres_srv OPTIONS (DROP parallel_abort);
 ALTER SERVER postgres_srv2 OPTIONS (DROP parallel_commit);
+ALTER SERVER postgres_srv2 OPTIONS (DROP parallel_abort);
+
+-- ===================================================================
+-- test for ANALYZE sampling
+-- ===================================================================
+
+--Testcase 1393:
+CREATE TABLE analyze_table (id int, a text, b bigint);
+
+--Testcase 1394:
+CREATE FOREIGN TABLE analyze_ftable (id int, a text, b bigint)
+       SERVER postgres_srv OPTIONS (table_name 'analyze_rtable1');
+
+--Testcase 1395:
+INSERT INTO analyze_table (SELECT x FROM generate_series(1,1000) x);
+ANALYZE analyze_table;
+
+SET default_statistics_target = 10;
+ANALYZE analyze_table;
+
+ALTER SERVER postgres_srv OPTIONS (analyze_sampling 'invalid');
+
+ALTER SERVER postgres_srv OPTIONS (analyze_sampling 'auto');
+ANALYZE analyze_table;
+
+ALTER SERVER postgres_srv OPTIONS (SET analyze_sampling 'system');
+ANALYZE analyze_table;
+
+ALTER SERVER postgres_srv OPTIONS (SET analyze_sampling 'bernoulli');
+ANALYZE analyze_table;
+
+ALTER SERVER postgres_srv OPTIONS (SET analyze_sampling 'random');
+ANALYZE analyze_table;
+
+ALTER SERVER postgres_srv OPTIONS (SET analyze_sampling 'off');
+ANALYZE analyze_table;
+
+-- cleanup
+--Testcase 1396:
+DROP FOREIGN TABLE analyze_ftable;
+--Testcase 1397:
+DROP TABLE analyze_table;
 
 --Testcase 1146:
 SELECT dblink_disconnect();

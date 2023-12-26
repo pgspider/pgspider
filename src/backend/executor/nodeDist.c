@@ -22,6 +22,8 @@
 #include "nodes/nodeFuncs.h"
 #include "utils/syscache.h"
 
+#define PGSPIDER_CORE_FDW_NAME "pgspider_core_fdw"
+
 typedef struct dist_func_state
 {
 	GetFunctionResultOne pgFetchFunc;
@@ -81,6 +83,13 @@ init_func_state(Oid funcoid, Oid rettype)
 	GetFunctionResultOne pgFetchFunc;
 	FinFunction		pgFinFunc;
 	dist_func_state *func_state;
+	char			*fdwlib_name = NULL;
+
+	/* Create pgspider_core_fdw lib name */
+	fdwlib_name = psprintf("$libdir/%s", PGSPIDER_CORE_FDW_NAME);
+
+	pgFetchFunc = (GetFunctionResultOne) load_external_function(fdwlib_name, "spdGetFunctionResultOne", true, NULL);
+	pgFinFunc = (FinFunction) load_external_function(fdwlib_name, "spdFinalizeFunction", true, NULL);
 
 	/* Create a target list of child function. */
 	aggref = makeAggRef(funcoid, rettype);
@@ -90,9 +99,6 @@ init_func_state(Oid funcoid, Oid rettype)
 	/* Create a slot to store a result of child funcrion. */
 	tupdesc = ExecCleanTypeFromTL(tlist_child);
 	slot = MakeTupleTableSlot(tupdesc, &TTSOpsVirtual);
-
-	pgFetchFunc = (GetFunctionResultOne) load_external_function("pgspider_core_fdw", "spdGetFunctionResultOne", true, NULL);
-	pgFinFunc = (FinFunction) load_external_function("pgspider_core_fdw", "spdFinalizeFunction", true, NULL);
 
 	/* Create an instance managing a function state. */
 	func_state = palloc0(sizeof(dist_func_state));
@@ -136,15 +142,20 @@ call_childfunc(AggState *aggstate,
 			   AggStatePerAgg peragg,
 			   dist_func_state *func_state)
 {
-	Oid			tableoid;
-	List	   *args;
 	ExecFunction pgExecFunc;
+	Oid			 tableoid;
+	List		*args;
+	char		*fdwlib_name = NULL;
+
+	/* Create pgspider_core_fdw lib name */
+	fdwlib_name = psprintf("$libdir/%s", PGSPIDER_CORE_FDW_NAME);
 
 	/* Get a relation of multi-tenant table and function arguments. */
 	childfunc_target(aggstate, &tableoid, &args);
 
 	/* Execute the function. */
-	pgExecFunc = (ExecFunction) load_external_function("pgspider_core_fdw", "spdExecuteFunction", true, NULL);
+	pgExecFunc = (ExecFunction) load_external_function(fdwlib_name, "spdExecuteFunction", true, NULL);
+
 	pgExecFunc(peragg->childfn_oid, tableoid, args, peragg->async, &func_state->fdw_private);
 }
 
@@ -202,7 +213,7 @@ agg_retrieve_distributed_func(AggState *aggstate)
 	int			nextSetSize;
 	int			numReset;
 	int			i;
-	dist_func_state *func_state = NULL;
+	dist_func_state	   *func_state = NULL;
 
 	/*
 	 * get state info from node
@@ -461,6 +472,30 @@ agg_retrieve_distributed_func(AggState *aggstate)
 
 	/* No more groups */
 	return NULL;
+}
+
+/*
+ * Support Exaplain query for distributed function. This function is an
+ * entry point from explain.c to operate Explain for distributed function.
+ */
+void
+agg_explain_distributed_func(AggState *aggstate, ExplainState *es)
+{
+	AggStatePerAgg peragg = aggstate->peragg;
+	Oid			tableoid;
+	List	   *args;
+	char	   *fdwlib_name = NULL;
+	ExplainFunc pgExplainFunc;
+
+	/* Get a relation of multi-tenant table and function arguments. */
+	childfunc_target(aggstate, &tableoid, &args);
+
+	/* Create pgspider_core_fdw lib name */
+	fdwlib_name = psprintf("$libdir/%s", PGSPIDER_CORE_FDW_NAME);
+
+	pgExplainFunc = (ExplainFunc) load_external_function(fdwlib_name, "spdExplainFunction", true, NULL);
+
+	pgExplainFunc(peragg->childfn_oid, tableoid, args, peragg->async, es);
 }
 
 /*

@@ -3,7 +3,7 @@
  * tablecmds.c
  *	  Commands for creating and altering table structures and settings
  *
- * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2023, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
@@ -103,6 +103,7 @@
 #include "utils/syscache.h"
 #include "utils/timestamp.h"
 #include "utils/typcache.h"
+#include "utils/usercontext.h"
 
 /*
  * ON COMMIT action list
@@ -550,7 +551,7 @@ static ObjectAddress ATExecAlterColumnType(AlteredTableInfo *tab, Relation rel,
 										   AlterTableCmd *cmd, LOCKMODE lockmode);
 static void RememberConstraintForRebuilding(Oid conoid, AlteredTableInfo *tab);
 static void RememberIndexForRebuilding(Oid indoid, AlteredTableInfo *tab);
-static void RememberStatisticsForRebuilding(Oid indoid, AlteredTableInfo *tab);
+static void RememberStatisticsForRebuilding(Oid stxoid, AlteredTableInfo *tab);
 static void ATPostAlterTypeCleanup(List **wqueue, AlteredTableInfo *tab,
 								   LOCKMODE lockmode);
 static void ATPostAlterTypeParse(Oid oldId, Oid oldRelId, Oid refRelId,
@@ -595,22 +596,23 @@ static void ATExecReplicaIdentity(Relation rel, ReplicaIdentityStmt *stmt, LOCKM
 static void ATExecGenericOptions(Relation rel, List *options);
 static void ATExecSetRowSecurity(Relation rel, bool rls);
 static void ATExecForceNoForceRowSecurity(Relation rel, bool force_rls);
-static ObjectAddress ATExecSetCompression(AlteredTableInfo *tab, Relation rel,
+static ObjectAddress ATExecSetCompression(Relation rel,
 										  const char *column, Node *newValue, LOCKMODE lockmode);
 
-static void index_copy_data(Relation rel, RelFileNode newrnode);
+static void index_copy_data(Relation rel, RelFileLocator newrlocator);
 static const char *storage_name(char c);
 
 static void RangeVarCallbackForDropRelation(const RangeVar *rel, Oid relOid,
 											Oid oldRelOid, void *arg);
 static void RangeVarCallbackForAlterRelation(const RangeVar *rv, Oid relid,
 											 Oid oldrelid, void *arg);
-static PartitionSpec *transformPartitionSpec(Relation rel, PartitionSpec *partspec, char *strategy);
+static PartitionSpec *transformPartitionSpec(Relation rel, PartitionSpec *partspec);
 static void ComputePartitionAttrs(ParseState *pstate, Relation rel, List *partParams, AttrNumber *partattrs,
-								  List **partexprs, Oid *partopclass, Oid *partcollation, char strategy);
+								  List **partexprs, Oid *partopclass, Oid *partcollation,
+								  PartitionStrategy strategy);
 static void CreateInheritance(Relation child_rel, Relation parent_rel);
 static void RemoveInheritance(Relation child_rel, Relation parent_rel,
-							  bool allow_detached);
+							  bool expect_detached);
 static ObjectAddress ATExecAttachPartition(List **wqueue, Relation rel,
 										   PartitionCmd *cmd,
 										   AlterTableUtilityContext *context);
@@ -627,7 +629,7 @@ static ObjectAddress ATExecDetachPartition(List **wqueue, AlteredTableInfo *tab,
 static void DetachPartitionFinalize(Relation rel, Relation partRel,
 									bool concurrent, Oid defaultPartOid);
 static ObjectAddress ATExecDetachPartitionFinalize(Relation rel, RangeVar *name);
-static ObjectAddress ATExecAttachPartitionIdx(List **wqueue, Relation rel,
+static ObjectAddress ATExecAttachPartitionIdx(List **wqueue, Relation parentIdx,
 											  RangeVar *name);
 static void validatePartitionedIndex(Relation partedIdx, Relation partedTbl);
 static void refuseDupeIndexAttach(Relation parentIdx, Relation partIdx,
@@ -635,6 +637,7 @@ static void refuseDupeIndexAttach(Relation parentIdx, Relation partIdx,
 static List *GetParentedForeignKeyRefs(Relation partition);
 static void ATDetachCheckNoForeignKeyRefs(Relation partition);
 static char GetAttributeCompression(Oid atttypid, char *compression);
+static char GetAttributeStorage(Oid atttypid, const char *storagemode);
 
 
 /* ----------------------------------------------------------------
@@ -802,8 +805,8 @@ DefineRelation(CreateStmt *stmt, char relkind, Oid ownerId,
 	{
 		AclResult	aclresult;
 
-		aclresult = pg_tablespace_aclcheck(tablespaceId, GetUserId(),
-										   ACL_CREATE);
+		aclresult = object_aclcheck(TableSpaceRelationId, tablespaceId, GetUserId(),
+									ACL_CREATE);
 		if (aclresult != ACLCHECK_OK)
 			aclcheck_error(aclresult, OBJECT_TABLESPACE,
 						   get_tablespace_name(tablespaceId));
@@ -843,7 +846,7 @@ DefineRelation(CreateStmt *stmt, char relkind, Oid ownerId,
 
 		ofTypeId = typenameTypeId(NULL, stmt->ofTypename);
 
-		aclresult = pg_type_aclcheck(ofTypeId, GetUserId(), ACL_USAGE);
+		aclresult = object_aclcheck(TypeRelationId, ofTypeId, GetUserId(), ACL_USAGE);
 		if (aclresult != ACLCHECK_OK)
 			aclcheck_error_type(aclresult, ofTypeId);
 	}
@@ -933,6 +936,9 @@ DefineRelation(CreateStmt *stmt, char relkind, Oid ownerId,
 		if (colDef->compression)
 			attr->attcompression = GetAttributeCompression(attr->atttypid,
 														   colDef->compression);
+
+		if (colDef->storage_name)
+			attr->attstorage = GetAttributeStorage(attr->atttypid, colDef->storage_name);
 	}
 
 	/*
@@ -1118,7 +1124,6 @@ DefineRelation(CreateStmt *stmt, char relkind, Oid ownerId,
 	if (partitioned)
 	{
 		ParseState *pstate;
-		char		strategy;
 		int			partnatts;
 		AttrNumber	partattrs[PARTITION_MAX_KEYS];
 		Oid			partopclass[PARTITION_MAX_KEYS];
@@ -1143,14 +1148,14 @@ DefineRelation(CreateStmt *stmt, char relkind, Oid ownerId,
 		 * and CHECK constraints, we could not have done the transformation
 		 * earlier.
 		 */
-		stmt->partspec = transformPartitionSpec(rel, stmt->partspec,
-												&strategy);
+		stmt->partspec = transformPartitionSpec(rel, stmt->partspec);
 
 		ComputePartitionAttrs(pstate, rel, stmt->partspec->partParams,
 							  partattrs, &partexprs, partopclass,
-							  partcollation, strategy);
+							  partcollation, stmt->partspec->strategy);
 
-		StorePartitionKey(rel, strategy, partnatts, partattrs, partexprs,
+		StorePartitionKey(rel, stmt->partspec->strategy, partnatts, partattrs,
+						  partexprs,
 						  partopclass, partcollation);
 
 		/* make it all visible */
@@ -1202,7 +1207,8 @@ DefineRelation(CreateStmt *stmt, char relkind, Oid ownerId,
 			}
 
 			attmap = build_attrmap_by_name(RelationGetDescr(rel),
-										   RelationGetDescr(parent));
+										   RelationGetDescr(parent),
+										   false);
 			idxstmt =
 				generateClonedIndexStmt(NULL, idxRel,
 										attmap, &constraintOid);
@@ -1211,6 +1217,7 @@ DefineRelation(CreateStmt *stmt, char relkind, Oid ownerId,
 						InvalidOid,
 						RelationGetRelid(idxRel),
 						constraintOid,
+						-1,
 						false, false, false, false, false);
 
 			index_close(idxRel, AccessShareLock);
@@ -1568,8 +1575,8 @@ RangeVarCallbackForDropRelation(const RangeVar *rel, Oid relOid, Oid oldRelOid,
 							  state->expected_relkind);
 
 	/* Allow DROP to either table owner or schema owner */
-	if (!pg_class_ownercheck(relOid, GetUserId()) &&
-		!pg_namespace_ownercheck(classform->relnamespace, GetUserId()))
+	if (!object_ownercheck(RelationRelationId, relOid, GetUserId()) &&
+		!object_ownercheck(NamespaceRelationId, classform->relnamespace, GetUserId()))
 		aclcheck_error(ACLCHECK_NOT_OWNER,
 					   get_relkind_objtype(classform->relkind),
 					   rel->relname);
@@ -1756,7 +1763,7 @@ ExecuteTruncate(TruncateStmt *stmt)
 	}
 
 	ExecuteTruncateGuts(rels, relids, relids_logged,
-						stmt->behavior, stmt->restart_seqs);
+						stmt->behavior, stmt->restart_seqs, false);
 
 	/* And close the rels */
 	foreach(cell, rels)
@@ -1784,7 +1791,8 @@ void
 ExecuteTruncateGuts(List *explicit_rels,
 					List *relids,
 					List *relids_logged,
-					DropBehavior behavior, bool restart_seqs)
+					DropBehavior behavior, bool restart_seqs,
+					bool run_as_table_owner)
 {
 	List	   *rels;
 	List	   *seq_relids = NIL;
@@ -1873,7 +1881,7 @@ ExecuteTruncateGuts(List *explicit_rels,
 				seq_rel = relation_open(seq_relid, AccessExclusiveLock);
 
 				/* This check must match AlterSequence! */
-				if (!pg_class_ownercheck(seq_relid, GetUserId()))
+				if (!object_ownercheck(RelationRelationId, seq_relid, GetUserId()))
 					aclcheck_error(ACLCHECK_NOT_OWNER, OBJECT_SEQUENCE,
 								   RelationGetRelationName(seq_rel));
 
@@ -1923,7 +1931,14 @@ ExecuteTruncateGuts(List *explicit_rels,
 	resultRelInfo = resultRelInfos;
 	foreach(cell, rels)
 	{
+		UserContext ucxt;
+
+		if (run_as_table_owner)
+			SwitchToUntrustedUser(resultRelInfo->ri_RelationDesc->rd_rel->relowner,
+								  &ucxt);
 		ExecBSTruncateTriggers(estate, resultRelInfo);
+		if (run_as_table_owner)
+			RestoreUserContext(&ucxt);
 		resultRelInfo++;
 	}
 
@@ -1988,12 +2003,12 @@ ExecuteTruncateGuts(List *explicit_rels,
 		/*
 		 * Normally, we need a transaction-safe truncation here.  However, if
 		 * the table was either created in the current (sub)transaction or has
-		 * a new relfilenode in the current (sub)transaction, then we can just
-		 * truncate it in-place, because a rollback would cause the whole
+		 * a new relfilenumber in the current (sub)transaction, then we can
+		 * just truncate it in-place, because a rollback would cause the whole
 		 * table or the current physical file to be thrown away anyway.
 		 */
 		if (rel->rd_createSubid == mySubid ||
-			rel->rd_newRelfilenodeSubid == mySubid)
+			rel->rd_newRelfilelocatorSubid == mySubid)
 		{
 			/* Immediate, non-rollbackable truncation is OK */
 			heap_truncate_one_rel(rel);
@@ -2016,10 +2031,10 @@ ExecuteTruncateGuts(List *explicit_rels,
 			 * Need the full transaction-safe pushups.
 			 *
 			 * Create a new empty storage file for the relation, and assign it
-			 * as the relfilenode value. The old storage file is scheduled for
-			 * deletion at commit.
+			 * as the relfilenumber value. The old storage file is scheduled
+			 * for deletion at commit.
 			 */
-			RelationSetNewRelfilenode(rel, rel->rd_rel->relpersistence);
+			RelationSetNewRelfilenumber(rel, rel->rd_rel->relpersistence);
 
 			heap_relid = RelationGetRelid(rel);
 
@@ -2032,8 +2047,8 @@ ExecuteTruncateGuts(List *explicit_rels,
 				Relation	toastrel = relation_open(toast_relid,
 													 AccessExclusiveLock);
 
-				RelationSetNewRelfilenode(toastrel,
-										  toastrel->rd_rel->relpersistence);
+				RelationSetNewRelfilenumber(toastrel,
+											toastrel->rd_rel->relpersistence);
 				table_close(toastrel, NoLock);
 			}
 
@@ -2093,7 +2108,7 @@ ExecuteTruncateGuts(List *explicit_rels,
 	 * Assemble an array of relids so we can write a single WAL record for the
 	 * whole action.
 	 */
-	if (list_length(relids_logged) > 0)
+	if (relids_logged != NIL)
 	{
 		xl_heap_truncate xlrec;
 		int			i = 0;
@@ -2128,7 +2143,14 @@ ExecuteTruncateGuts(List *explicit_rels,
 	resultRelInfo = resultRelInfos;
 	foreach(cell, rels)
 	{
+		UserContext ucxt;
+
+		if (run_as_table_owner)
+			SwitchToUntrustedUser(resultRelInfo->ri_RelationDesc->rd_rel->relowner,
+								  &ucxt);
 		ExecASTruncateTriggers(estate, resultRelInfo);
+		if (run_as_table_owner)
+			RestoreUserContext(&ucxt);
 		resultRelInfo++;
 	}
 
@@ -2315,8 +2337,12 @@ storage_name(char c)
  *		(3) If conflicting defaults are inherited from different parents
  *			(and not overridden by the child), an error is raised.
  *		(4) Otherwise the inherited default is used.
- *		Rule (3) is new in Postgres 7.1; in earlier releases you got a
- *		rather arbitrary choice of which parent default to use.
+ *
+ *		Note that the default-value infrastructure is used for generated
+ *		columns' expressions too, so most of the preceding paragraph applies
+ *		to generation expressions too.  We insist that a child column be
+ *		generated if and only if its parent(s) are, but it need not have
+ *		the same generation expression.
  *----------
  */
 static List *
@@ -2510,7 +2536,7 @@ MergeAttributes(List *schema, List *supers, char relpersistence,
 		 * We should have an UNDER permission flag for this, but for now,
 		 * demand that creator of a child table own the parent.
 		 */
-		if (!pg_class_ownercheck(RelationGetRelid(relation), GetUserId()))
+		if (!object_ownercheck(RelationRelationId, RelationGetRelid(relation), GetUserId()))
 			aclcheck_error(ACLCHECK_NOT_OWNER, get_relkind_objtype(relation->rd_rel->relkind),
 						   RelationGetRelationName(relation));
 
@@ -2553,13 +2579,16 @@ MergeAttributes(List *schema, List *supers, char relpersistence,
 				Oid			defCollId;
 
 				/*
-				 * Yes, try to merge the two column definitions. They must
-				 * have the same type, typmod, and collation.
+				 * Yes, try to merge the two column definitions.
 				 */
 				ereport(NOTICE,
 						(errmsg("merging multiple inherited definitions of column \"%s\"",
 								attributeName)));
 				def = (ColumnDef *) list_nth(inhSchema, exist_attno - 1);
+
+				/*
+				 * Must have the same type and typmod
+				 */
 				typenameTypeIdAndMod(NULL, def->typeName, &defTypeId, &deftypmod);
 				if (defTypeId != attribute->atttypid ||
 					deftypmod != attribute->atttypmod)
@@ -2572,6 +2601,10 @@ MergeAttributes(List *schema, List *supers, char relpersistence,
 																deftypmod),
 									   format_type_with_typemod(attribute->atttypid,
 																attribute->atttypmod))));
+
+				/*
+				 * Must have the same collation
+				 */
 				defCollId = GetColumnDefCollation(NULL, def, defTypeId);
 				if (defCollId != attribute->attcollation)
 					ereport(ERROR,
@@ -2582,7 +2615,9 @@ MergeAttributes(List *schema, List *supers, char relpersistence,
 									   get_collation_name(defCollId),
 									   get_collation_name(attribute->attcollation))));
 
-				/* Copy/check storage parameter */
+				/*
+				 * Copy/check storage parameter
+				 */
 				if (def->storage == 0)
 					def->storage = attribute->attstorage;
 				else if (def->storage != attribute->attstorage)
@@ -2594,11 +2629,13 @@ MergeAttributes(List *schema, List *supers, char relpersistence,
 									   storage_name(def->storage),
 									   storage_name(attribute->attstorage))));
 
-				/* Copy/check compression parameter */
+				/*
+				 * Copy/check compression parameter
+				 */
 				if (CompressionMethodIsValid(attribute->attcompression))
 				{
 					const char *compression =
-					GetCompressionMethodName(attribute->attcompression);
+						GetCompressionMethodName(attribute->attcompression);
 
 					if (def->compression == NULL)
 						def->compression = pstrdup(compression);
@@ -2610,18 +2647,31 @@ MergeAttributes(List *schema, List *supers, char relpersistence,
 								 errdetail("%s versus %s", def->compression, compression)));
 				}
 
-				def->inhcount++;
-				/* Merge of NOT NULL constraints = OR 'em together */
+				/*
+				 * Merge of NOT NULL constraints = OR 'em together
+				 */
 				def->is_not_null |= attribute->attnotnull;
-				/* Default and other constraints are handled below */
-				newattmap->attnums[parent_attno - 1] = exist_attno;
 
-				/* Check for GENERATED conflicts */
+				/*
+				 * Check for GENERATED conflicts
+				 */
 				if (def->generated != attribute->attgenerated)
 					ereport(ERROR,
 							(errcode(ERRCODE_DATATYPE_MISMATCH),
 							 errmsg("inherited column \"%s\" has a generation conflict",
 									attributeName)));
+
+				/*
+				 * Default and other constraints are handled below
+				 */
+
+				def->inhcount++;
+				if (def->inhcount < 0)
+					ereport(ERROR,
+							errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
+							errmsg("too many inheritance parents"));
+
+				newattmap->attnums[parent_attno - 1] = exist_attno;
 			}
 			else
 			{
@@ -2654,7 +2704,7 @@ MergeAttributes(List *schema, List *supers, char relpersistence,
 			}
 
 			/*
-			 * Locate default if any
+			 * Locate default/generation expression if any
 			 */
 			if (attribute->atthasdef)
 			{
@@ -2844,8 +2894,7 @@ MergeAttributes(List *schema, List *supers, char relpersistence,
 				Assert(!is_partition);
 
 				/*
-				 * Yes, try to merge the two column definitions. They must
-				 * have the same type, typmod, and collation.
+				 * Yes, try to merge the two column definitions.
 				 */
 				if (exist_attno == schema_attno)
 					ereport(NOTICE,
@@ -2856,6 +2905,10 @@ MergeAttributes(List *schema, List *supers, char relpersistence,
 							(errmsg("moving and merging column \"%s\" with inherited definition", attributeName),
 							 errdetail("User-specified column moved to the position of the inherited column.")));
 				def = (ColumnDef *) list_nth(inhSchema, exist_attno - 1);
+
+				/*
+				 * Must have the same type and typmod
+				 */
 				typenameTypeIdAndMod(NULL, def->typeName, &defTypeId, &deftypmod);
 				typenameTypeIdAndMod(NULL, newdef->typeName, &newTypeId, &newtypmod);
 				if (defTypeId != newTypeId || deftypmod != newtypmod)
@@ -2868,6 +2921,10 @@ MergeAttributes(List *schema, List *supers, char relpersistence,
 																deftypmod),
 									   format_type_with_typemod(newTypeId,
 																newtypmod))));
+
+				/*
+				 * Must have the same collation
+				 */
 				defcollid = GetColumnDefCollation(NULL, def, defTypeId);
 				newcollid = GetColumnDefCollation(NULL, newdef, newTypeId);
 				if (defcollid != newcollid)
@@ -2885,7 +2942,9 @@ MergeAttributes(List *schema, List *supers, char relpersistence,
 				 */
 				def->identity = newdef->identity;
 
-				/* Copy storage parameter */
+				/*
+				 * Copy storage parameter
+				 */
 				if (def->storage == 0)
 					def->storage = newdef->storage;
 				else if (newdef->storage != 0 && def->storage != newdef->storage)
@@ -2897,7 +2956,9 @@ MergeAttributes(List *schema, List *supers, char relpersistence,
 									   storage_name(def->storage),
 									   storage_name(newdef->storage))));
 
-				/* Copy compression parameter */
+				/*
+				 * Copy compression parameter
+				 */
 				if (def->compression == NULL)
 					def->compression = newdef->compression;
 				else if (newdef->compression != NULL)
@@ -2910,31 +2971,28 @@ MergeAttributes(List *schema, List *supers, char relpersistence,
 								 errdetail("%s versus %s", def->compression, newdef->compression)));
 				}
 
-				/* Mark the column as locally defined */
-				def->is_local = true;
-				/* Merge of NOT NULL constraints = OR 'em together */
+				/*
+				 * Merge of NOT NULL constraints = OR 'em together
+				 */
 				def->is_not_null |= newdef->is_not_null;
 
 				/*
 				 * Check for conflicts related to generated columns.
 				 *
-				 * If the parent column is generated, the child column must be
-				 * unadorned and will be made a generated column.  (We could
-				 * in theory allow the child column definition specifying the
-				 * exact same generation expression, but that's a bit
-				 * complicated to implement and doesn't seem very useful.)  We
-				 * also check that the child column doesn't specify a default
-				 * value or identity, which matches the rules for a single
-				 * column in parse_util.c.
+				 * If the parent column is generated, the child column will be
+				 * made a generated column if it isn't already.  If it is a
+				 * generated column, we'll take its generation expression in
+				 * preference to the parent's.  We must check that the child
+				 * column doesn't specify a default value or identity, which
+				 * matches the rules for a single column in parse_utilcmd.c.
+				 *
+				 * Conversely, if the parent column is not generated, the
+				 * child column can't be either.  (We used to allow that, but
+				 * it results in being able to override the generation
+				 * expression via UPDATEs through the parent.)
 				 */
 				if (def->generated)
 				{
-					if (newdef->generated)
-						ereport(ERROR,
-								(errcode(ERRCODE_INVALID_COLUMN_DEFINITION),
-								 errmsg("child column \"%s\" specifies generation expression",
-										def->colname),
-								 errhint("Omit the generation expression in the definition of the child table column to inherit the generation expression from the parent table.")));
 					if (newdef->raw_default && !newdef->generated)
 						ereport(ERROR,
 								(errcode(ERRCODE_INVALID_COLUMN_DEFINITION),
@@ -2946,23 +3004,27 @@ MergeAttributes(List *schema, List *supers, char relpersistence,
 								 errmsg("column \"%s\" inherits from generated column but specifies identity",
 										def->colname)));
 				}
-
-				/*
-				 * If the parent column is not generated, then take whatever
-				 * the child column definition says.
-				 */
 				else
 				{
 					if (newdef->generated)
-						def->generated = newdef->generated;
+						ereport(ERROR,
+								(errcode(ERRCODE_INVALID_COLUMN_DEFINITION),
+								 errmsg("child column \"%s\" specifies generation expression",
+										def->colname),
+								 errhint("A child table column cannot be generated unless its parent column is.")));
 				}
 
-				/* If new def has a default, override previous default */
+				/*
+				 * If new def has a default, override previous default
+				 */
 				if (newdef->raw_default != NULL)
 				{
 					def->raw_default = newdef->raw_default;
 					def->cooked_default = newdef->cooked_default;
 				}
+
+				/* Mark the column as locally defined */
+				def->is_local = true;
 			}
 			else
 			{
@@ -2989,8 +3051,8 @@ MergeAttributes(List *schema, List *supers, char relpersistence,
 	/*
 	 * Now that we have the column definition list for a partition, we can
 	 * check whether the columns referenced in the column constraint specs
-	 * actually exist.  Also, we merge NOT NULL and defaults into each
-	 * corresponding column definition.
+	 * actually exist.  Also, we merge parent's NOT NULL constraints and
+	 * defaults into each corresponding column definition.
 	 */
 	if (is_partition)
 	{
@@ -3008,6 +3070,36 @@ MergeAttributes(List *schema, List *supers, char relpersistence,
 				{
 					found = true;
 					coldef->is_not_null |= restdef->is_not_null;
+
+					/*
+					 * Check for conflicts related to generated columns.
+					 *
+					 * Same rules as above: generated-ness has to match the
+					 * parent, but the contents of the generation expression
+					 * can be different.
+					 */
+					if (coldef->generated)
+					{
+						if (restdef->raw_default && !restdef->generated)
+							ereport(ERROR,
+									(errcode(ERRCODE_INVALID_COLUMN_DEFINITION),
+									 errmsg("column \"%s\" inherits from generated column but specifies default",
+											restdef->colname)));
+						if (restdef->identity)
+							ereport(ERROR,
+									(errcode(ERRCODE_INVALID_COLUMN_DEFINITION),
+									 errmsg("column \"%s\" inherits from generated column but specifies identity",
+											restdef->colname)));
+					}
+					else
+					{
+						if (restdef->generated)
+							ereport(ERROR,
+									(errcode(ERRCODE_INVALID_COLUMN_DEFINITION),
+									 errmsg("child column \"%s\" specifies generation expression",
+											restdef->colname),
+									 errhint("A child table column cannot be generated unless its parent column is.")));
+					}
 
 					/*
 					 * Override the parent's default value for this column
@@ -3053,7 +3145,8 @@ MergeAttributes(List *schema, List *supers, char relpersistence,
 					ereport(ERROR,
 							(errcode(ERRCODE_INVALID_COLUMN_DEFINITION),
 							 errmsg("column \"%s\" inherits conflicting generation expressions",
-									def->colname)));
+									def->colname),
+							 errhint("To resolve the conflict, specify a generation expression explicitly.")));
 				else
 					ereport(ERROR,
 							(errcode(ERRCODE_INVALID_COLUMN_DEFINITION),
@@ -3100,6 +3193,10 @@ MergeCheckConstraint(List *constraints, char *name, Node *expr)
 		{
 			/* OK to merge */
 			ccon->inhcount++;
+			if (ccon->inhcount < 0)
+				ereport(ERROR,
+						errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
+						errmsg("too many inheritance parents"));
 			return true;
 		}
 
@@ -3130,7 +3227,7 @@ StoreCatalogInheritance(Oid relationId, List *supers,
 	/*
 	 * sanity checks
 	 */
-	AssertArg(OidIsValid(relationId));
+	Assert(OidIsValid(relationId));
 
 	if (supers == NIL)
 		return;
@@ -3325,11 +3422,11 @@ CheckRelationTableSpaceMove(Relation rel, Oid newTableSpaceId)
 
 /*
  * SetRelationTableSpace
- *		Set new reltablespace and relfilenode in pg_class entry.
+ *		Set new reltablespace and relfilenumber in pg_class entry.
  *
  * newTableSpaceId is the new tablespace for the relation, and
- * newRelFileNode its new filenode.  If newRelFileNode is InvalidOid,
- * this field is not updated.
+ * newRelFilenumber its new filenumber.  If newRelFilenumber is
+ * InvalidRelFileNumber, this field is not updated.
  *
  * NOTE: The caller must hold AccessExclusiveLock on the relation.
  *
@@ -3341,7 +3438,7 @@ CheckRelationTableSpaceMove(Relation rel, Oid newTableSpaceId)
 void
 SetRelationTableSpace(Relation rel,
 					  Oid newTableSpaceId,
-					  Oid newRelFileNode)
+					  RelFileNumber newRelFilenumber)
 {
 	Relation	pg_class;
 	HeapTuple	tuple;
@@ -3361,8 +3458,8 @@ SetRelationTableSpace(Relation rel,
 	/* Update the pg_class row. */
 	rd_rel->reltablespace = (newTableSpaceId == MyDatabaseTableSpace) ?
 		InvalidOid : newTableSpaceId;
-	if (OidIsValid(newRelFileNode))
-		rd_rel->relfilenode = newRelFileNode;
+	if (RelFileNumberIsValid(newRelFilenumber))
+		rd_rel->relfilenode = newRelFilenumber;
 	CatalogTupleUpdate(pg_class, &tuple->t_self, tuple);
 
 	/*
@@ -3414,7 +3511,7 @@ renameatt_check(Oid myrelid, Form_pg_class classform, bool recursing)
 	/*
 	 * permissions checking.  only the owner of a class can change its schema.
 	 */
-	if (!pg_class_ownercheck(myrelid, GetUserId()))
+	if (!object_ownercheck(RelationRelationId, myrelid, GetUserId()))
 		aclcheck_error(ACLCHECK_NOT_OWNER, get_relkind_objtype(get_rel_relkind(myrelid)),
 					   NameStr(classform->relname));
 	if (!allowSystemTableMods && IsSystemClass(myrelid, classform))
@@ -3647,7 +3744,7 @@ rename_constraint_internal(Oid myrelid,
 	Form_pg_constraint con;
 	ObjectAddress address;
 
-	AssertArg(!myrelid || !mytypid);
+	Assert(!myrelid || !mytypid);
 
 	if (mytypid)
 	{
@@ -4065,8 +4162,7 @@ AlterTableLookupRelation(AlterTableStmt *stmt, LOCKMODE lockmode)
  * For most subcommand types, phases 2 and 3 do no explicit recursion,
  * since phase 1 already does it.  However, for certain subcommand types
  * it is only possible to determine how to recurse at phase 2 time; for
- * those cases, phase 1 sets the cmd->recurse flag (or, in some older coding,
- * changes the command subtype of a "Recurse" variant XXX to be cleaned up.)
+ * those cases, phase 1 sets the cmd->recurse flag.
  *
  * Thanks to the magic of MVCC, an error anywhere along the way rolls back
  * the whole operation; we don't have to do anything special to clean up.
@@ -4271,7 +4367,6 @@ AlterTableGetLockLevel(List *cmds)
 				break;
 
 			case AT_AddConstraint:
-			case AT_AddConstraintRecurse:	/* becomes AT_AddConstraint */
 			case AT_ReAddConstraint:	/* becomes AT_AddConstraint */
 			case AT_ReAddDomainConstraint:	/* becomes AT_AddConstraint */
 				if (IsA(cmd->def, Constraint))
@@ -4623,7 +4718,7 @@ ATPrepCmd(List **wqueue, Relation rel, AlterTableCmd *cmd,
 			/* Recursion occurs during execution phase */
 			/* No command-specific prep needed except saving recurse flag */
 			if (recurse)
-				cmd->subtype = AT_AddConstraintRecurse;
+				cmd->recurse = true;
 			pass = AT_PASS_ADD_CONSTR;
 			break;
 		case AT_AddIndexConstraint: /* ADD CONSTRAINT USING INDEX */
@@ -4638,7 +4733,7 @@ ATPrepCmd(List **wqueue, Relation rel, AlterTableCmd *cmd,
 			/* Other recursion occurs during execution phase */
 			/* No command-specific prep needed except saving recurse flag */
 			if (recurse)
-				cmd->subtype = AT_DropConstraintRecurse;
+				cmd->recurse = true;
 			pass = AT_PASS_DROP;
 			break;
 		case AT_AlterColumnType:	/* ALTER COLUMN TYPE */
@@ -4760,7 +4855,7 @@ ATPrepCmd(List **wqueue, Relation rel, AlterTableCmd *cmd,
 			/* Recursion occurs during execution phase */
 			/* No command-specific prep needed except saving recurse flag */
 			if (recurse)
-				cmd->subtype = AT_ValidateConstraintRecurse;
+				cmd->recurse = true;
 			pass = AT_PASS_MISC;
 			break;
 		case AT_ReplicaIdentity:	/* REPLICA IDENTITY ... */
@@ -4925,12 +5020,7 @@ ATExecCmd(List **wqueue, AlteredTableInfo *tab,
 		case AT_AddColumn:		/* ADD COLUMN */
 		case AT_AddColumnToView:	/* add column via CREATE OR REPLACE VIEW */
 			address = ATExecAddColumn(wqueue, tab, rel, &cmd,
-									  false, false,
-									  lockmode, cur_pass, context);
-			break;
-		case AT_AddColumnRecurse:
-			address = ATExecAddColumn(wqueue, tab, rel, &cmd,
-									  true, false,
+									  cmd->recurse, false,
 									  lockmode, cur_pass, context);
 			break;
 		case AT_ColumnDefault:	/* ALTER COLUMN DEFAULT */
@@ -4978,19 +5068,13 @@ ATExecCmd(List **wqueue, AlteredTableInfo *tab,
 		case AT_SetStorage:		/* ALTER COLUMN SET STORAGE */
 			address = ATExecSetStorage(rel, cmd->name, cmd->def, lockmode);
 			break;
-		case AT_SetCompression:
-			address = ATExecSetCompression(tab, rel, cmd->name, cmd->def,
+		case AT_SetCompression: /* ALTER COLUMN SET COMPRESSION */
+			address = ATExecSetCompression(rel, cmd->name, cmd->def,
 										   lockmode);
 			break;
 		case AT_DropColumn:		/* DROP COLUMN */
 			address = ATExecDropColumn(wqueue, rel, cmd->name,
-									   cmd->behavior, false, false,
-									   cmd->missing_ok, lockmode,
-									   NULL);
-			break;
-		case AT_DropColumnRecurse:	/* DROP COLUMN with recursion */
-			address = ATExecDropColumn(wqueue, rel, cmd->name,
-									   cmd->behavior, true, false,
+									   cmd->behavior, cmd->recurse, false,
 									   cmd->missing_ok, lockmode,
 									   NULL);
 			break;
@@ -5010,27 +5094,14 @@ ATExecCmd(List **wqueue, AlteredTableInfo *tab,
 			/* Transform the command only during initial examination */
 			if (cur_pass == AT_PASS_ADD_CONSTR)
 				cmd = ATParseTransformCmd(wqueue, tab, rel, cmd,
-										  false, lockmode,
+										  cmd->recurse, lockmode,
 										  cur_pass, context);
 			/* Depending on constraint type, might be no more work to do now */
 			if (cmd != NULL)
 				address =
 					ATExecAddConstraint(wqueue, tab, rel,
 										(Constraint *) cmd->def,
-										false, false, lockmode);
-			break;
-		case AT_AddConstraintRecurse:	/* ADD CONSTRAINT with recursion */
-			/* Transform the command only during initial examination */
-			if (cur_pass == AT_PASS_ADD_CONSTR)
-				cmd = ATParseTransformCmd(wqueue, tab, rel, cmd,
-										  true, lockmode,
-										  cur_pass, context);
-			/* Depending on constraint type, might be no more work to do now */
-			if (cmd != NULL)
-				address =
-					ATExecAddConstraint(wqueue, tab, rel,
-										(Constraint *) cmd->def,
-										true, false, lockmode);
+										cmd->recurse, false, lockmode);
 			break;
 		case AT_ReAddConstraint:	/* Re-add pre-existing check constraint */
 			address =
@@ -5055,22 +5126,12 @@ ATExecCmd(List **wqueue, AlteredTableInfo *tab,
 			address = ATExecAlterConstraint(rel, cmd, false, false, lockmode);
 			break;
 		case AT_ValidateConstraint: /* VALIDATE CONSTRAINT */
-			address = ATExecValidateConstraint(wqueue, rel, cmd->name, false,
-											   false, lockmode);
-			break;
-		case AT_ValidateConstraintRecurse:	/* VALIDATE CONSTRAINT with
-											 * recursion */
-			address = ATExecValidateConstraint(wqueue, rel, cmd->name, true,
+			address = ATExecValidateConstraint(wqueue, rel, cmd->name, cmd->recurse,
 											   false, lockmode);
 			break;
 		case AT_DropConstraint: /* DROP CONSTRAINT */
 			ATExecDropConstraint(rel, cmd->name, cmd->behavior,
-								 false, false,
-								 cmd->missing_ok, lockmode);
-			break;
-		case AT_DropConstraintRecurse:	/* DROP CONSTRAINT with recursion */
-			ATExecDropConstraint(rel, cmd->name, cmd->behavior,
-								 true, false,
+								 cmd->recurse, false,
 								 cmd->missing_ok, lockmode);
 			break;
 		case AT_AlterColumnType:	/* ALTER COLUMN TYPE */
@@ -5220,11 +5281,11 @@ ATExecCmd(List **wqueue, AlteredTableInfo *tab,
 									  cur_pass, context);
 			Assert(cmd != NULL);
 			if (rel->rd_rel->relkind == RELKIND_PARTITIONED_TABLE)
-				ATExecAttachPartition(wqueue, rel, (PartitionCmd *) cmd->def,
-									  context);
+				address = ATExecAttachPartition(wqueue, rel, (PartitionCmd *) cmd->def,
+												context);
 			else
-				ATExecAttachPartitionIdx(wqueue, rel,
-										 ((PartitionCmd *) cmd->def)->name);
+				address = ATExecAttachPartitionIdx(wqueue, rel,
+												   ((PartitionCmd *) cmd->def)->name);
 			break;
 		case AT_DetachPartition:
 			cmd = ATParseTransformCmd(wqueue, tab, rel, cmd, false, lockmode,
@@ -5232,12 +5293,12 @@ ATExecCmd(List **wqueue, AlteredTableInfo *tab,
 			Assert(cmd != NULL);
 			/* ATPrepCmd ensures it must be a table */
 			Assert(rel->rd_rel->relkind == RELKIND_PARTITIONED_TABLE);
-			ATExecDetachPartition(wqueue, tab, rel,
-								  ((PartitionCmd *) cmd->def)->name,
-								  ((PartitionCmd *) cmd->def)->concurrent);
+			address = ATExecDetachPartition(wqueue, tab, rel,
+											((PartitionCmd *) cmd->def)->name,
+											((PartitionCmd *) cmd->def)->concurrent);
 			break;
 		case AT_DetachPartitionFinalize:
-			ATExecDetachPartitionFinalize(rel, ((PartitionCmd *) cmd->def)->name);
+			address = ATExecDetachPartitionFinalize(rel, ((PartitionCmd *) cmd->def)->name);
 			break;
 		default:				/* oops */
 			elog(ERROR, "unrecognized alter table type: %d",
@@ -5346,7 +5407,7 @@ ATParseTransformCmd(List **wqueue, AlteredTableInfo *tab, Relation rel,
 			case AT_AddConstraint:
 				/* Recursion occurs during execution phase */
 				if (recurse)
-					cmd2->subtype = AT_AddConstraintRecurse;
+					cmd2->recurse = true;
 				switch (castNode(Constraint, cmd2->def)->contype)
 				{
 					case CONSTR_PRIMARY:
@@ -5451,7 +5512,7 @@ ATRewriteTables(AlterTableStmt *parsetree, List **wqueue, LOCKMODE lockmode,
 		 * persistence: on one hand, we need to ensure that the buffers
 		 * belonging to each of the two relations are marked with or without
 		 * BM_PERMANENT properly.  On the other hand, since rewriting creates
-		 * and assigns a new relfilenode, we automatically create or drop an
+		 * and assigns a new relfilenumber, we automatically create or drop an
 		 * init fork for the relation as appropriate.
 		 */
 		if (tab->rewrite > 0 && tab->relkind != RELKIND_SEQUENCE)
@@ -5537,12 +5598,13 @@ ATRewriteTables(AlterTableStmt *parsetree, List **wqueue, LOCKMODE lockmode,
 			 * Create transient table that will receive the modified data.
 			 *
 			 * Ensure it is marked correctly as logged or unlogged.  We have
-			 * to do this here so that buffers for the new relfilenode will
+			 * to do this here so that buffers for the new relfilenumber will
 			 * have the right persistence set, and at the same time ensure
-			 * that the original filenode's buffers will get read in with the
-			 * correct setting (i.e. the original one).  Otherwise a rollback
-			 * after the rewrite would possibly result with buffers for the
-			 * original filenode having the wrong persistence setting.
+			 * that the original filenumbers's buffers will get read in with
+			 * the correct setting (i.e. the original one).  Otherwise a
+			 * rollback after the rewrite would possibly result with buffers
+			 * for the original filenumbers having the wrong persistence
+			 * setting.
 			 *
 			 * NB: This relies on swap_relation_files() also swapping the
 			 * persistence. That wouldn't work for pg_class, but that can't be
@@ -6104,7 +6166,6 @@ alter_table_type_to_string(AlterTableType cmdtype)
 	switch (cmdtype)
 	{
 		case AT_AddColumn:
-		case AT_AddColumnRecurse:
 		case AT_AddColumnToView:
 			return "ADD COLUMN";
 		case AT_ColumnDefault:
@@ -6129,13 +6190,11 @@ alter_table_type_to_string(AlterTableType cmdtype)
 		case AT_SetCompression:
 			return "ALTER COLUMN ... SET COMPRESSION";
 		case AT_DropColumn:
-		case AT_DropColumnRecurse:
 			return "DROP COLUMN";
 		case AT_AddIndex:
 		case AT_ReAddIndex:
 			return NULL;		/* not real grammar */
 		case AT_AddConstraint:
-		case AT_AddConstraintRecurse:
 		case AT_ReAddConstraint:
 		case AT_ReAddDomainConstraint:
 		case AT_AddIndexConstraint:
@@ -6143,10 +6202,8 @@ alter_table_type_to_string(AlterTableType cmdtype)
 		case AT_AlterConstraint:
 			return "ALTER CONSTRAINT";
 		case AT_ValidateConstraint:
-		case AT_ValidateConstraintRecurse:
 			return "VALIDATE CONSTRAINT";
 		case AT_DropConstraint:
-		case AT_DropConstraintRecurse:
 			return "DROP CONSTRAINT";
 		case AT_ReAddComment:
 			return NULL;		/* not real grammar */
@@ -6302,7 +6359,7 @@ ATSimplePermissions(AlterTableType cmdtype, Relation rel, int allowed_targets)
 	}
 
 	/* Permissions checks */
-	if (!pg_class_ownercheck(RelationGetRelid(rel), GetUserId()))
+	if (!object_ownercheck(RelationRelationId, RelationGetRelid(rel), GetUserId()))
 		aclcheck_error(ACLCHECK_NOT_OWNER, get_relkind_objtype(rel->rd_rel->relkind),
 					   RelationGetRelationName(rel));
 
@@ -6475,6 +6532,7 @@ find_composite_type_dependencies(Oid typeOid, Relation origRelation,
 	{
 		Form_pg_depend pg_depend = (Form_pg_depend) GETSTRUCT(depTup);
 		Relation	rel;
+		TupleDesc	tupleDesc;
 		Form_pg_attribute att;
 
 		/* Check for directly dependent types */
@@ -6491,18 +6549,57 @@ find_composite_type_dependencies(Oid typeOid, Relation origRelation,
 			continue;
 		}
 
-		/* Else, ignore dependees that aren't user columns of relations */
-		/* (we assume system columns are never of interesting types) */
-		if (pg_depend->classid != RelationRelationId ||
-			pg_depend->objsubid <= 0)
+		/* Else, ignore dependees that aren't relations */
+		if (pg_depend->classid != RelationRelationId)
 			continue;
 
 		rel = relation_open(pg_depend->objid, AccessShareLock);
-		att = TupleDescAttr(rel->rd_att, pg_depend->objsubid - 1);
+		tupleDesc = RelationGetDescr(rel);
 
-		if (rel->rd_rel->relkind == RELKIND_RELATION ||
-			rel->rd_rel->relkind == RELKIND_MATVIEW ||
-			rel->rd_rel->relkind == RELKIND_PARTITIONED_TABLE)
+		/*
+		 * If objsubid identifies a specific column, refer to that in error
+		 * messages.  Otherwise, search to see if there's a user column of the
+		 * type.  (We assume system columns are never of interesting types.)
+		 * The search is needed because an index containing an expression
+		 * column of the target type will just be recorded as a whole-relation
+		 * dependency.  If we do not find a column of the type, the dependency
+		 * must indicate that the type is transiently referenced in an index
+		 * expression but not stored on disk, which we assume is OK, just as
+		 * we do for references in views.  (It could also be that the target
+		 * type is embedded in some container type that is stored in an index
+		 * column, but the previous recursion should catch such cases.)
+		 */
+		if (pg_depend->objsubid > 0 && pg_depend->objsubid <= tupleDesc->natts)
+			att = TupleDescAttr(tupleDesc, pg_depend->objsubid - 1);
+		else
+		{
+			att = NULL;
+			for (int attno = 1; attno <= tupleDesc->natts; attno++)
+			{
+				att = TupleDescAttr(tupleDesc, attno - 1);
+				if (att->atttypid == typeOid && !att->attisdropped)
+					break;
+				att = NULL;
+			}
+			if (att == NULL)
+			{
+				/* No such column, so assume OK */
+				relation_close(rel, AccessShareLock);
+				continue;
+			}
+		}
+
+		/*
+		 * We definitely should reject if the relation has storage.  If it's
+		 * partitioned, then perhaps we don't have to reject: if there are
+		 * partitions then we'll fail when we find one, else there is no
+		 * stored data to worry about.  However, it's possible that the type
+		 * change would affect conclusions about whether the type is sortable
+		 * or hashable and thus (if it's a partitioning column) break the
+		 * partitioning rule.  For now, reject for partitioned rels too.
+		 */
+		if (RELKIND_HAS_STORAGE(rel->rd_rel->relkind) ||
+			RELKIND_HAS_PARTITIONS(rel->rd_rel->relkind))
 		{
 			if (origTypeName)
 				ereport(ERROR,
@@ -6665,7 +6762,7 @@ ATPrepAddColumn(List **wqueue, Relation rel, bool recurse, bool recursing,
 		ATTypedTableRecursion(wqueue, rel, cmd, lockmode, context);
 
 	if (recurse && !is_view)
-		cmd->subtype = AT_AddColumnRecurse;
+		cmd->recurse = true;
 }
 
 /*
@@ -6755,6 +6852,10 @@ ATExecAddColumn(List **wqueue, AlteredTableInfo *tab, Relation rel,
 
 			/* Bump the existing child att's inhcount */
 			childatt->attinhcount++;
+			if (childatt->attinhcount < 0)
+				ereport(ERROR,
+						errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
+						errmsg("too many inheritance parents"));
 			CatalogTupleUpdate(attrdesc, &tuple->t_self, tuple);
 
 			heap_freetuple(tuple);
@@ -6825,7 +6926,7 @@ ATExecAddColumn(List **wqueue, AlteredTableInfo *tab, Relation rel,
 	tform = (Form_pg_type) GETSTRUCT(typeTuple);
 	typeOid = tform->oid;
 
-	aclresult = pg_type_aclcheck(typeOid, GetUserId(), ACL_USAGE);
+	aclresult = object_aclcheck(TypeRelationId, typeOid, GetUserId(), ACL_USAGE);
 	if (aclresult != ACLCHECK_OK)
 		aclcheck_error_type(aclresult, typeOid);
 
@@ -6846,11 +6947,18 @@ ATExecAddColumn(List **wqueue, AlteredTableInfo *tab, Relation rel,
 	attribute.attstattarget = (newattnum > 0) ? -1 : 0;
 	attribute.attlen = tform->typlen;
 	attribute.attnum = newattnum;
+	if (list_length(colDef->typeName->arrayBounds) > PG_INT16_MAX)
+		ereport(ERROR,
+				errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
+				errmsg("too many array dimensions"));
 	attribute.attndims = list_length(colDef->typeName->arrayBounds);
 	attribute.atttypmod = typmod;
 	attribute.attbyval = tform->typbyval;
 	attribute.attalign = tform->typalign;
-	attribute.attstorage = tform->typstorage;
+	if (colDef->storage_name)
+		attribute.attstorage = GetAttributeStorage(typeOid, colDef->storage_name);
+	else
+		attribute.attstorage = tform->typstorage;
 	attribute.attcompression = GetAttributeCompression(typeOid,
 													   colDef->compression);
 	attribute.attnotnull = colDef->is_not_null;
@@ -7909,7 +8017,7 @@ ATPrepDropExpression(Relation rel, AlterTableCmd *cmd, bool recurse, bool recurs
 	 * is a bit complicated.  GENERATED clauses must be attached to the column
 	 * definition and cannot be added later like DEFAULT, so if a child table
 	 * has a generation expression that the parent does not have, the child
-	 * column will necessarily be an attlocal column.  So to implement ONLY
+	 * column will necessarily be an attislocal column.  So to implement ONLY
 	 * here, we'd need extra code to update attislocal of the direct child
 	 * tables, somewhat similar to how DROP COLUMN does it, so that the
 	 * resulting state can be properly dumped and restored.
@@ -8293,33 +8401,11 @@ SetIndexStorageProperties(Relation rel, Relation attrelation,
 static ObjectAddress
 ATExecSetStorage(Relation rel, const char *colName, Node *newValue, LOCKMODE lockmode)
 {
-	char	   *storagemode;
-	char		newstorage;
 	Relation	attrelation;
 	HeapTuple	tuple;
 	Form_pg_attribute attrtuple;
 	AttrNumber	attnum;
 	ObjectAddress address;
-
-	Assert(IsA(newValue, String));
-	storagemode = strVal(newValue);
-
-	if (pg_strcasecmp(storagemode, "plain") == 0)
-		newstorage = TYPSTORAGE_PLAIN;
-	else if (pg_strcasecmp(storagemode, "external") == 0)
-		newstorage = TYPSTORAGE_EXTERNAL;
-	else if (pg_strcasecmp(storagemode, "extended") == 0)
-		newstorage = TYPSTORAGE_EXTENDED;
-	else if (pg_strcasecmp(storagemode, "main") == 0)
-		newstorage = TYPSTORAGE_MAIN;
-	else
-	{
-		ereport(ERROR,
-				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				 errmsg("invalid storage type \"%s\"",
-						storagemode)));
-		newstorage = 0;			/* keep compiler quiet */
-	}
 
 	attrelation = table_open(AttributeRelationId, RowExclusiveLock);
 
@@ -8339,17 +8425,7 @@ ATExecSetStorage(Relation rel, const char *colName, Node *newValue, LOCKMODE loc
 				 errmsg("cannot alter system column \"%s\"",
 						colName)));
 
-	/*
-	 * safety check: do not allow toasted storage modes unless column datatype
-	 * is TOAST-aware.
-	 */
-	if (newstorage == TYPSTORAGE_PLAIN || TypeIsToastable(attrtuple->atttypid))
-		attrtuple->attstorage = newstorage;
-	else
-		ereport(ERROR,
-				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-				 errmsg("column data type %s can only have storage PLAIN",
-						format_type_be(attrtuple->atttypid))));
+	attrtuple->attstorage = GetAttributeStorage(attrtuple->atttypid, strVal(newValue));
 
 	CatalogTupleUpdate(attrelation, &tuple->t_self, tuple);
 
@@ -8357,16 +8433,16 @@ ATExecSetStorage(Relation rel, const char *colName, Node *newValue, LOCKMODE loc
 							  RelationGetRelid(rel),
 							  attrtuple->attnum);
 
-	heap_freetuple(tuple);
-
 	/*
 	 * Apply the change to indexes as well (only for simple index columns,
 	 * matching behavior of index.c ConstructTupleDescriptor()).
 	 */
 	SetIndexStorageProperties(rel, attrelation, attnum,
-							  true, newstorage,
+							  true, attrtuple->attstorage,
 							  false, 0,
 							  lockmode);
+
+	heap_freetuple(tuple);
 
 	table_close(attrelation, RowExclusiveLock);
 
@@ -8399,7 +8475,7 @@ ATPrepDropColumn(List **wqueue, Relation rel, bool recurse, bool recursing,
 		ATTypedTableRecursion(wqueue, rel, cmd, lockmode, context);
 
 	if (recurse)
-		cmd->subtype = AT_DropColumnRecurse;
+		cmd->recurse = true;
 }
 
 /*
@@ -8628,7 +8704,7 @@ ATExecAddIndex(AlteredTableInfo *tab, Relation rel,
 	/* suppress schema rights check when rebuilding existing index */
 	check_rights = !is_rebuild;
 	/* skip index build if phase 3 will do it or we're reusing an old one */
-	skip_build = tab->rewrite > 0 || OidIsValid(stmt->oldNode);
+	skip_build = tab->rewrite > 0 || RelFileNumberIsValid(stmt->oldNumber);
 	/* suppress notices when rebuilding existing index */
 	quiet = is_rebuild;
 
@@ -8637,6 +8713,7 @@ ATExecAddIndex(AlteredTableInfo *tab, Relation rel,
 						  InvalidOid,	/* no predefined OID */
 						  InvalidOid,	/* no parent index */
 						  InvalidOid,	/* no parent constraint */
+						  -1,	/* total_parts unknown */
 						  true, /* is_alter_table */
 						  check_rights,
 						  false,	/* check_not_in_use - we did it already */
@@ -8644,21 +8721,21 @@ ATExecAddIndex(AlteredTableInfo *tab, Relation rel,
 						  quiet);
 
 	/*
-	 * If TryReuseIndex() stashed a relfilenode for us, we used it for the new
-	 * index instead of building from scratch.  Restore associated fields.
+	 * If TryReuseIndex() stashed a relfilenumber for us, we used it for the
+	 * new index instead of building from scratch.  Restore associated fields.
 	 * This may store InvalidSubTransactionId in both fields, in which case
 	 * relcache.c will assume it can rebuild the relcache entry.  Hence, do
 	 * this after the CCI that made catalog rows visible to any rebuild.  The
 	 * DROP of the old edition of this index will have scheduled the storage
 	 * for deletion at commit, so cancel that pending deletion.
 	 */
-	if (OidIsValid(stmt->oldNode))
+	if (RelFileNumberIsValid(stmt->oldNumber))
 	{
 		Relation	irel = index_open(address.objectId, NoLock);
 
 		irel->rd_createSubid = stmt->oldCreateSubid;
-		irel->rd_firstRelfilenodeSubid = stmt->oldFirstRelfilenodeSubid;
-		RelationPreserveStorage(irel->rd_node, true);
+		irel->rd_firstRelfilelocatorSubid = stmt->oldFirstRelfilelocatorSubid;
+		RelationPreserveStorage(irel->rd_locator, true);
 		index_close(irel, NoLock);
 	}
 
@@ -8927,7 +9004,7 @@ ATAddCheckConstraint(List **wqueue, AlteredTableInfo *tab, Relation rel,
 	 */
 	newcons = AddRelationNewConstraints(rel, NIL,
 										list_make1(copyObject(constr)),
-										recursing | is_readd,	/* allow_merge */
+										recursing || is_readd,	/* allow_merge */
 										!recursing, /* is_local */
 										is_readd,	/* is_internal */
 										NULL);	/* queryString not available
@@ -9043,15 +9120,15 @@ ATAddForeignKeyConstraint(List **wqueue, AlteredTableInfo *tab, Relation rel,
 						  bool recurse, bool recursing, LOCKMODE lockmode)
 {
 	Relation	pkrel;
-	int16		pkattnum[INDEX_MAX_KEYS];
-	int16		fkattnum[INDEX_MAX_KEYS];
-	Oid			pktypoid[INDEX_MAX_KEYS];
-	Oid			fktypoid[INDEX_MAX_KEYS];
-	Oid			opclasses[INDEX_MAX_KEYS];
-	Oid			pfeqoperators[INDEX_MAX_KEYS];
-	Oid			ppeqoperators[INDEX_MAX_KEYS];
-	Oid			ffeqoperators[INDEX_MAX_KEYS];
-	int16		fkdelsetcols[INDEX_MAX_KEYS];
+	int16		pkattnum[INDEX_MAX_KEYS] = {0};
+	int16		fkattnum[INDEX_MAX_KEYS] = {0};
+	Oid			pktypoid[INDEX_MAX_KEYS] = {0};
+	Oid			fktypoid[INDEX_MAX_KEYS] = {0};
+	Oid			opclasses[INDEX_MAX_KEYS] = {0};
+	Oid			pfeqoperators[INDEX_MAX_KEYS] = {0};
+	Oid			ppeqoperators[INDEX_MAX_KEYS] = {0};
+	Oid			ffeqoperators[INDEX_MAX_KEYS] = {0};
+	int16		fkdelsetcols[INDEX_MAX_KEYS] = {0};
 	int			i;
 	int			numfks,
 				numpks,
@@ -9143,16 +9220,6 @@ ATAddForeignKeyConstraint(List **wqueue, AlteredTableInfo *tab, Relation rel,
 	 * Look up the referencing attributes to make sure they exist, and record
 	 * their attnums and type OIDs.
 	 */
-	MemSet(pkattnum, 0, sizeof(pkattnum));
-	MemSet(fkattnum, 0, sizeof(fkattnum));
-	MemSet(pktypoid, 0, sizeof(pktypoid));
-	MemSet(fktypoid, 0, sizeof(fktypoid));
-	MemSet(opclasses, 0, sizeof(opclasses));
-	MemSet(pfeqoperators, 0, sizeof(pfeqoperators));
-	MemSet(ppeqoperators, 0, sizeof(ppeqoperators));
-	MemSet(ffeqoperators, 0, sizeof(ffeqoperators));
-	MemSet(fkdelsetcols, 0, sizeof(fkdelsetcols));
-
 	numfks = transformColumnNameList(RelationGetRelid(rel),
 									 fkconstraint->fk_attrs,
 									 fkattnum, fktypoid);
@@ -9468,7 +9535,7 @@ ATAddForeignKeyConstraint(List **wqueue, AlteredTableInfo *tab, Relation rel,
 }
 
 /*
- * validateFkActionSetColumns
+ * validateFkOnDeleteSetColumns
  *		Verifies that columns used in ON DELETE SET NULL/DEFAULT (...)
  *		column lists are valid.
  */
@@ -9523,10 +9590,10 @@ validateFkOnDeleteSetColumns(int numfks, const int16 *fkattnums,
  * numfks is the number of columns in the foreign key
  * pkattnum is the attnum array of referenced attributes.
  * fkattnum is the attnum array of referencing attributes.
- * numfkdelsetcols is the number of columns in the ON DELETE SET NULL/DELETE
+ * numfkdelsetcols is the number of columns in the ON DELETE SET NULL/DEFAULT
  *      (...) clause
  * fkdelsetcols is the attnum array of the columns in the ON DELETE SET
- *      NULL/DELETE clause
+ *      NULL/DEFAULT clause
  * pf/pp/ffeqoperators are OID array of operators between columns.
  * old_check_ok signals that this constraint replaces an existing one that
  * was already validated (thus this one doesn't need validation).
@@ -9681,7 +9748,8 @@ addFkRecurseReferenced(List **wqueue, Constraint *fkconstraint, Relation rel,
 			 * definition to match the partition's column layout.
 			 */
 			map = build_attrmap_by_name_if_req(RelationGetDescr(partRel),
-											   RelationGetDescr(pkrel));
+											   RelationGetDescr(pkrel),
+											   false);
 			if (map)
 			{
 				mapped_pkattnum = palloc(sizeof(AttrNumber) * numfks);
@@ -9742,10 +9810,10 @@ addFkRecurseReferenced(List **wqueue, Constraint *fkconstraint, Relation rel,
  * pkattnum is the attnum array of referenced attributes.
  * fkattnum is the attnum array of referencing attributes.
  * pf/pp/ffeqoperators are OID array of operators between columns.
- * numfkdelsetcols is the number of columns in the ON DELETE SET NULL/DELETE
+ * numfkdelsetcols is the number of columns in the ON DELETE SET NULL/DEFAULT
  *      (...) clause
  * fkdelsetcols is the attnum array of the columns in the ON DELETE SET
- *      NULL/DELETE clause
+ *      NULL/DEFAULT clause
  * old_check_ok signals that this constraint replaces an existing one that
  *		was already validated (thus this one doesn't need validation).
  * lockmode is the lockmode to acquire on partitions when recursing.
@@ -9765,7 +9833,7 @@ addFkRecurseReferencing(List **wqueue, Constraint *fkconstraint, Relation rel,
 	Oid			insertTriggerOid,
 				updateTriggerOid;
 
-	AssertArg(OidIsValid(parentConstr));
+	Assert(OidIsValid(parentConstr));
 
 	if (rel->rd_rel->relkind == RELKIND_FOREIGN_TABLE)
 		ereport(ERROR,
@@ -9848,7 +9916,8 @@ addFkRecurseReferencing(List **wqueue, Constraint *fkconstraint, Relation rel,
 			CheckTableNotInUse(partition, "ALTER TABLE");
 
 			attmap = build_attrmap_by_name(RelationGetDescr(partition),
-										   RelationGetDescr(rel));
+										   RelationGetDescr(rel),
+										   false);
 			for (int j = 0; j < numfks; j++)
 				mapped_fkattnum[j] = attmap->attnums[fkattnum[j] - 1];
 
@@ -10056,7 +10125,8 @@ CloneFkReferenced(Relation parentRel, Relation partitionRel)
 	trigrel = table_open(TriggerRelationId, RowExclusiveLock);
 
 	attmap = build_attrmap_by_name(RelationGetDescr(partitionRel),
-								   RelationGetDescr(parentRel));
+								   RelationGetDescr(parentRel),
+								   false);
 	foreach(cell, clone)
 	{
 		Oid			constrOid = lfirst_oid(cell);
@@ -10126,14 +10196,22 @@ CloneFkReferenced(Relation parentRel, Relation partitionRel)
 			mapped_confkey[i] = attmap->attnums[confkey[i] - 1];
 
 		fkconstraint = makeNode(Constraint);
-		/* for now this is all we need */
+		fkconstraint->contype = CONSTRAINT_FOREIGN;
 		fkconstraint->conname = NameStr(constrForm->conname);
-		fkconstraint->fk_upd_action = constrForm->confupdtype;
-		fkconstraint->fk_del_action = constrForm->confdeltype;
 		fkconstraint->deferrable = constrForm->condeferrable;
 		fkconstraint->initdeferred = constrForm->condeferred;
-		fkconstraint->initially_valid = true;
+		fkconstraint->location = -1;
+		fkconstraint->pktable = NULL;
+		/* ->fk_attrs determined below */
+		fkconstraint->pk_attrs = NIL;
 		fkconstraint->fk_matchtype = constrForm->confmatchtype;
+		fkconstraint->fk_upd_action = constrForm->confupdtype;
+		fkconstraint->fk_del_action = constrForm->confdeltype;
+		fkconstraint->fk_del_set_cols = NIL;
+		fkconstraint->old_conpfeqop = NIL;
+		fkconstraint->old_pktable_oid = InvalidOid;
+		fkconstraint->skip_validation = false;
+		fkconstraint->initially_valid = true;
 
 		/* set up colnames that are used to generate the constraint name */
 		for (int i = 0; i < numfks; i++)
@@ -10245,7 +10323,8 @@ CloneFkReferencing(List **wqueue, Relation parentRel, Relation partRel)
 	 * different.  This map is used to convert them.
 	 */
 	attmap = build_attrmap_by_name(RelationGetDescr(partRel),
-								   RelationGetDescr(parentRel));
+								   RelationGetDescr(parentRel),
+								   false);
 
 	partFKs = copyObject(RelationGetFKeyList(partRel));
 
@@ -10270,7 +10349,7 @@ CloneFkReferencing(List **wqueue, Relation parentRel, Relation partRel)
 		Oid			constrOid;
 		ObjectAddress address,
 					referenced;
-		ListCell   *cell;
+		ListCell   *lc;
 		Oid			insertTriggerOid,
 					updateTriggerOid;
 
@@ -10323,9 +10402,9 @@ CloneFkReferencing(List **wqueue, Relation parentRel, Relation partRel)
 		 * don't need to recurse to partitions for this constraint.
 		 */
 		attached = false;
-		foreach(cell, partFKs)
+		foreach(lc, partFKs)
 		{
-			ForeignKeyCacheInfo *fk = lfirst_node(ForeignKeyCacheInfo, cell);
+			ForeignKeyCacheInfo *fk = lfirst_node(ForeignKeyCacheInfo, lc);
 
 			if (tryAttachPartitionForeignKey(fk,
 											 RelationGetRelid(partRel),
@@ -10351,11 +10430,22 @@ CloneFkReferencing(List **wqueue, Relation parentRel, Relation partRel)
 
 		/* No dice.  Set up to create our own constraint */
 		fkconstraint = makeNode(Constraint);
-		fkconstraint->fk_upd_action = constrForm->confupdtype;
-		fkconstraint->fk_del_action = constrForm->confdeltype;
+		fkconstraint->contype = CONSTRAINT_FOREIGN;
+		/* ->conname determined below */
 		fkconstraint->deferrable = constrForm->condeferrable;
 		fkconstraint->initdeferred = constrForm->condeferred;
+		fkconstraint->location = -1;
+		fkconstraint->pktable = NULL;
+		/* ->fk_attrs determined below */
+		fkconstraint->pk_attrs = NIL;
 		fkconstraint->fk_matchtype = constrForm->confmatchtype;
+		fkconstraint->fk_upd_action = constrForm->confupdtype;
+		fkconstraint->fk_del_action = constrForm->confdeltype;
+		fkconstraint->fk_del_set_cols = NIL;
+		fkconstraint->old_conpfeqop = NIL;
+		fkconstraint->old_pktable_oid = InvalidOid;
+		fkconstraint->skip_validation = false;
+		fkconstraint->initially_valid = true;
 		for (int i = 0; i < numfks; i++)
 		{
 			Form_pg_attribute att;
@@ -10821,7 +10911,7 @@ ATExecAlterConstraint(Relation rel, AlterTableCmd *cmd, bool recurse,
 				 ancestorname && ancestortable ?
 				 errdetail("Constraint \"%s\" is derived from constraint \"%s\" of relation \"%s\".",
 						   cmdcon->conname, ancestorname, ancestortable) : 0,
-				 errhint("You may alter the constraint it derives from, instead.")));
+				 errhint("You may alter the constraint it derives from instead.")));
 	}
 
 	/*
@@ -10840,7 +10930,7 @@ ATExecAlterConstraint(Relation rel, AlterTableCmd *cmd, bool recurse,
 	}
 
 	/*
-	 * ATExecConstrRecurse already invalidated relcache for the relations
+	 * ATExecAlterConstrRecurse already invalidated relcache for the relations
 	 * having the constraint itself; here we also invalidate for relations
 	 * that have any triggers that are part of the constraint.
 	 */
@@ -10924,7 +11014,7 @@ ATExecAlterConstrRecurse(Constraint *cmdcon, Relation conrel, Relation tgrel,
 		{
 			Form_pg_trigger tgform = (Form_pg_trigger) GETSTRUCT(tgtuple);
 			Form_pg_trigger copy_tg;
-			HeapTuple	copyTuple;
+			HeapTuple	tgCopyTuple;
 
 			/*
 			 * Remember OIDs of other relation(s) involved in FK constraint.
@@ -10948,16 +11038,16 @@ ATExecAlterConstrRecurse(Constraint *cmdcon, Relation conrel, Relation tgrel,
 				tgform->tgfoid != F_RI_FKEY_CHECK_UPD)
 				continue;
 
-			copyTuple = heap_copytuple(tgtuple);
-			copy_tg = (Form_pg_trigger) GETSTRUCT(copyTuple);
+			tgCopyTuple = heap_copytuple(tgtuple);
+			copy_tg = (Form_pg_trigger) GETSTRUCT(tgCopyTuple);
 
 			copy_tg->tgdeferrable = cmdcon->deferrable;
 			copy_tg->tginitdeferred = cmdcon->initdeferred;
-			CatalogTupleUpdate(tgrel, &copyTuple->t_self, copyTuple);
+			CatalogTupleUpdate(tgrel, &tgCopyTuple->t_self, tgCopyTuple);
 
 			InvokeObjectPostAlterHook(TriggerRelationId, tgform->oid, 0);
 
-			heap_freetuple(copyTuple);
+			heap_freetuple(tgCopyTuple);
 		}
 
 		systable_endscan(tgscan);
@@ -11098,7 +11188,6 @@ ATExecValidateConstraint(List **wqueue, Relation rel, char *constrName,
 			List	   *children = NIL;
 			ListCell   *child;
 			NewConstraint *newcon;
-			bool		isnull;
 			Datum		val;
 			char	   *conbin;
 
@@ -11153,11 +11242,8 @@ ATExecValidateConstraint(List **wqueue, Relation rel, char *constrName,
 			newcon->refindid = InvalidOid;
 			newcon->conid = con->oid;
 
-			val = SysCacheGetAttr(CONSTROID, tuple,
-								  Anum_pg_constraint_conbin, &isnull);
-			if (isnull)
-				elog(ERROR, "null conbin for constraint %u", con->oid);
-
+			val = SysCacheGetAttrNotNull(CONSTROID, tuple,
+										 Anum_pg_constraint_conbin);
 			conbin = TextDatumGetCString(val);
 			newcon->qual = (Node *) stringToNode(conbin);
 
@@ -11201,6 +11287,11 @@ ATExecValidateConstraint(List **wqueue, Relation rel, char *constrName,
  * transformColumnNameList - transform list of column names
  *
  * Lookup each name and return its attnum and, optionally, type OID
+ *
+ * Note: the name of this function suggests that it's general-purpose,
+ * but actually it's only used to look up names appearing in foreign-key
+ * clauses.  The error messages would need work to use it in other cases,
+ * and perhaps the validity checks as well.
  */
 static int
 transformColumnNameList(Oid relId, List *colList,
@@ -11214,6 +11305,7 @@ transformColumnNameList(Oid relId, List *colList,
 	{
 		char	   *attname = strVal(lfirst(l));
 		HeapTuple	atttuple;
+		Form_pg_attribute attform;
 
 		atttuple = SearchSysCacheAttName(relId, attname);
 		if (!HeapTupleIsValid(atttuple))
@@ -11221,14 +11313,19 @@ transformColumnNameList(Oid relId, List *colList,
 					(errcode(ERRCODE_UNDEFINED_COLUMN),
 					 errmsg("column \"%s\" referenced in foreign key constraint does not exist",
 							attname)));
+		attform = (Form_pg_attribute) GETSTRUCT(atttuple);
+		if (attform->attnum < 0)
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("system columns cannot be used in foreign keys")));
 		if (attnum >= INDEX_MAX_KEYS)
 			ereport(ERROR,
 					(errcode(ERRCODE_TOO_MANY_COLUMNS),
 					 errmsg("cannot have more than %d keys in a foreign key",
 							INDEX_MAX_KEYS)));
-		attnums[attnum] = ((Form_pg_attribute) GETSTRUCT(atttuple))->attnum;
+		attnums[attnum] = attform->attnum;
 		if (atttypids != NULL)
-			atttypids[attnum] = ((Form_pg_attribute) GETSTRUCT(atttuple))->atttypid;
+			atttypids[attnum] = attform->atttypid;
 		ReleaseSysCache(atttuple);
 		attnum++;
 	}
@@ -11259,7 +11356,6 @@ transformFkeyGetPrimaryKey(Relation pkrel, Oid *indexOid,
 	HeapTuple	indexTuple = NULL;
 	Form_pg_index indexStruct = NULL;
 	Datum		indclassDatum;
-	bool		isnull;
 	oidvector  *indclass;
 	int			i;
 
@@ -11311,9 +11407,8 @@ transformFkeyGetPrimaryKey(Relation pkrel, Oid *indexOid,
 						RelationGetRelationName(pkrel))));
 
 	/* Must get indclass the hard way */
-	indclassDatum = SysCacheGetAttr(INDEXRELID, indexTuple,
-									Anum_pg_index_indclass, &isnull);
-	Assert(!isnull);
+	indclassDatum = SysCacheGetAttrNotNull(INDEXRELID, indexTuple,
+										   Anum_pg_index_indclass);
 	indclass = (oidvector *) DatumGetPointer(indclassDatum);
 
 	/*
@@ -11406,13 +11501,11 @@ transformFkeyCheckAttrs(Relation pkrel,
 			heap_attisnull(indexTuple, Anum_pg_index_indexprs, NULL))
 		{
 			Datum		indclassDatum;
-			bool		isnull;
 			oidvector  *indclass;
 
 			/* Must get indclass the hard way */
-			indclassDatum = SysCacheGetAttr(INDEXRELID, indexTuple,
-											Anum_pg_index_indclass, &isnull);
-			Assert(!isnull);
+			indclassDatum = SysCacheGetAttrNotNull(INDEXRELID, indexTuple,
+												   Anum_pg_index_indclass);
 			indclass = (oidvector *) DatumGetPointer(indclassDatum);
 
 			/*
@@ -11553,7 +11646,7 @@ validateForeignKeyConstraint(char *conname,
 {
 	TupleTableSlot *slot;
 	TableScanDesc scan;
-	Trigger		trig;
+	Trigger		trig = {0};
 	Snapshot	snapshot;
 	MemoryContext oldcxt;
 	MemoryContext perTupCxt;
@@ -11564,7 +11657,6 @@ validateForeignKeyConstraint(char *conname,
 	/*
 	 * Build a trigger call structure; we'll need it either way.
 	 */
-	MemSet(&trig, 0, sizeof(trig));
 	trig.tgoid = InvalidOid;
 	trig.tgname = conname;
 	trig.tgenabled = TRIGGER_FIRES_ON_ORIGIN;
@@ -12180,7 +12272,7 @@ ATPrepAlterColumnType(List **wqueue,
 	/* Look up the target type */
 	typenameTypeIdAndMod(NULL, typeName, &targettype, &targettypmod);
 
-	aclresult = pg_type_aclcheck(targettype, GetUserId(), ACL_USAGE);
+	aclresult = object_aclcheck(TypeRelationId, targettype, GetUserId(), ACL_USAGE);
 	if (aclresult != ACLCHECK_OK)
 		aclcheck_error_type(aclresult, targettype);
 
@@ -12351,7 +12443,8 @@ ATPrepAlterColumnType(List **wqueue,
 				cmd = copyObject(cmd);
 
 				attmap = build_attrmap_by_name(RelationGetDescr(childrel),
-											   RelationGetDescr(rel));
+											   RelationGetDescr(rel),
+											   false);
 				((ColumnDef *) cmd->def)->cooked_default =
 					map_variable_attnos(def->cooked_default,
 										1, 0,
@@ -12727,6 +12820,7 @@ ATExecAlterColumnType(AlteredTableInfo *tab, Relation rel,
 			case OCLASS_TSTEMPLATE:
 			case OCLASS_TSCONFIG:
 			case OCLASS_ROLE:
+			case OCLASS_ROLE_MEMBERSHIP:
 			case OCLASS_DATABASE:
 			case OCLASS_TBLSPACE:
 			case OCLASS_FDW:
@@ -12838,14 +12932,10 @@ ATExecAlterColumnType(AlteredTableInfo *tab, Relation rel,
 
 			int			one = 1;
 			bool		isNull;
-			Datum		valuesAtt[Natts_pg_attribute];
-			bool		nullsAtt[Natts_pg_attribute];
-			bool		replacesAtt[Natts_pg_attribute];
+			Datum		valuesAtt[Natts_pg_attribute] = {0};
+			bool		nullsAtt[Natts_pg_attribute] = {0};
+			bool		replacesAtt[Natts_pg_attribute] = {0};
 			HeapTuple	newTup;
-
-			MemSet(valuesAtt, 0, sizeof(valuesAtt));
-			MemSet(nullsAtt, false, sizeof(nullsAtt));
-			MemSet(replacesAtt, false, sizeof(replacesAtt));
 
 			missingval = array_get_element(missingval,
 										   1,
@@ -12877,6 +12967,10 @@ ATExecAlterColumnType(AlteredTableInfo *tab, Relation rel,
 	attTup->atttypid = targettype;
 	attTup->atttypmod = targettypmod;
 	attTup->attcollation = targetcollid;
+	if (list_length(typeName->arrayBounds) > PG_INT16_MAX)
+		ereport(ERROR,
+				errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
+				errmsg("too many array dimensions"));
 	attTup->attndims = list_length(typeName->arrayBounds);
 	attTup->attlen = tform->typlen;
 	attTup->attbyval = tform->typbyval;
@@ -13547,9 +13641,9 @@ TryReuseIndex(Oid oldId, IndexStmt *stmt)
 		/* If it's a partitioned index, there is no storage to share. */
 		if (irel->rd_rel->relkind != RELKIND_PARTITIONED_INDEX)
 		{
-			stmt->oldNode = irel->rd_node.relNode;
+			stmt->oldNumber = irel->rd_locator.relNumber;
 			stmt->oldCreateSubid = irel->rd_createSubid;
-			stmt->oldFirstRelfilenodeSubid = irel->rd_firstRelfilenodeSubid;
+			stmt->oldFirstRelfilelocatorSubid = irel->rd_firstRelfilelocatorSubid;
 		}
 		index_close(irel, NoLock);
 	}
@@ -13567,7 +13661,6 @@ TryReuseForeignKey(Oid oldId, Constraint *con)
 {
 	HeapTuple	tup;
 	Datum		adatum;
-	bool		isNull;
 	ArrayType  *arr;
 	Oid		   *rawarr;
 	int			numkeys;
@@ -13580,10 +13673,8 @@ TryReuseForeignKey(Oid oldId, Constraint *con)
 	if (!HeapTupleIsValid(tup)) /* should not happen */
 		elog(ERROR, "cache lookup failed for constraint %u", oldId);
 
-	adatum = SysCacheGetAttr(CONSTROID, tup,
-							 Anum_pg_constraint_conpfeqop, &isNull);
-	if (isNull)
-		elog(ERROR, "null conpfeqop for constraint %u", oldId);
+	adatum = SysCacheGetAttrNotNull(CONSTROID, tup,
+									Anum_pg_constraint_conpfeqop);
 	arr = DatumGetArrayTypeP(adatum);	/* ensure not toasted */
 	numkeys = ARR_DIMS(arr)[0];
 	/* test follows the one in ri_FetchConstraintInfo() */
@@ -13769,7 +13860,7 @@ ATExecChangeOwner(Oid relationOid, Oid newOwnerId, bool recursing, LOCKMODE lock
 							(errcode(ERRCODE_WRONG_OBJECT_TYPE),
 							 errmsg("cannot change owner of index \"%s\"",
 									NameStr(tuple_class->relname)),
-							 errhint("Change the ownership of the index's table, instead.")));
+							 errhint("Change the ownership of the index's table instead.")));
 				/* quick hack to exit via the no-op path */
 				newOwnerId = tuple_class->relowner;
 			}
@@ -13781,7 +13872,7 @@ ATExecChangeOwner(Oid relationOid, Oid newOwnerId, bool recursing, LOCKMODE lock
 					(errcode(ERRCODE_WRONG_OBJECT_TYPE),
 					 errmsg("cannot change owner of index \"%s\"",
 							NameStr(tuple_class->relname)),
-					 errhint("Change the ownership of the index's table, instead.")));
+					 errhint("Change the ownership of the index's table instead.")));
 			break;
 		case RELKIND_SEQUENCE:
 			if (!recursing &&
@@ -13847,16 +13938,16 @@ ATExecChangeOwner(Oid relationOid, Oid newOwnerId, bool recursing, LOCKMODE lock
 				AclResult	aclresult;
 
 				/* Otherwise, must be owner of the existing object */
-				if (!pg_class_ownercheck(relationOid, GetUserId()))
+				if (!object_ownercheck(RelationRelationId, relationOid, GetUserId()))
 					aclcheck_error(ACLCHECK_NOT_OWNER, get_relkind_objtype(get_rel_relkind(relationOid)),
 								   RelationGetRelationName(target_rel));
 
 				/* Must be able to become new owner */
-				check_is_member_of_role(GetUserId(), newOwnerId);
+				check_can_set_role(GetUserId(), newOwnerId);
 
 				/* New owner must have CREATE privilege on namespace */
-				aclresult = pg_namespace_aclcheck(namespaceOid, newOwnerId,
-												  ACL_CREATE);
+				aclresult = object_aclcheck(NamespaceRelationId, namespaceOid, newOwnerId,
+											ACL_CREATE);
 				if (aclresult != ACLCHECK_OK)
 					aclcheck_error(aclresult, OBJECT_SCHEMA,
 								   get_namespace_name(namespaceOid));
@@ -14171,7 +14262,7 @@ ATPrepSetTableSpace(AlteredTableInfo *tab, Relation rel, const char *tablespacen
 	{
 		AclResult	aclresult;
 
-		aclresult = pg_tablespace_aclcheck(tablespaceId, GetUserId(), ACL_CREATE);
+		aclresult = object_aclcheck(TableSpaceRelationId, tablespaceId, GetUserId(), ACL_CREATE);
 		if (aclresult != ACLCHECK_OK)
 			aclcheck_error(aclresult, OBJECT_TABLESPACE, tablespacename);
 	}
@@ -14286,7 +14377,7 @@ ATExecSetRelOptions(Relation rel, List *defList, AlterTableType operation,
 		if (check_option)
 		{
 			const char *view_updatable_error =
-			view_query_is_auto_updatable(view_query, true);
+				view_query_is_auto_updatable(view_query, true);
 
 			if (view_updatable_error)
 				ereport(ERROR,
@@ -14396,8 +14487,8 @@ ATExecSetTableSpace(Oid tableOid, Oid newTableSpace, LOCKMODE lockmode)
 {
 	Relation	rel;
 	Oid			reltoastrelid;
-	Oid			newrelfilenode;
-	RelFileNode newrnode;
+	RelFileNumber newrelfilenumber;
+	RelFileLocator newrlocator;
 	List	   *reltoastidxids = NIL;
 	ListCell   *lc;
 
@@ -14426,26 +14517,26 @@ ATExecSetTableSpace(Oid tableOid, Oid newTableSpace, LOCKMODE lockmode)
 	}
 
 	/*
-	 * Relfilenodes are not unique in databases across tablespaces, so we need
-	 * to allocate a new one in the new tablespace.
+	 * Relfilenumbers are not unique in databases across tablespaces, so we
+	 * need to allocate a new one in the new tablespace.
 	 */
-	newrelfilenode = GetNewRelFileNode(newTableSpace, NULL,
-									   rel->rd_rel->relpersistence);
+	newrelfilenumber = GetNewRelFileNumber(newTableSpace, NULL,
+										   rel->rd_rel->relpersistence);
 
 	/* Open old and new relation */
-	newrnode = rel->rd_node;
-	newrnode.relNode = newrelfilenode;
-	newrnode.spcNode = newTableSpace;
+	newrlocator = rel->rd_locator;
+	newrlocator.relNumber = newrelfilenumber;
+	newrlocator.spcOid = newTableSpace;
 
-	/* hand off to AM to actually create the new filenode and copy the data */
+	/* hand off to AM to actually create new rel storage and copy the data */
 	if (rel->rd_rel->relkind == RELKIND_INDEX)
 	{
-		index_copy_data(rel, newrnode);
+		index_copy_data(rel, newrlocator);
 	}
 	else
 	{
 		Assert(RELKIND_HAS_TABLE_AM(rel->rd_rel->relkind));
-		table_relation_copy_data(rel, &newrnode);
+		table_relation_copy_data(rel, &newrlocator);
 	}
 
 	/*
@@ -14456,11 +14547,11 @@ ATExecSetTableSpace(Oid tableOid, Oid newTableSpace, LOCKMODE lockmode)
 	 * the updated pg_class entry), but that's forbidden with
 	 * CheckRelationTableSpaceMove().
 	 */
-	SetRelationTableSpace(rel, newTableSpace, newrelfilenode);
+	SetRelationTableSpace(rel, newTableSpace, newrelfilenumber);
 
 	InvokeObjectPostAlterHook(RelationRelationId, RelationGetRelid(rel), 0);
 
-	RelationAssumeNewRelfilenode(rel);
+	RelationAssumeNewRelfilelocator(rel);
 
 	relation_close(rel, NoLock);
 
@@ -14564,8 +14655,8 @@ AlterTableMoveAll(AlterTableMoveAllStmt *stmt)
 	{
 		AclResult	aclresult;
 
-		aclresult = pg_tablespace_aclcheck(new_tablespaceoid, GetUserId(),
-										   ACL_CREATE);
+		aclresult = object_aclcheck(TableSpaceRelationId, new_tablespaceoid, GetUserId(),
+									ACL_CREATE);
 		if (aclresult != ACLCHECK_OK)
 			aclcheck_error(aclresult, OBJECT_TABLESPACE,
 						   get_tablespace_name(new_tablespaceoid));
@@ -14637,7 +14728,7 @@ AlterTableMoveAll(AlterTableMoveAllStmt *stmt)
 		 *
 		 * Caller must be considered an owner on the table to move it.
 		 */
-		if (!pg_class_ownercheck(relOid, GetUserId()))
+		if (!object_ownercheck(RelationRelationId, relOid, GetUserId()))
 			aclcheck_error(ACLCHECK_NOT_OWNER, get_relkind_objtype(get_rel_relkind(relOid)),
 						   NameStr(relForm->relname));
 
@@ -14686,11 +14777,11 @@ AlterTableMoveAll(AlterTableMoveAllStmt *stmt)
 }
 
 static void
-index_copy_data(Relation rel, RelFileNode newrnode)
+index_copy_data(Relation rel, RelFileLocator newrlocator)
 {
 	SMgrRelation dstrel;
 
-	dstrel = smgropen(newrnode, rel->rd_backend);
+	dstrel = smgropen(newrlocator, rel->rd_backend);
 
 	/*
 	 * Since we copy the file directly without looking at the shared buffers,
@@ -14704,10 +14795,10 @@ index_copy_data(Relation rel, RelFileNode newrnode)
 	 * Create and copy all forks of the relation, and schedule unlinking of
 	 * old physical files.
 	 *
-	 * NOTE: any conflict in relfilenode value will be caught in
+	 * NOTE: any conflict in relfilenumber value will be caught in
 	 * RelationCreateStorage().
 	 */
-	RelationCreateStorage(newrnode, rel->rd_rel->relpersistence, true);
+	RelationCreateStorage(newrlocator, rel->rd_rel->relpersistence, true);
 
 	/* copy main fork */
 	RelationCopyStorage(RelationGetSmgr(rel), dstrel, MAIN_FORKNUM,
@@ -14728,7 +14819,7 @@ index_copy_data(Relation rel, RelFileNode newrnode)
 			if (RelationIsPermanent(rel) ||
 				(rel->rd_rel->relpersistence == RELPERSISTENCE_UNLOGGED &&
 				 forkNum == INIT_FORKNUM))
-				log_smgrcreate(&newrnode, forkNum);
+				log_smgrcreate(&newrlocator, forkNum);
 			RelationCopyStorage(RelationGetSmgr(rel), dstrel, forkNum,
 								rel->rd_rel->relpersistence);
 		}
@@ -14749,8 +14840,9 @@ ATExecEnableDisableTrigger(Relation rel, const char *trigname,
 						   char fires_when, bool skip_system, bool recurse,
 						   LOCKMODE lockmode)
 {
-	EnableDisableTriggerNew(rel, trigname, fires_when, skip_system, recurse,
-							lockmode);
+	EnableDisableTrigger(rel, trigname, InvalidOid,
+						 fires_when, skip_system, recurse,
+						 lockmode);
 }
 
 /*
@@ -15092,70 +15184,28 @@ MergeAttributesIntoExisting(Relation child_rel, Relation parent_rel)
 								attributeName)));
 
 			/*
-			 * If parent column is generated, child column must be, too.
+			 * Child column must be generated if and only if parent column is.
 			 */
 			if (attribute->attgenerated && !childatt->attgenerated)
 				ereport(ERROR,
 						(errcode(ERRCODE_DATATYPE_MISMATCH),
 						 errmsg("column \"%s\" in child table must be a generated column",
 								attributeName)));
-
-			/*
-			 * Check that both generation expressions match.
-			 *
-			 * The test we apply is to see whether they reverse-compile to the
-			 * same source string.  This insulates us from issues like whether
-			 * attributes have the same physical column numbers in parent and
-			 * child relations.  (See also constraints_equivalent().)
-			 */
-			if (attribute->attgenerated && childatt->attgenerated)
-			{
-				TupleConstr *child_constr = child_rel->rd_att->constr;
-				TupleConstr *parent_constr = parent_rel->rd_att->constr;
-				char	   *child_expr = NULL;
-				char	   *parent_expr = NULL;
-
-				Assert(child_constr != NULL);
-				Assert(parent_constr != NULL);
-
-				for (int i = 0; i < child_constr->num_defval; i++)
-				{
-					if (child_constr->defval[i].adnum == childatt->attnum)
-					{
-						child_expr =
-							TextDatumGetCString(DirectFunctionCall2(pg_get_expr,
-																	CStringGetTextDatum(child_constr->defval[i].adbin),
-																	ObjectIdGetDatum(child_rel->rd_id)));
-						break;
-					}
-				}
-				Assert(child_expr != NULL);
-
-				for (int i = 0; i < parent_constr->num_defval; i++)
-				{
-					if (parent_constr->defval[i].adnum == attribute->attnum)
-					{
-						parent_expr =
-							TextDatumGetCString(DirectFunctionCall2(pg_get_expr,
-																	CStringGetTextDatum(parent_constr->defval[i].adbin),
-																	ObjectIdGetDatum(parent_rel->rd_id)));
-						break;
-					}
-				}
-				Assert(parent_expr != NULL);
-
-				if (strcmp(child_expr, parent_expr) != 0)
-					ereport(ERROR,
-							(errcode(ERRCODE_DATATYPE_MISMATCH),
-							 errmsg("column \"%s\" in child table has a conflicting generation expression",
-									attributeName)));
-			}
+			if (childatt->attgenerated && !attribute->attgenerated)
+				ereport(ERROR,
+						(errcode(ERRCODE_DATATYPE_MISMATCH),
+						 errmsg("column \"%s\" in child table must not be a generated column",
+								attributeName)));
 
 			/*
 			 * OK, bump the child column's inheritance count.  (If we fail
 			 * later on, this change will just roll back.)
 			 */
 			childatt->attinhcount++;
+			if (childatt->attinhcount < 0)
+				ereport(ERROR,
+						errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
+						errmsg("too many inheritance parents"));
 
 			/*
 			 * In case of partitions, we must enforce that value of attislocal
@@ -15293,6 +15343,10 @@ MergeConstraintsIntoExisting(Relation child_rel, Relation parent_rel)
 			child_copy = heap_copytuple(child_tuple);
 			child_con = (Form_pg_constraint) GETSTRUCT(child_copy);
 			child_con->coninhcount++;
+			if (child_con->coninhcount < 0)
+				ereport(ERROR,
+						errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
+						errmsg("too many inheritance parents"));
 
 			/*
 			 * In case of partitions, an inherited constraint must be
@@ -15859,7 +15913,10 @@ ATExecDropOf(Relation rel, LOCKMODE lockmode)
  * relation_mark_replica_identity: Update a table's replica identity
  *
  * Iff ri_type = REPLICA_IDENTITY_INDEX, indexOid must be the Oid of a suitable
- * index. Otherwise, it should be InvalidOid.
+ * index. Otherwise, it must be InvalidOid.
+ *
+ * Caller had better hold an exclusive lock on the relation, as the results
+ * of running two of these concurrently wouldn't be pretty.
  */
 static void
 relation_mark_replica_identity(Relation rel, char ri_type, Oid indexOid,
@@ -15871,7 +15928,6 @@ relation_mark_replica_identity(Relation rel, char ri_type, Oid indexOid,
 	HeapTuple	pg_index_tuple;
 	Form_pg_class pg_class_form;
 	Form_pg_index pg_index_form;
-
 	ListCell   *index;
 
 	/*
@@ -15893,29 +15949,7 @@ relation_mark_replica_identity(Relation rel, char ri_type, Oid indexOid,
 	heap_freetuple(pg_class_tuple);
 
 	/*
-	 * Check whether the correct index is marked indisreplident; if so, we're
-	 * done.
-	 */
-	if (OidIsValid(indexOid))
-	{
-		Assert(ri_type == REPLICA_IDENTITY_INDEX);
-
-		pg_index_tuple = SearchSysCache1(INDEXRELID, ObjectIdGetDatum(indexOid));
-		if (!HeapTupleIsValid(pg_index_tuple))
-			elog(ERROR, "cache lookup failed for index %u", indexOid);
-		pg_index_form = (Form_pg_index) GETSTRUCT(pg_index_tuple);
-
-		if (pg_index_form->indisreplident)
-		{
-			ReleaseSysCache(pg_index_tuple);
-			return;
-		}
-		ReleaseSysCache(pg_index_tuple);
-	}
-
-	/*
-	 * Clear the indisreplident flag from any index that had it previously,
-	 * and set it for any index that should have it now.
+	 * Update the per-index indisreplident flags correctly.
 	 */
 	pg_index = table_open(IndexRelationId, RowExclusiveLock);
 	foreach(index, RelationGetIndexList(rel))
@@ -15929,19 +15963,23 @@ relation_mark_replica_identity(Relation rel, char ri_type, Oid indexOid,
 			elog(ERROR, "cache lookup failed for index %u", thisIndexOid);
 		pg_index_form = (Form_pg_index) GETSTRUCT(pg_index_tuple);
 
-		/*
-		 * Unset the bit if set.  We know it's wrong because we checked this
-		 * earlier.
-		 */
-		if (pg_index_form->indisreplident)
+		if (thisIndexOid == indexOid)
 		{
-			dirty = true;
-			pg_index_form->indisreplident = false;
+			/* Set the bit if not already set. */
+			if (!pg_index_form->indisreplident)
+			{
+				dirty = true;
+				pg_index_form->indisreplident = true;
+			}
 		}
-		else if (thisIndexOid == indexOid)
+		else
 		{
-			dirty = true;
-			pg_index_form->indisreplident = true;
+			/* Unset the bit if set. */
+			if (pg_index_form->indisreplident)
+			{
+				dirty = true;
+				pg_index_form->indisreplident = false;
+			}
 		}
 
 		if (dirty)
@@ -15953,7 +15991,9 @@ relation_mark_replica_identity(Relation rel, char ri_type, Oid indexOid,
 			/*
 			 * Invalidate the relcache for the table, so that after we commit
 			 * all sessions will refresh the table's replica identity index
-			 * before attempting any UPDATE or DELETE on the table.
+			 * before attempting any UPDATE or DELETE on the table.  (If we
+			 * changed the table's pg_class row above, then a relcache inval
+			 * is already queued due to that; but we might not have.)
 			 */
 			CacheInvalidateRelcache(rel);
 		}
@@ -16037,12 +16077,6 @@ ATExecReplicaIdentity(Relation rel, ReplicaIdentityStmt *stmt, LOCKMODE lockmode
 		ereport(ERROR,
 				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 				 errmsg("cannot use partial index \"%s\" as replica identity",
-						RelationGetRelationName(indexRel))));
-	/* And neither are invalid indexes. */
-	if (!indexRel->rd_index->indisvalid)
-		ereport(ERROR,
-				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-				 errmsg("cannot use invalid index \"%s\" as replica identity",
 						RelationGetRelationName(indexRel))));
 
 	/* Check index for nullable columns. */
@@ -16214,8 +16248,7 @@ ATExecGenericOptions(Relation rel, List *options)
  * Return value is the address of the modified column
  */
 static ObjectAddress
-ATExecSetCompression(AlteredTableInfo *tab,
-					 Relation rel,
+ATExecSetCompression(Relation rel,
 					 const char *column,
 					 Node *newValue,
 					 LOCKMODE lockmode)
@@ -16228,7 +16261,6 @@ ATExecSetCompression(AlteredTableInfo *tab,
 	char		cmethod;
 	ObjectAddress address;
 
-	Assert(IsA(newValue, String));
 	compression = strVal(newValue);
 
 	attrel = table_open(AttributeRelationId, RowExclusiveLock);
@@ -16330,11 +16362,11 @@ ATPrepChangePersistence(Relation rel, bool toLogged)
 	}
 
 	/*
-	 * Check that the table is not part any publication when changing to
-	 * UNLOGGED as UNLOGGED tables can't be published.
+	 * Check that the table is not part of any publication when changing to
+	 * UNLOGGED, as UNLOGGED tables can't be published.
 	 */
 	if (!toLogged &&
-		list_length(GetRelationPublications(RelationGetRelid(rel))) > 0)
+		GetRelationPublications(RelationGetRelid(rel)) != NIL)
 		ereport(ERROR,
 				(errcode(ERRCODE_OBJECT_NOT_IN_PREREQUISITE_STATE),
 				 errmsg("cannot change table \"%s\" to unlogged because it is part of a publication",
@@ -16834,7 +16866,6 @@ PreCommit_on_commit_actions(void)
 	if (oids_to_drop != NIL)
 	{
 		ObjectAddresses *targetObjects = new_object_addresses();
-		ListCell   *l;
 
 		foreach(l, oids_to_drop)
 		{
@@ -16975,7 +17006,7 @@ RangeVarCallbackOwnsTable(const RangeVar *relation,
 				 errmsg("\"%s\" is not a table or materialized view", relation->relname)));
 
 	/* Check permissions */
-	if (!pg_class_ownercheck(relId, GetUserId()))
+	if (!object_ownercheck(RelationRelationId, relId, GetUserId()))
 		aclcheck_error(ACLCHECK_NOT_OWNER, get_relkind_objtype(get_rel_relkind(relId)), relation->relname);
 }
 
@@ -17003,8 +17034,8 @@ RangeVarCallbackForTruncate(const RangeVar *relation,
 }
 
 /*
- * Callback to RangeVarGetRelidExtended(), similar to
- * RangeVarCallbackOwnsTable() but without checks on the type of the relation.
+ * Callback for RangeVarGetRelidExtended().  Checks that the current user is
+ * the owner of the relation, or superuser.
  */
 void
 RangeVarCallbackOwnsRelation(const RangeVar *relation,
@@ -17020,7 +17051,7 @@ RangeVarCallbackOwnsRelation(const RangeVar *relation,
 	if (!HeapTupleIsValid(tuple))	/* should not happen */
 		elog(ERROR, "cache lookup failed for relation %u", relId);
 
-	if (!pg_class_ownercheck(relId, GetUserId()))
+	if (!object_ownercheck(RelationRelationId, relId, GetUserId()))
 		aclcheck_error(ACLCHECK_NOT_OWNER, get_relkind_objtype(get_rel_relkind(relId)),
 					   relation->relname);
 
@@ -17056,7 +17087,7 @@ RangeVarCallbackForAlterRelation(const RangeVar *rv, Oid relid, Oid oldrelid,
 	relkind = classform->relkind;
 
 	/* Must own relation. */
-	if (!pg_class_ownercheck(relid, GetUserId()))
+	if (!object_ownercheck(RelationRelationId, relid, GetUserId()))
 		aclcheck_error(ACLCHECK_NOT_OWNER, get_relkind_objtype(get_rel_relkind(relid)), rv->relname);
 
 	/* No system table modifications unless explicitly allowed. */
@@ -17074,8 +17105,8 @@ RangeVarCallbackForAlterRelation(const RangeVar *rv, Oid relid, Oid oldrelid,
 	 */
 	if (IsA(stmt, RenameStmt))
 	{
-		aclresult = pg_namespace_aclcheck(classform->relnamespace,
-										  GetUserId(), ACL_CREATE);
+		aclresult = object_aclcheck(NamespaceRelationId, classform->relnamespace,
+									GetUserId(), ACL_CREATE);
 		if (aclresult != ACLCHECK_OK)
 			aclcheck_error(aclresult, OBJECT_SCHEMA,
 						   get_namespace_name(classform->relnamespace));
@@ -17173,10 +17204,10 @@ RangeVarCallbackForAlterRelation(const RangeVar *rv, Oid relid, Oid oldrelid,
 /*
  * Transform any expressions present in the partition key
  *
- * Returns a transformed PartitionSpec, as well as the strategy code
+ * Returns a transformed PartitionSpec.
  */
 static PartitionSpec *
-transformPartitionSpec(Relation rel, PartitionSpec *partspec, char *strategy)
+transformPartitionSpec(Relation rel, PartitionSpec *partspec)
 {
 	PartitionSpec *newspec;
 	ParseState *pstate;
@@ -17189,21 +17220,8 @@ transformPartitionSpec(Relation rel, PartitionSpec *partspec, char *strategy)
 	newspec->partParams = NIL;
 	newspec->location = partspec->location;
 
-	/* Parse partitioning strategy name */
-	if (pg_strcasecmp(partspec->strategy, "hash") == 0)
-		*strategy = PARTITION_STRATEGY_HASH;
-	else if (pg_strcasecmp(partspec->strategy, "list") == 0)
-		*strategy = PARTITION_STRATEGY_LIST;
-	else if (pg_strcasecmp(partspec->strategy, "range") == 0)
-		*strategy = PARTITION_STRATEGY_RANGE;
-	else
-		ereport(ERROR,
-				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				 errmsg("unrecognized partitioning strategy \"%s\"",
-						partspec->strategy)));
-
 	/* Check valid number of columns for strategy */
-	if (*strategy == PARTITION_STRATEGY_LIST &&
+	if (partspec->strategy == PARTITION_STRATEGY_LIST &&
 		list_length(partspec->partParams) != 1)
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_OBJECT_DEFINITION),
@@ -17249,7 +17267,7 @@ transformPartitionSpec(Relation rel, PartitionSpec *partspec, char *strategy)
 static void
 ComputePartitionAttrs(ParseState *pstate, Relation rel, List *partParams, AttrNumber *partattrs,
 					  List **partexprs, Oid *partopclass, Oid *partcollation,
-					  char strategy)
+					  PartitionStrategy strategy)
 {
 	int			attn;
 	ListCell   *lc;
@@ -18078,13 +18096,14 @@ AttachPartitionEnsureIndexes(Relation rel, Relation attachrel)
 		/* construct an indexinfo to compare existing indexes against */
 		info = BuildIndexInfo(idxRel);
 		attmap = build_attrmap_by_name(RelationGetDescr(attachrel),
-									   RelationGetDescr(rel));
+									   RelationGetDescr(rel),
+									   false);
 		constraintOid = get_relation_idx_constraint_oid(RelationGetRelid(rel), idx);
 
 		/*
 		 * Scan the list of existing indexes in the partition-to-be, and mark
-		 * the first matching, unattached one we find, if any, as partition of
-		 * the parent index.  If we find one, we're done.
+		 * the first matching, valid, unattached one we find, if any, as
+		 * partition of the parent index.  If we find one, we're done.
 		 */
 		for (i = 0; i < list_length(attachRelIdxs); i++)
 		{
@@ -18093,6 +18112,10 @@ AttachPartitionEnsureIndexes(Relation rel, Relation attachrel)
 
 			/* does this index have a parent?  if so, can't use it */
 			if (attachrelIdxRels[i]->rd_rel->relispartition)
+				continue;
+
+			/* If this index is invalid, can't use it */
+			if (!attachrelIdxRels[i]->rd_index->indisvalid)
 				continue;
 
 			if (CompareIndexInfo(attachInfos[i], info,
@@ -18137,14 +18160,15 @@ AttachPartitionEnsureIndexes(Relation rel, Relation attachrel)
 		if (!found)
 		{
 			IndexStmt  *stmt;
-			Oid			constraintOid;
+			Oid			conOid;
 
 			stmt = generateClonedIndexStmt(NULL,
 										   idxRel, attmap,
-										   &constraintOid);
+										   &conOid);
 			DefineIndex(RelationGetRelid(attachrel), stmt, InvalidOid,
 						RelationGetRelid(idxRel),
-						constraintOid,
+						conOid,
+						-1,
 						true, false, false, false, false);
 		}
 
@@ -18571,11 +18595,22 @@ DetachPartitionFinalize(Relation rel, Relation partRel, bool concurrent,
 		 * still do), but now we need separate ones of our own.
 		 */
 		fkconstraint = makeNode(Constraint);
+		fkconstraint->contype = CONSTRAINT_FOREIGN;
 		fkconstraint->conname = pstrdup(NameStr(conform->conname));
-		fkconstraint->fk_upd_action = conform->confupdtype;
-		fkconstraint->fk_del_action = conform->confdeltype;
 		fkconstraint->deferrable = conform->condeferrable;
 		fkconstraint->initdeferred = conform->condeferred;
+		fkconstraint->location = -1;
+		fkconstraint->pktable = NULL;
+		fkconstraint->fk_attrs = NIL;
+		fkconstraint->pk_attrs = NIL;
+		fkconstraint->fk_matchtype = conform->confmatchtype;
+		fkconstraint->fk_upd_action = conform->confupdtype;
+		fkconstraint->fk_del_action = conform->confdeltype;
+		fkconstraint->fk_del_set_cols = NIL;
+		fkconstraint->old_conpfeqop = NIL;
+		fkconstraint->old_pktable_oid = InvalidOid;
+		fkconstraint->skip_validation = false;
+		fkconstraint->initially_valid = true;
 
 		createForeignKeyActionTriggers(partRel, conform->confrelid,
 									   fkconstraint, fk->conoid,
@@ -19005,7 +19040,8 @@ ATExecAttachPartitionIdx(List **wqueue, Relation parentIdx, RangeVar *name)
 		childInfo = BuildIndexInfo(partIdx);
 		parentInfo = BuildIndexInfo(parentIdx);
 		attmap = build_attrmap_by_name(RelationGetDescr(partTbl),
-									   RelationGetDescr(parentTbl));
+									   RelationGetDescr(parentTbl),
+									   false);
 		if (!CompareIndexInfo(childInfo, parentInfo,
 							  partIdx->rd_indcollation,
 							  parentIdx->rd_indcollation,
@@ -19138,17 +19174,24 @@ validatePartitionedIndex(Relation partedIdx, Relation partedTbl)
 	if (tuples == RelationGetPartitionDesc(partedTbl, true)->nparts)
 	{
 		Relation	idxRel;
-		HeapTuple	newtup;
+		HeapTuple	indTup;
+		Form_pg_index indexForm;
 
 		idxRel = table_open(IndexRelationId, RowExclusiveLock);
+		indTup = SearchSysCacheCopy1(INDEXRELID,
+									 ObjectIdGetDatum(RelationGetRelid(partedIdx)));
+		if (!HeapTupleIsValid(indTup))
+			elog(ERROR, "cache lookup failed for index %u",
+				 RelationGetRelid(partedIdx));
+		indexForm = (Form_pg_index) GETSTRUCT(indTup);
 
-		newtup = heap_copytuple(partedIdx->rd_indextuple);
-		((Form_pg_index) GETSTRUCT(newtup))->indisvalid = true;
+		indexForm->indisvalid = true;
 		updated = true;
 
-		CatalogTupleUpdate(idxRel, &partedIdx->rd_indextuple->t_self, newtup);
+		CatalogTupleUpdate(idxRel, &indTup->t_self, indTup);
 
 		table_close(idxRel, RowExclusiveLock);
+		heap_freetuple(indTup);
 	}
 
 	/*
@@ -19249,7 +19292,7 @@ ATDetachCheckNoForeignKeyRefs(Relation partition)
 		HeapTuple	tuple;
 		Form_pg_constraint constrForm;
 		Relation	rel;
-		Trigger		trig;
+		Trigger		trig = {0};
 
 		tuple = SearchSysCache1(CONSTROID, ObjectIdGetDatum(constrOid));
 		if (!HeapTupleIsValid(tuple))
@@ -19262,7 +19305,6 @@ ATDetachCheckNoForeignKeyRefs(Relation partition)
 		/* prevent data changes into the referencing table until commit */
 		rel = table_open(constrForm->conrelid, ShareLock);
 
-		MemSet(&trig, 0, sizeof(trig));
 		trig.tgoid = InvalidOid;
 		trig.tgname = NameStr(constrForm->conname);
 		trig.tgenabled = TRIGGER_FIRES_ON_ORIGIN;
@@ -19318,4 +19360,41 @@ GetAttributeCompression(Oid atttypid, char *compression)
 				 errmsg("invalid compression method \"%s\"", compression)));
 
 	return cmethod;
+}
+
+/*
+ * resolve column storage specification
+ */
+static char
+GetAttributeStorage(Oid atttypid, const char *storagemode)
+{
+	char		cstorage = 0;
+
+	if (pg_strcasecmp(storagemode, "plain") == 0)
+		cstorage = TYPSTORAGE_PLAIN;
+	else if (pg_strcasecmp(storagemode, "external") == 0)
+		cstorage = TYPSTORAGE_EXTERNAL;
+	else if (pg_strcasecmp(storagemode, "extended") == 0)
+		cstorage = TYPSTORAGE_EXTENDED;
+	else if (pg_strcasecmp(storagemode, "main") == 0)
+		cstorage = TYPSTORAGE_MAIN;
+	else if (pg_strcasecmp(storagemode, "default") == 0)
+		cstorage = get_typstorage(atttypid);
+	else
+		ereport(ERROR,
+				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+				 errmsg("invalid storage type \"%s\"",
+						storagemode)));
+
+	/*
+	 * safety check: do not allow toasted storage modes unless column datatype
+	 * is TOAST-aware.
+	 */
+	if (!(cstorage == TYPSTORAGE_PLAIN || TypeIsToastable(atttypid)))
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("column data type %s can only have storage PLAIN",
+						format_type_be(atttypid))));
+
+	return cstorage;
 }

@@ -6,7 +6,7 @@
  * and interpreting backend output.
  *
  *
- * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2023, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  * src/fe_utils/string_utils.c
@@ -810,8 +810,7 @@ appendReloptionsArray(PQExpBuffer buffer, const char *reloptions,
 
 	if (!parsePGArray(reloptions, &options, &noptions))
 	{
-		if (options)
-			free(options);
+		free(options);
 		return false;
 	}
 
@@ -854,8 +853,7 @@ appendReloptionsArray(PQExpBuffer buffer, const char *reloptions,
 			appendStringLiteral(buffer, value, encoding, std_strings);
 	}
 
-	if (options)
-		free(options);
+	free(options);
 
 	return true;
 }

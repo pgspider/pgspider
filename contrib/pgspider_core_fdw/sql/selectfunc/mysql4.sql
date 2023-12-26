@@ -9262,123 +9262,126 @@ SELECT date(date_sub(c3, '1 12:59:10')) as date1 FROM time_tbl ORDER BY 1;
 
 
 -- DATE_ADD()
+-- Postgres also supports date_add with different arguments (data types, number of argument)
+-- Only support push down MySQL function (2 arguments, 1st argument has type timestamp without time zone).
+-- Therefore, user needs to make sure to pass the 1st argument as timestamp (pass correct type directly or casting).
 -- select date_add (stub function, explain)
 --Testcase 2160:
 EXPLAIN VERBOSE
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl ORDER BY 1,2,3,4;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl ORDER BY 1,2,3,4;
 
 -- select date_add (stub function, result)
 --Testcase 2161:
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl ORDER BY 1,2,3,4;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl ORDER BY 1,2,3,4;
 
 -- select date_add (stub function, not pushdown constraints, explain)
 --Testcase 2162:
 EXPLAIN VERBOSE
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE to_hex(id) = '1' ORDER BY 1,2,3,4;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE to_hex(id) = '1' ORDER BY 1,2,3,4;
 
 -- select date_add (stub function, not pushdown constraints, result)
 --Testcase 2163:
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE to_hex(id) = '1' ORDER BY 1,2,3,4;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE to_hex(id) = '1' ORDER BY 1,2,3,4;
 
 -- select date_add (stub function, pushdown constraints, explain)
 --Testcase 2164:
 EXPLAIN VERBOSE
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE id != 1 ORDER BY 1,2,3,4;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE id != 1 ORDER BY 1,2,3,4;
 
 -- select date_add (stub function, pushdown constraints, result)
 --Testcase 2165:
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE id != 1 ORDER BY 1,2,3,4;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE id != 1 ORDER BY 1,2,3,4;
 
 -- select date_add (stub function, date_add in constraints, explain)
 --Testcase 2166:
 EXPLAIN VERBOSE
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE date_add(c2, '1 12:59:10'::interval) != '2000-01-01' ORDER BY 1,2,3,4;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE date_add(c2::timestamp, '1 12:59:10'::interval) != '2000-01-01' ORDER BY 1,2,3,4;
 
 -- select date_add (stub function, date_add in constraints, result)
 --Testcase 2167:
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE date_add(c2, '1 12:59:10'::interval) != '2000-01-01' ORDER BY 1,2,3,4;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE date_add(c2::timestamp, '1 12:59:10'::interval) != '2000-01-01' ORDER BY 1,2,3,4;
 
 -- select date_add (stub function, date_add in constraints, explain)
 --Testcase 2168:
 EXPLAIN VERBOSE
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE date_add('2021-01-02', '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3,4;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE date_add('2021-01-02'::timestamp, '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3,4;
 
 -- select date_add (stub function, date_add in constraints, result)
 --Testcase 2169:
-SELECT date_add(c2, '1 12:59:10'::interval), date_add('2021-01-02', '1-2'::interval), date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), date_add('2021-01-02', '1-2'::interval) FROM time_tbl WHERE date_add('2021-01-02', '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3,4;
+SELECT date_add(c2::timestamp, '1 12:59:10'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval), date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), date_add('2021-01-02'::timestamp, '1-2'::interval) FROM time_tbl WHERE date_add('2021-01-02'::timestamp, '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3,4;
 
 -- select date_add with agg (pushdown, explain)
 --Testcase 2170:
 EXPLAIN VERBOSE
-SELECT max(c3), date_add(max(c2) , '1-2'::interval) FROM time_tbl;
+SELECT max(c3), date_add(max(c2)::timestamp, '1-2'::interval) FROM time_tbl;
 
 -- select date_add as nest function with agg (pushdown, result)
 --Testcase 2171:
-SELECT max(c3), date_add(max(c2) , '1-2'::interval) FROM time_tbl;
+SELECT max(c3), date_add(max(c2)::timestamp, '1-2'::interval) FROM time_tbl;
 
 -- select date_add with non pushdown func and explicit constant (explain)
 --Testcase 2172:
 EXPLAIN VERBOSE
-SELECT date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), pi(), 4.1 FROM time_tbl ORDER BY 1;
+SELECT date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), pi(), 4.1 FROM time_tbl ORDER BY 1;
 
 -- select date_add with non pushdown func and explicit constant (result)
 --Testcase 2173:
-SELECT date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval), pi(), 4.1 FROM time_tbl ORDER BY 1;
+SELECT date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval), pi(), 4.1 FROM time_tbl ORDER BY 1;
 
 -- select date_add with order by (explain)
 --Testcase 2174:
 EXPLAIN VERBOSE
-SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order by id,date_add(c2 + '1 d'::interval , '1-2'::interval);
+SELECT id, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl order by id,date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval);
 
 -- select date_add with order by (result)
 --Testcase 2175:
-SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order by id,date_add(c2 + '1 d'::interval , '1-2'::interval);
+SELECT id, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl order by id,date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval);
 
 -- select date_add with order by index (result)
 --Testcase 2176:
-SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order by 2,1;
+SELECT id, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl order by 2,1;
 
 -- select date_add with order by index (result)
 --Testcase 2177:
-SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl order by 1,2;
+SELECT id, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl order by 1,2;
 
 -- select date_add with group by (explain)
 --Testcase 2178:
 EXPLAIN VERBOSE
-SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl group by date_add(c2 + '1 d'::interval , '1-2'::interval) ORDER BY 1;
+SELECT max(c3), date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl group by date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) ORDER BY 1;
 
 -- select date_add with group by (result)
 --Testcase 2179:
-SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl group by date_add(c2 + '1 d'::interval , '1-2'::interval) ORDER BY 1;
+SELECT max(c3), date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl group by date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) ORDER BY 1;
 
 -- select date_add with group by index (result)
 --Testcase 2180:
-SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl group by 2,1;
+SELECT id, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl group by 2,1;
 
 -- select date_add with group by index (result)
 --Testcase 2181:
-SELECT id, date_add(c2 + '1 d'::interval , '1-2'::interval) FROM time_tbl group by 1,2;
+SELECT id, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) FROM time_tbl group by 1,2;
 
 -- select date_add with group by having (explain)
 --Testcase 2182:
 EXPLAIN VERBOSE
-SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval), c2 FROM time_tbl group by date_add(c2 + '1 d'::interval , '1-2'::interval), c3,c2 HAVING date_add(c2 + '1 d'::interval , '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3;
+SELECT max(c3), date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval), c2 FROM time_tbl group by date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval), c3,c2 HAVING date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3;
 
 -- select date_add with group by having (result)
 --Testcase 2183:
-SELECT max(c3), date_add(c2 + '1 d'::interval , '1-2'::interval), c2 FROM time_tbl group by date_add(c2 + '1 d'::interval , '1-2'::interval), c3,c2 HAVING date_add(c2 + '1 d'::interval , '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3;
+SELECT max(c3), date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval), c2 FROM time_tbl group by date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval), c3,c2 HAVING date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3;
 
 -- select date_add with group by index having (result)
 --Testcase 2184:
-SELECT c2, date_add(c2 + '1 d'::interval , '1-2'::interval), c3 FROM time_tbl group by 3, 2, 1 HAVING date_add(c2 + '1 d'::interval , '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3;
+SELECT c2, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval), c3 FROM time_tbl group by 3, 2, 1 HAVING date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3;
 
 -- select date_add with group by index having (result)
 --Testcase 2185:
-SELECT c2, date_add(c2 + '1 d'::interval , '1-2'::interval), c3 FROM time_tbl group by 1, 2, 3 HAVING date_add(c2 + '1 d'::interval , '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3;
+SELECT c2, date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval), c3 FROM time_tbl group by 1, 2, 3 HAVING date_add((c2 + '1 d'::interval)::timestamp, '1-2'::interval) > '2000-01-01' ORDER BY 1,2,3;
 
 -- select date_add and as
 --Testcase 2186:
-SELECT date_add(date_sub(c3, '1 12:59:10'),  '1-2'::interval) as date_add1 FROM time_tbl ORDER BY 1;
+SELECT date_add(date_sub(c3, '1 12:59:10')::timestamp,  '1-2'::interval) as date_add1 FROM time_tbl ORDER BY 1;
 
 
 -- DATE_FORMAT()
@@ -14192,11 +14195,11 @@ SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i
 -- select from_unixtime with group by index having (explain)
 --Testcase 3243:
 EXPLAIN VERBOSE
-SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x'), c1 FROM time_tbl GROUP BY 1,2,3 HAVING from_unixtime(1447430881) = '2015-11-13 08:08:01' ORDER BY 1,2,3;
+SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x'), c1 FROM time_tbl GROUP BY 1,2,3 HAVING from_unixtime(1447430881) = '2015-11-13 16:08:01' ORDER BY 1,2,3;
 
 -- select from_unixtime with group by index having (result)
 --Testcase 3244:
-SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x'), c1 FROM time_tbl GROUP BY 1,2,3 HAVING from_unixtime(1447430881) = '2015-11-13 08:08:01' ORDER BY 1,2,3;
+SELECT from_unixtime(1447430881), from_unixtime(id + 1447430881, '%Y %D %M %h:%i:%s %x'), c1 FROM time_tbl GROUP BY 1,2,3 HAVING from_unixtime(1447430881) = '2015-11-13 16:08:01' ORDER BY 1,2,3;
 
 -- select from_unixtime and as
 --Testcase 3245:

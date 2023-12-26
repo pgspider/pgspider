@@ -17,6 +17,7 @@
 #include "foreign/foreign.h"
 #include "lib/stringinfo.h"
 #include "nodes/pathnodes.h"
+#include "utils/guc.h"
 #include "utils/relcache.h"
 #include "utils/resowner.h"
 #include "catalog/pg_operator.h"
@@ -258,7 +259,9 @@ typedef struct SocketInfo
 	bool	end_server;			/* flag to determine if socket server closed */
 	char   *err;				/* the error message of child socket server thread */
 	List   *socketThreadInfos;	/* Shared list with child pgspider_fdw */
-
+	char    *public_host;
+	int      public_port;
+	char    *ifconfig_service;
 	/* context for server socket thread */
 	ResourceOwner thrd_ResourceOwner;
 	MemoryContext threadTopMemoryContext;
@@ -404,11 +407,13 @@ extern bool throwCandidateError;
 
 #ifdef PD_STORED
 /* in pgspider_core_remotefunc.c */
-void spdExecuteFunction(Oid funcoid, Oid tableoid, List *args,
+PGDLLEXPORT void spdExecuteFunction(Oid funcoid, Oid tableoid, List *args,
 					    bool async, void **private);
-bool spdGetFunctionResultOne(void *private, AttInMetadata *attinmeta,
+PGDLLEXPORT void spdExplainFunction(Oid funcoid, Oid tableoid,
+						List *args, bool async, void *private);
+PGDLLEXPORT bool spdGetFunctionResultOne(void *private, AttInMetadata *attinmeta,
 							 Datum *values, bool *nulls);
-void spdFinalizeFunction(void *private);
+PGDLLEXPORT void spdFinalizeFunction(void *private);
 
 #endif
 

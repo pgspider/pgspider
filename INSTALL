@@ -11,25 +11,6 @@ with Microsoft's Visual C++, see the main documentation instead.
 
 ------------------------------------------------------------------------
 
-Short Version
-
-    ./configure
-    make
-    su
-    make install
-    adduser postgres
-    mkdir -p /usr/local/pgspider/data
-    chown postgres /usr/local/pgspider/data
-    su - postgres
-    /usr/local/pgspider/bin/initdb -D /usr/local/pgspider/data
-    /usr/local/pgspider/bin/pg_ctl -D /usr/local/pgspider/data -l logfile start
-    /usr/local/pgspider/bin/createdb test
-    /usr/local/pgspider/bin/psql test
-
-The long version is the rest of this document.
-
-------------------------------------------------------------------------
-
 Requirements
 
 In general, a modern Unix-compatible platform should be able to run
@@ -44,6 +25,14 @@ The following software packages are required for building PostgreSQL:
     installed under the name "gmake".) To test for GNU make enter:
 
         make --version
+
+-   Alternatively, PostgreSQL can be built using Meson. This is
+    currently experimental and only works when building from a Git
+    checkout (not from a distribution tarball). If you choose to use
+    Meson, then you don't need GNU make, but the other requirements
+    below still apply.
+
+    The minimum required version of Meson is 0.54.
 
 -   You need an ISO/ANSI C compiler (at least C99-compliant). Recent
     versions of GCC are recommended, but PostgreSQL is known to build
@@ -71,17 +60,37 @@ The following software packages are required for building PostgreSQL:
     "configure". Using this option disables support for compressed
     archives in pg_dump and pg_restore.
 
+-   The ICU locale provider (see the documentation) is used by default.
+    If you don't want to use it then you must specify the
+    "--without-icu" option to "configure". Using this option disables
+    support for ICU collation features (see the documentation).
+
+    ICU support requires the ICU4C package to be installed. The minimum
+    required version of ICU4C is currently 4.2.
+
+    By default, pkg-config will be used to find the required compilation
+    options. This is supported for ICU4C version 4.6 and later. For
+    older versions, or if pkg-config is not available, the variables
+    ICU_CFLAGS and ICU_LIBS can be specified to "configure", like in
+    this example:
+
+        ./configure ... ICU_CFLAGS='-I/some/where/include' ICU_LIBS='-L/some/where/lib -licui18n -licuuc -licudata'
+
+    (If ICU4C is in the default search path for the compiler, then you
+    still need to specify nonempty strings in order to avoid use of
+    pkg-config, for example, ICU_CFLAGS=' '.)
+
 The following packages are optional. They are not required in the
 default configuration, but they are needed when certain build options
 are enabled, as explained below:
 
 -   To build the server programming language PL/Perl you need a full
     Perl installation, including the "libperl" library and the header
-    files. The minimum required version is Perl 5.8.3. Since PL/Perl
-    will be a shared library, the "libperl" library must be a shared
-    library also on most platforms. This appears to be the default in
-    recent Perl versions, but it was not in earlier versions, and in any
-    case it is the choice of whomever installed Perl at your site.
+    files. The minimum required version is Perl 5.14. Since PL/Perl will
+    be a shared library, the "libperl" library must be a shared library
+    also on most platforms. This appears to be the default in recent
+    Perl versions, but it was not in earlier versions, and in any case
+    it is the choice of whomever installed Perl at your site.
     "configure" will fail if building PL/Perl is selected but it cannot
     find a shared "libperl". In that case, you will have to rebuild and
     install Perl manually to be able to build PL/Perl. During the
@@ -115,7 +124,7 @@ are enabled, as explained below:
     have this built-in (e.g., Linux, NetBSD, Solaris), for other systems
     you can download an add-on package from
     https://www.gnu.org/software/gettext/. If you are using the Gettext
-    implementation in the GNU C library then you will additionally need
+    implementation in the GNU C library, then you will additionally need
     the GNU Gettext package for some utility programs. For any of the
     other implementations you will not need it.
 
@@ -124,8 +133,8 @@ are enabled, as explained below:
     on platforms that do not have "/dev/urandom" (except Windows). The
     minimum required version is 1.0.1.
 
--   You need Kerberos, OpenLDAP, and/or PAM, if you want to support
-    authentication using those services.
+-   You need MIT Kerberos (for GSSAPI), OpenLDAP, and/or PAM, if you
+    want to support authentication using those services.
 
 -   You need LZ4, if you want to support compression of data with that
     method; see the configuration parameter default_toast_compression
@@ -145,11 +154,11 @@ following packages:
 
 -   Flex and Bison are needed to build from a Git checkout, or if you
     changed the actual scanner and parser definition files. If you need
-    them, be sure to get Flex 2.5.31 or later and Bison 1.875 or later.
+    them, be sure to get Flex 2.5.35 or later and Bison 2.3 or later.
     Other lex and yacc programs cannot be used.
 
--   Perl 5.8.3 or later is needed to build from a Git checkout, or if
-    you changed the input files for any of the build steps that use Perl
+-   Perl 5.14 or later is needed to build from a Git checkout, or if you
+    changed the input files for any of the build steps that use Perl
     scripts. If building on Windows you will need Perl in any case. Perl
     is also required to run some test suites.
 
@@ -157,13 +166,28 @@ If you need to get a GNU package, you can find it at your local GNU
 mirror site (see https://www.gnu.org/prep/ftp for a list) or at
 ftp://ftp.gnu.org/gnu/.
 
-Also check that you have sufficient disk space. You will need about 350
-MB for the source tree during compilation and about 60 MB for the
-installation directory. An empty database cluster takes about 40 MB;
-databases take about five times the amount of space that a flat text
-file with the same data would take. If you are going to run the
-regression tests you will temporarily need up to an extra 300 MB. Use
-the "df" command to check free disk space.
+------------------------------------------------------------------------
+
+Building and Installation with Autoconf and Make
+
+------------------------------------------------------------------------
+
+Short Version
+
+    ./configure
+    make
+    su
+    make install
+    adduser postgres
+    mkdir -p /usr/local/pgspider/data
+    chown postgres /usr/local/pgspider/data
+    su - postgres
+    /usr/local/pgspider/bin/initdb -D /usr/local/pgspider/data
+    /usr/local/pgspider/bin/pg_ctl -D /usr/local/pgspider/data -l logfile start
+    /usr/local/pgspider/bin/createdb test
+    /usr/local/pgspider/bin/psql test
+
+The long version is the rest of this document.
 
 ------------------------------------------------------------------------
 
@@ -485,24 +509,6 @@ in the section called "Requirements".
     want to use a different version of Tcl you can specify the directory
     in which to look for "tclConfig.sh".
 
---with-icu
-
-    Build with support for the ICU library, enabling use of ICU
-    collation features. This requires the ICU4C package to be installed.
-    The minimum required version of ICU4C is currently 4.2.
-
-    By default, pkg-config will be used to find the required compilation
-    options. This is supported for ICU4C version 4.6 and later. For
-    older versions, or if pkg-config is not available, the variables
-    ICU_CFLAGS and ICU_LIBS can be specified to "configure", like in
-    this example:
-
-        ./configure ... --with-icu ICU_CFLAGS='-I/some/where/include' ICU_LIBS='-L/some/where/lib -licui18n -licuuc -licudata'
-
-    (If ICU4C is in the default search path for the compiler, then you
-    still need to specify nonempty strings in order to avoid use of
-    pkg-config, for example, ICU_CFLAGS=' '.)
-
 --with-llvm
 
     Build with support for LLVM based JIT compilation. This requires the
@@ -544,14 +550,14 @@ in the section called "Requirements".
 
 --with-gssapi
 
-    Build with support for GSSAPI authentication. On many systems, the
-    GSSAPI system (usually a part of the Kerberos installation) is not
-    installed in a location that is searched by default (e.g.,
-    "/usr/include", "/usr/lib"), so you must use the options
-    "--with-includes" and "--with-libraries" in addition to this option.
-    "configure" will check for the required header files and libraries
-    to make sure that your GSSAPI installation is sufficient before
-    proceeding.
+    Build with support for GSSAPI authentication. MIT Kerberos is
+    required to be installed for GSSAPI. On many systems, the GSSAPI
+    system (a part of the MIT Kerberos installation) is not installed in
+    a location that is searched by default (e.g., "/usr/include",
+    "/usr/lib"), so you must use the options "--with-includes" and
+    "--with-libraries" in addition to this option. "configure" will
+    check for the required header files and libraries to make sure that
+    your GSSAPI installation is sufficient before proceeding.
 
 --with-ldap
 
@@ -636,6 +642,11 @@ The options described in this section allow disabling certain PostgreSQL
 features that are built by default, but which might need to be turned
 off if the required software or system features are not available. Using
 these options is not recommended unless really necessary.
+
+--without-icu
+
+    Build without support for the ICU library, disabling the use of ICU
+    collation features.
 
 --without-readline
 
@@ -894,6 +905,12 @@ the server, it is recommended to use at least the options
 
         ./configure CC='/opt/SUNWspro/bin/cc -xtarget=native64' --enable-dtrace DTRACEFLAGS='-64' ...
 
+--with-segsize-blocks=SEGSIZE_BLOCKS
+
+    Specify the segment size in blocks. If both "--with-segsize" and
+    this option are specified, this option wins. This option is only for
+    developers, to test segment related code.
+
 ------------------------------------------------------------------------
 
 configure Environment Variables
@@ -1053,8 +1070,7 @@ Shared Libraries
 
 On some systems with shared libraries you need to tell the system how to
 find the newly installed shared libraries. The systems on which this is
-*not* necessary include FreeBSD, HP-UX, Linux, NetBSD, OpenBSD, and
-Solaris.
+*not* necessary include FreeBSD, Linux, NetBSD, OpenBSD, and Solaris.
 
 The method to set the shared library search path varies between
 platforms, but the most widely-used method is to set the environment
@@ -1241,17 +1257,16 @@ are strongly encouraged to set up a build farm member machine so that
 continued compatibility can be assured.
 
 In general, PostgreSQL can be expected to work on these CPU
-architectures: x86, x86_64, IA64, PowerPC, PowerPC 64, S/390, S/390x,
-Sparc, Sparc 64, ARM, MIPS, MIPSEL, and PA-RISC. Code support exists for
-M68K, M32R, and VAX, but these architectures are not known to have been
-tested recently. It is often possible to build on an unsupported CPU
-type by configuring with "--disable-spinlocks", but performance will be
-poor.
+architectures: x86, PowerPC, S/390, SPARC, ARM, MIPS, RISC-V, and
+PA-RISC, including big-endian, little-endian, 32-bit, and 64-bit
+variants where applicable. It is often possible to build on an
+unsupported CPU type by configuring with "--disable-spinlocks", but
+performance will be poor.
 
-PostgreSQL can be expected to work on these operating systems: Linux
-(all recent distributions), Windows (XP and later), FreeBSD, OpenBSD,
-NetBSD, macOS, AIX, HP/UX, and Solaris. Other Unix-like systems may also
-work but are not currently being tested. In most cases, all CPU
+PostgreSQL can be expected to work on current versions of these
+operating systems: Linux, Windows, FreeBSD, OpenBSD, NetBSD,
+DragonFlyBSD, macOS, AIX, Solaris, and illumos. Other Unix-like systems
+may also work but are not currently being tested. In most cases, all CPU
 architectures supported by a given operating system will work. Look in
 the section called "Platform-Specific Notes" below to see if there is
 information specific to your operating system, particularly if using an
@@ -1262,6 +1277,12 @@ supported according to recent build farm results, please report it to
 <pgsql-bugs@lists.postgresql.org>. If you are interested in porting
 PostgreSQL to a new platform, <pgsql-hackers@lists.postgresql.org> is
 the appropriate place to discuss that.
+
+Historical versions of PostgreSQL or POSTGRES also ran on CPU
+architectures including Alpha, Itanium, M32R, M68K, M88K, NS32K, SuperH,
+and VAX, and operating systems including 4.3BSD, BEOS, BSD/OS, DG/UX,
+Dynix, HP-UX, IRIX, NeXTSTEP, QNX, SCO, SINIX, Sprite, SunOS, Tru64
+UNIX, and ULTRIX.
 
 ------------------------------------------------------------------------
 
@@ -1370,11 +1391,10 @@ following Cygwin-specific differences:
     utilities. This will help prevent problems with compilation.
 
 -   The "adduser" command is not supported; use the appropriate user
-    management application on Windows NT, 2000, or XP. Otherwise, skip
-    this step.
+    management application on Windows. Otherwise, skip this step.
 
--   The "su" command is not supported; use ssh to simulate su on Windows
-    NT, 2000, or XP. Otherwise, skip this step.
+-   The "su" command is not supported; use ssh to simulate su on
+    Windows. Otherwise, skip this step.
 
 -   OpenSSL is not supported.
 

@@ -72,6 +72,7 @@ CREATE OR REPLACE AGGREGATE agg_parent (col text) (sfunc = trans_parent, stype =
 -- Distributed function
 CREATE OR REPLACE DISTRIBUTED_FUNC agg_dist (col text) PARENT agg_parent(text) CHILD agg_child(col text);
 
+EXPLAIN SELECT agg_dist(val) FROM tbl;
 SELECT agg_dist(val) FROM tbl;
 
 
@@ -137,6 +138,7 @@ CREATE OR REPLACE AGGREGATE upsert_parent (col text) (sfunc = upsert_parent_tran
 -- Distributed function
 CREATE OR REPLACE DISTRIBUTED_FUNC upsert (col text) PARENT upsert_parent(text) CHILD upsert_child(col text);
 
+EXPLAIN VERBOSE SELECT upsert(val1) FROM tbl_upsert;
 SELECT upsert(val1) FROM tbl_upsert;
 SELECT * FROM tbl_upsert ORDER BY __spd_url;
 SELECT upsert(val1) FROM tbl_upsert;

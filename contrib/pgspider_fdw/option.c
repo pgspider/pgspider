@@ -3,7 +3,7 @@
  * option.c
  *		  FDW and GUC option handling for pgspider_fdw
  *
- * Portions Copyright (c) 2012-2021, PostgreSQL Global Development Group
+ * Portions Copyright (c) 2012-2023, PostgreSQL Global Development Group
  * Portions Copyright (c) 2018, TOSHIBA CORPORATION
  *
  * IDENTIFICATION
@@ -27,6 +27,8 @@
 #include "utils/builtins.h"
 #include "utils/guc.h"
 #include "utils/varlena.h"
+
+#include "dct_targetdb/dct_common.h"
 
 /*
  * Describes the valid options for objects that this wrapper uses.
@@ -57,8 +59,6 @@ static PQconninfoOption *libpq_options;
  * GUC parameters
  */
 char	   *pgfdw_application_name = NULL;
-
-void		_PG_init(void);
 
 /*
  * Helper functions
@@ -102,26 +102,31 @@ pgspider_fdw_validator(PG_FUNCTION_ARGS)
 		{
 			/*
 			 * Unknown option specified, complain about it. Provide a hint
-			 * with list of valid options for the object.
+			 * with a valid option that looks similar, if there is one.
 			 */
 			PgFdwOption *opt;
-			StringInfoData buf;
+			const char *closest_match;
+			ClosestMatchState match_state;
+			bool		has_valid_options = false;
 
-			initStringInfo(&buf);
+			initClosestMatch(&match_state, def->defname, 4);
 			for (opt = pgspider_fdw_options; opt->keyword; opt++)
 			{
 				if (catalog == opt->optcontext)
-					appendStringInfo(&buf, "%s%s", (buf.len > 0) ? ", " : "",
-									 opt->keyword);
+				{
+					has_valid_options = true;
+					updateClosestMatch(&match_state, opt->keyword);
+				}
 			}
 
+			closest_match = getClosestMatch(&match_state);
 			ereport(ERROR,
 					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
-					 errmsg("invalid option \"%s\"", def->defname),
-					 buf.len > 0
-					 ? errhint("Valid options in this context are: %s",
-							   buf.data)
-					 : errhint("There are no valid options in this context.")));
+					 errmsg("pgspider_fdw: invalid option \"%s\"", def->defname),
+					 has_valid_options ? closest_match ?
+					 errhint("Perhaps you meant the option \"%s\".",
+							 closest_match) : 0 :
+					 errhint("There are no valid options in this context.")));
 		}
 
 		/*
@@ -132,6 +137,7 @@ pgspider_fdw_validator(PG_FUNCTION_ARGS)
 			strcmp(def->defname, "truncatable") == 0 ||
 			strcmp(def->defname, "async_capable") == 0 ||
 			strcmp(def->defname, "parallel_commit") == 0 ||
+			strcmp(def->defname, "parallel_abort") == 0 ||
 			strcmp(def->defname, "keep_connections") == 0)
 		{
 			/* these accept only boolean values */
@@ -217,6 +223,23 @@ pgspider_fdw_validator(PG_FUNCTION_ARGS)
 						 errmsg("sslcert and sslkey are superuser-only"),
 						 errhint("User mappings with the sslcert or sslkey options set may only be created or modified by the superuser.")));
 		}
+		else if (strcmp(def->defname, "analyze_sampling") == 0)
+		{
+			char	   *value;
+
+			value = defGetString(def);
+
+			/* we recognize off/auto/random/system/bernoulli */
+			if (strcmp(value, "off") != 0 &&
+				strcmp(value, "auto") != 0 &&
+				strcmp(value, "random") != 0 &&
+				strcmp(value, "system") != 0 &&
+				strcmp(value, "bernoulli") != 0)
+				ereport(ERROR,
+						(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+						 errmsg("invalid value for string option \"%s\": %s",
+								def->defname, value)));
+		}
 		/* Support Data Compression Transfer feature */
 		else if (strcmp(def->defname, "serverid") == 0 ||
 				 strcmp(def->defname, "userid") == 0)
@@ -283,8 +306,13 @@ InitPgFdwOptions(void)
 		{"async_capable", ForeignServerRelationId, false},
 		{"async_capable", ForeignTableRelationId, false},
 		{"parallel_commit", ForeignServerRelationId, false},
+		{"parallel_abort", ForeignServerRelationId, false},
 		{"keep_connections", ForeignServerRelationId, false},
 		{"password_required", UserMappingRelationId, false},
+
+		/* sampling is available on both server and table */
+		{"analyze_sampling", ForeignServerRelationId, false},
+		{"analyze_sampling", ForeignTableRelationId, false},
 
 		/*
 		 * sslcert and sslkey are in fact libpq options, but we repeat them
@@ -294,13 +322,18 @@ InitPgFdwOptions(void)
 		{"sslcert", UserMappingRelationId, true},
 		{"sslkey", UserMappingRelationId, true},
 
+		/*
+		 * gssdelegation is also a libpq option but should be allowed in a
+		 * user mapping context too
+		 */
+		{"gssdelegation", UserMappingRelationId, true},
+
 		/* Options support Data Compression Transfer feature. */
 		{"endpoint", ForeignServerRelationId, false},
 		{"proxy", ForeignServerRelationId, false},
 		{"function_timeout", ForeignServerRelationId, false},
 		{"serverid", ForeignTableRelationId, false},
 		{"userid", ForeignTableRelationId, false},
-
 		{NULL, InvalidOid, false}
 	};
 
@@ -387,25 +420,17 @@ is_valid_option(const char *keyword, Oid context)
 	for (opt = pgspider_fdw_options; opt->keyword; opt++)
 	{
 		/*
-		 * MySQL FDW uses dbname option in foreign table but Postgres FDW uses dbname
-		 * option in foreign server.
-		 * Oracle FDW uses table option instead of table_name option.
-		 *
 		 * Different FDWs have different ways to map foreign table name and remote table name.
 		 * And pgspider_fdw has to validate those options which may not belong to pgspider_fdw.
+		 * Return true if options is unique options of FDWs.
 		 */
-		if (strcmp(keyword, "dbname") == 0 || strcmp(keyword, "table") == 0)
-			return true;
-		
-		/*
-		 * InfluxDB FDW does not support org option now, it is specified by user
-		 * through MIGRATE command.
-		 * InfluxDB support tags option to indicates this column as containing values
-		 * of tags in InfluxDB measurement.
-		 *
-		 * Ignore its validation in pgspider_fdw.
-		 */
-		if (strcmp(keyword, "org") == 0 || strcmp(keyword, "tags") == 0)
+		if (is_postgres_unique_option(keyword) ||
+			is_pgspider_unique_option(keyword) ||
+			is_mysql_unique_option(keyword) ||
+			is_griddb_unique_option(keyword) ||
+			is_oracle_unique_option(keyword) ||
+			is_influxdb_unique_option(keyword) ||
+			is_objstorage_unique_option(keyword))
 			return true;
 
 		if (context == opt->optcontext && strcmp(opt->keyword, keyword) == 0)
@@ -524,8 +549,6 @@ process_pgfdw_appname(const char *appname)
 	const char *p;
 	StringInfoData buf;
 
-	Assert(MyProcPort != NULL);
-
 	initStringInfo(&buf);
 
 	for (p = appname; *p != '\0'; p++)
@@ -561,13 +584,29 @@ process_pgfdw_appname(const char *appname)
 				appendStringInfoString(&buf, cluster_name);
 				break;
 			case 'd':
-				appendStringInfoString(&buf, MyProcPort->database_name);
+				if (MyProcPort)
+				{
+					const char *dbname = MyProcPort->database_name;
+
+					if (dbname)
+						appendStringInfoString(&buf, dbname);
+					else
+						appendStringInfoString(&buf, "[unknown]");
+				}
 				break;
 			case 'p':
 				appendStringInfo(&buf, "%d", MyProcPid);
 				break;
 			case 'u':
-				appendStringInfoString(&buf, MyProcPort->user_name);
+				if (MyProcPort)
+				{
+					const char *username = MyProcPort->user_name;
+
+					if (username)
+						appendStringInfoString(&buf, username);
+					else
+						appendStringInfoString(&buf, "[unknown]");
+				}
 				break;
 			default:
 				/* format error - ignore it */

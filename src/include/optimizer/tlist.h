@@ -4,7 +4,7 @@
  *	  prototypes for tlist.c.
  *
  *
- * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2023, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  * src/include/optimizer/tlist.h
@@ -48,7 +48,9 @@ extern void apply_pathtarget_labeling_to_tlist(List *tlist, PathTarget *target);
 extern void split_pathtarget_at_srfs(PlannerInfo *root,
 									 PathTarget *target, PathTarget *input_target,
 									 List **targets, List **targets_contain_srfs);
+#ifdef PGSPIDER
 extern bool SpdIsInAutoCommitMode(void);
+#endif
 
 /* Convenience macro to get a PathTarget with valid cost/width fields */
 #define create_pathtarget(root, tlist) \

@@ -3,8 +3,7 @@
  * pgspider_data_compression_transfer.c
  *		  Foreign-data wrapper for remote PGSpider servers
  *
- * Portions Copyright (c) 2012-2021, PostgreSQL Global Development Group
- * Portions Copyright (c) 2018, TOSHIBA CORPORATION
+ * Portions Copyright (c) 2023, TOSHIBA CORPORATION
  *
  * IDENTIFICATION
  *		  contrib/pgspider_fdw/pgspider_data_compression_transfer.c
@@ -26,12 +25,25 @@
 #include "pgspider_data_compression_transfer.h"
 #include "utils/builtins.h"
 #include "utils/datetime.h"
+#include "utils/guc.h"
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
 #include "utils/syscache.h"
 #include "utils/varlena.h"
 #include "storage/latch.h"
 
+#include "dct_targetdb/dct_common.h"
+
+static DataSource dtSources[] = {
+	{ POSTGRES_FDW_NAME,    POSTGRESDB,   postgres_PrepareDDLRequestData,   postgres_PrepareInsertRequestData },
+	{ PGSPIDER_FDW_NAME,    PGSPIDERDB,   pgspider_PrepareDDLRequestData,   pgspider_PrepareInsertRequestData },
+	{ MYSQL_FDW_NAME,       MYSQLDB,      mysql_PrepareDDLRequestData,      mysql_PrepareInsertRequestData },
+	{ GRIDDB_FDW_NAME,      GRIDDB,       griddb_PrepareDDLRequestData,     griddb_PrepareInsertRequestData },
+	{ ORACLE_FDW_NAME,      ORACLEDB,     oracle_PrepareDDLRequestData,     oracle_PrepareInsertRequestData },
+	{ INFLUXDB_FDW_NAME,    INFLUXDB,     influxdb_PrepareDDLRequestData,   influxdb_PrepareInsertRequestData },
+	{ OBJSTORAGE_FDW_NAME,  OBJSTORAGE,	  objstorage_PrepareDDLRequestData, objstorage_PrepareInsertRequestData },
+	{ NULL,                 -1,           NULL,                           NULL}
+};
 
 /*
  * init_InsertData
@@ -40,7 +52,6 @@
 void
 init_InsertData(InsertData * data)
 {
-	data->tableName = NULL;
 	data->values = NULL;
 	data->columnInfos = NULL;
 	data->numSlot = 0;
@@ -48,44 +59,17 @@ init_InsertData(InsertData * data)
 }
 
 /*
- * init_AuthenticationData
- *		Initialize AuthenticationData context
- */
-void
-init_AuthenticationData(AuthenticationData * data)
-{
-	data->user = NULL;
-	data->pwd = NULL;
-	data->token = NULL;
-}
-
-/*
- * init_ConnectionURLData
- * 		Initialize ConnectionURLData context
- */
-void
-init_ConnectionURLData(ConnectionURLData * data)
-{
-	data->targetDB = -1;
-	data->host = NULL;
-	data->port = 0;
-	data->clusterName = NULL;
-	data->dbName = NULL;
-	data->org = NULL;
-}
-
-/*
  * init_DDLData
  * 		Initialize DDLData context
  */
-void
+static void
 init_DDLData(DDLData * data)
 {
-	data->tableName = NULL;
 	data->columnInfos = NULL;
 	data->numColumn = 0;
 	data->existFlag = false;
 }
+
 
 /*
  * init_DataCompressionTransferOption
@@ -96,41 +80,173 @@ init_DataCompressionTransferOption(DataCompressionTransferOption * data)
 {
 	data->endpoint = NULL;
 	data->proxy = NULL;
-	data->table_name = NULL;
 	data->serverID = 0;
 	data->userID = 0;
 	data->function_timeout = 0;
-	data->org = NULL;
-	data->tagsList = NULL;
+	data->mode = MODE_LOCAL;
+	data->public_host = NULL;
+	data->ifconfig_service = NULL;
+	data->public_port = 0;
+
+}
+
+static void
+pgspider_curl_init(char *proxy, char *endpoint, int function_timeout,
+				   size_t (*write_body_function) (void *contents, size_t size, size_t nmemb, void *user_data),
+				   void *body, CURL * curl_handle, bool isPost);
+static size_t
+pgspider_write_body(void *contents, size_t size, size_t nmemb, void *user_data);
+
+/*
+ * pgspiderGetPublicIp
+ *     Get ip from local OS.
+ */
+static char *
+pgspiderGetLocalIp(void) 
+{
+    char            hostbuffer[HOST_NAME_MAX];
+    char           *hostIP;
+    struct hostent *host_entry;
+    int             hostname;
+
+    /* Get host name */
+    hostname = gethostname(hostbuffer, sizeof(hostbuffer));
+    if (hostname == -1)
+        elog(ERROR, "pgspider_fdw: Failed to get host name");
+
+    /* Get host information */
+    host_entry = gethostbyname(hostbuffer);
+    if (host_entry == NULL)
+        elog(ERROR, "pgspider_fdw: Failed to get host information");
+
+    /* Convert Internet network address into ASCII string */
+    hostIP = inet_ntoa(*((struct in_addr *)
+                         host_entry->h_addr_list[0]));
+
+    return pstrdup(hostIP);
+}
+
+/*
+ * pgspiderGetHostIp
+ *     Get ip from manual public_host.
+ */
+static char *
+pgspiderGetHostIp(const char *public_host) 
+{
+    char           hostIP[INET_ADDRSTRLEN];
+    struct hostent *host_entry;
+
+    /* Get host information */
+    host_entry = gethostbyname(public_host);
+    if (host_entry == NULL)
+        elog(ERROR, "pgspider_fdw: Failed to get host information");
+
+    /* Convert Internet network address into ASCII string */
+    if (!inet_ntop(AF_INET, ((struct in_addr *)
+                         host_entry->h_addr_list[0]), hostIP, INET_ADDRSTRLEN))
+    {
+        char *error = strerror(errno);
+        elog(ERROR,"pgspider_fdw: public_host error. %s", error);
+    }
+
+    return pstrdup(hostIP);
+}
+
+/*
+ * pgspiderGetPublicIp
+ *      Get ip from ifconfig_service. 
+ *      Ex: curl ifconfig.co -> 123.123.123.123
+ */
+static char *
+pgspiderGetPublicIp(DataCompressionTransferOption *dct_option)
+{
+    CURL       *curl_handle = NULL;
+    body_res    body;
+    long        status;        /* HTTP response status code */
+	CURLcode	res = CURLE_OK;
+    struct sockaddr_in sa;
+	static char curl_errbuf[CURL_ERROR_SIZE];
+
+    /* Initialize response */
+    body.data = NULL;
+    body.size = 0;
+    curl_handle = curl_easy_init();
+    PG_TRY();
+    {
+        /* Init Request */
+        pgspider_curl_init(dct_option->proxy, 
+                            dct_option->ifconfig_service, 
+                            dct_option->function_timeout, 
+                            pgspider_write_body, 
+                            (void *) &body, 
+                            curl_handle, 
+                            false);
+        
+        /*
+         * Set a buffer that libcurl may store human readable error messages
+         * on failures or problems
+         */
+        if (curl_easy_setopt(curl_handle, CURLOPT_ERRORBUFFER, curl_errbuf) != CURLE_OK)
+            elog(ERROR, "pgspider_fdw: could not set error buffer for error messages");
+
+        /* clean error buffer before request */
+        curl_errbuf[0] = 0;
+
+        /* Send request */
+        res = curl_easy_perform(curl_handle);
+
+        if (res != CURLE_OK)
+            elog(ERROR, "pgspider_fdw: Curl error. %s", curl_errbuf);
+
+        /* HTTP status code */
+        if (curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &status) != CURLE_OK)
+            elog(ERROR, "pgspider_fdw: Cannot receive status code, server %s", dct_option->ifconfig_service);
+
+        /* Check error response */
+        if (status != PGREST_HTTP_RES_STATUS_OK)
+            elog(ERROR, "pgspider_fdw: Request failed, server %s", dct_option->ifconfig_service);
+
+        /* Clean up*/
+        curl_easy_cleanup(curl_handle);
+    }
+    PG_CATCH();
+    {
+        if (curl_handle)
+            curl_easy_cleanup(curl_handle);
+        PG_RE_THROW();
+    }
+    PG_END_TRY();
+
+    /*Check Address valid*/
+    if (inet_pton(AF_INET, body.data, &(sa.sin_addr)) != 1)
+    {
+        elog(ERROR, "pgspider_fdw: Cannot get ip_address, server %s", dct_option->ifconfig_service);
+    }
+
+    return pstrdup(body.data);
 }
 
 /*
  * pgspiderGetExternalIp
- * 		Get public ip of host machine
+ *      Get ip of host machine
  */
 static char *
-pgspiderGetExternalIp(void)
+pgspiderGetExternalIp(DataCompressionTransferOption *dct_option)
 {
-	char		hostbuffer[HOST_NAME_MAX];
-	char	   *hostIP;
-	struct hostent *host_entry;
-	int			hostname;
-
-	/* Get host name */
-	hostname = gethostname(hostbuffer, sizeof(hostbuffer));
-	if (hostname == -1)
-		elog(ERROR, "Failed to get host name");
-
-	/* Get host information */
-	host_entry = gethostbyname(hostbuffer);
-	if (host_entry == NULL)
-		elog(ERROR, "Failed to get host information");
-
-	/* Convert Internet network address into ASCII string */
-	hostIP = inet_ntoa(*((struct in_addr *)
-						 host_entry->h_addr_list[0]));
-
-	return pstrdup(hostIP);
+    switch (dct_option->mode)
+    {
+    case MODE_LOCAL:
+        return pgspiderGetLocalIp();
+    case MODE_AUTO:
+        elog(DEBUG1, "pgspider_fdw: Public IP Mode");
+        return pgspiderGetPublicIp(dct_option);
+    case MODE_MANUAL:
+        elog(DEBUG1, "pgspider_fdw: Manual IP Mode");
+        return pgspiderGetHostIp(dct_option->public_host);
+    default:
+        break;
+    }
+    return pgspiderGetLocalIp();
 }
 
 /*
@@ -434,38 +550,11 @@ pgspiderCalculateInsertDataSize(PGSpiderFdwModifyState * fmstate, InsertData * i
 	int			i;
 	int			len;
 
-	/*
-	 * Add size to store tableName, added by 1 to store '\0' which indicates
-	 * the end of the string.
-	 */
-	size += strlen(insertData->tableName) + 1;
-
 	/* Number of columns must be positive. */
 	Assert(insertData->numColumn > 0);
 
 	/* Add size to store the value of numColumn and numSlot. */
 	size += sizeof(insertData->numColumn) + sizeof(insertData->numSlot);
-
-	/* Add size to store the array of columnInfos. */
-	for (i = 0; i < insertData->numColumn; i++)
-	{
-		/* size to store column name. */
-		size += strlen(insertData->columnInfos[i].columnName) + 1;
-		/* size to store notNull indicator. */
-		size += BOOL_SIZE;
-		/* size to store column type. */
-		size += DATA_TYPE_SIZE;
-
-		/*
-		 * size to store typmode of BIT type. This is required for JDBC to
-		 * cast to binary of `n` bits.
-		 */
-		if (insertData->columnInfos[i].columnType == BIT_TYPE)
-			size += SHORT_SIZE;
-
-		/* size to store isTagKey. */
-		size += BOOL_SIZE;
-	}
 
 	/* Add size to store the array of values. */
 	for (i = 0; i < insertData->numSlot * insertData->numColumn; i++)
@@ -597,8 +686,7 @@ pgspiderCalculateInsertDataSize(PGSpiderFdwModifyState * fmstate, InsertData * i
 					}
 					break;
 				default:
-					elog(ERROR, "Unsupported datatype %d for column %s.", (int) insertData->columnInfos[columnIndex].columnType,
-						 insertData->columnInfos[columnIndex].columnName);
+					elog(ERROR, "Unsupported datatype %d.", (int) insertData->columnInfos[columnIndex].columnType);
 			}
 		}
 	}
@@ -631,10 +719,6 @@ pgspiderSerializeData(PGSpiderFdwModifyState * fmstate, InsertData * insertData,
 	 */
 	nextIndex = serializedBytes;
 
-	copiedSize = strlen(insertData->tableName) + 1;
-	memcpy(nextIndex, insertData->tableName, copiedSize - 1);
-	nextIndex += copiedSize;
-
 	copiedSize = sizeof(insertData->numColumn);
 	memcpy(nextIndex, &insertData->numColumn, copiedSize);
 	nextIndex += copiedSize;
@@ -642,30 +726,6 @@ pgspiderSerializeData(PGSpiderFdwModifyState * fmstate, InsertData * insertData,
 	copiedSize = sizeof(insertData->numSlot);
 	memcpy(nextIndex, &insertData->numSlot, copiedSize);
 	nextIndex += copiedSize;
-
-	/* Serialize columnInfos */
-	for (i = 0; i < insertData->numColumn; i++)
-	{
-		ColumnInfo	col = insertData->columnInfos[i];
-
-		copiedSize = strlen(col.columnName) + 1;
-		memcpy(nextIndex, col.columnName, copiedSize - 1);
-		nextIndex += copiedSize;
-		*nextIndex = col.notNull;
-		nextIndex += BOOL_SIZE;
-		memcpy(nextIndex, &col.columnType, DATA_TYPE_SIZE);
-		nextIndex += DATA_TYPE_SIZE;
-
-		*nextIndex = col.isTagKey;
-		nextIndex += BOOL_SIZE;
-
-		if (col.columnType == BIT_TYPE)
-		{
-			/* Only support 1 modifier, so only need 2 bytes */
-			memcpy(nextIndex, &col.typemod, SHORT_SIZE);
-			nextIndex += SHORT_SIZE;
-		}
-	}
 
 	/* Serialize transfer value */
 	for (i = 0; i < insertData->numSlot * insertData->numColumn; i++)
@@ -813,59 +873,11 @@ transfer_data_type_mapping(Oid typ, int32 typmod, Oid typmodout, int *typmodoutI
 }
 
 /*
- * Parse a comma-separated string and return a list of tag keys of a foreign table.
- * Specify for only InfluxDB server.
- */
-static List *
-pgspider_extract_tags_list(char *in_string)
-{
-	List	   *tags_list = NIL;
-
-	/* SplitIdentifierString scribbles on its input, so pstrdup first */
-	if (!SplitIdentifierString(pstrdup(in_string), ',', &tags_list))
-	{
-		/* Syntax error in tags list */
-		ereport(ERROR,
-				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				 errmsg("parameter \"%s\" must be a list of tag keys",
-						"tags")));
-	}
-
-	return tags_list;
-}
-
-/*
- * This function check whether column is tag key or not.
- * Return true if it is tag, otherwise return false.
- * Specify for InfluxDB server.
- */
-static bool
-pgspider_is_tag_key(const char *colname, List *tagsList)
-{
-	ListCell   *lc;
-
-	/* If there is no tag in tagsList, it means column is field */
-	if (list_length(tagsList) == 0)
-		return false;
-
-	/* Check whether column is tag or not */
-	foreach(lc, tagsList)
-	{
-		char	   *name = (char *) lfirst(lc);
-
-		if (strcmp(colname, name) == 0)
-			return true;
-	}
-
-	return false;
-}
-
-/*
  * create_column_info_array
  *		Create array of columns for Data Compression Transfer Feature
  */
 ColumnInfo *
-create_column_info_array(Relation rel, List *target_attrs, List *tagsList)
+create_column_info_array(Relation rel, List *target_attrs)
 {
 	ColumnInfo *columnInfos;
 	ListCell   *lc;
@@ -894,12 +906,6 @@ create_column_info_array(Relation rel, List *target_attrs, List *tagsList)
 		columnInfos[i].columnName = NameStr(attr->attname);
 		columnInfos[i].notNull = attr->attnotnull;
 		columnInfos[i].columnType = typ;
-
-		if (pgspider_is_tag_key(columnInfos[i].columnName, tagsList))
-			columnInfos[i].isTagKey = true;
-		else
-			columnInfos[i].isTagKey = false;
-
 		columnInfos[i].typemod = typemodout;
 		i++;
 	}
@@ -955,283 +961,11 @@ create_values_array(PGSpiderFdwModifyState * fmstate, TupleTableSlot **slots, in
 }
 
 /*
- * pgspider_escape_json_string
- *		Escapes a string for safe inclusion in JSON.
- */
-static char *
-pgspider_escape_json_string(char *string)
-{
-	StringInfo	buffer;
-	const char *ptr;
-	int			i;
-	int			segment_start_idx;
-	int			len;
-	bool		needed_escaping = false;
-
-	if (string == NULL)
-		return NULL;
-
-	for (ptr = string; *ptr; ++ptr)
-	{
-		if (*ptr == '"' || *ptr == '\r' || *ptr == '\n' || *ptr == '\t' ||
-			*ptr == '\\')
-		{
-			needed_escaping = true;
-			break;
-		}
-	}
-
-	if (!needed_escaping)
-		return pstrdup(string);
-
-	buffer = makeStringInfo();
-	len = strlen(string);
-	segment_start_idx = 0;
-	for (i = 0; i < len; ++i)
-	{
-		if (string[i] == '"' || string[i] == '\r' || string[i] == '\n' ||
-			string[i] == '\t' || string[i] == '\\')
-		{
-			if (segment_start_idx < i)
-				appendBinaryStringInfo(buffer, string + segment_start_idx,
-									   i - segment_start_idx);
-
-			appendStringInfoChar(buffer, '\\');
-			if (string[i] == '"')
-				appendStringInfoChar(buffer, '"');
-			else if (string[i] == '\r')
-				appendStringInfoChar(buffer, 'r');
-			else if (string[i] == '\n')
-				appendStringInfoChar(buffer, 'n');
-			else if (string[i] == '\t')
-				appendStringInfoChar(buffer, 't');
-			else if (string[i] == '\\')
-				appendStringInfoChar(buffer, '\\');
-
-			segment_start_idx = i + 1;
-		}
-	}
-	if (segment_start_idx < len)
-		appendBinaryStringInfo(buffer, string + segment_start_idx,
-							   len - segment_start_idx);
-	return buffer->data;
-}
-
-/*
- * stringInfoAppendStringValue
- *		Append key and value pairs.
- */
-static void
-stringInfoAppendStringValue(StringInfo strInfo, char *key, char *value, char comma)
-{
-	char	   *escaped_key = NULL;
-
-	/* json key must not be NULL. */
-	Assert(key != NULL);
-
-	escaped_key = pgspider_escape_json_string(key);
-	if (escaped_key == NULL)
-		elog(ERROR, "Cannot escape json column key");
-
-	appendStringInfo(strInfo, "\"%s\" : ", escaped_key);	/* \"key\" : */
-
-	if (value)
-		appendStringInfo(strInfo, "\"%s\"", pgspider_escape_json_string(value));	/* \"value\" */
-	else
-		appendStringInfoString(strInfo, "null");	/* null */
-
-	if (comma == ',')
-		appendStringInfoString(strInfo, ", ");
-
-	if (escaped_key != NULL)
-		pfree(escaped_key);
-}
-
-/*
- * jsonifyColumnInfo
- *		Append ColumnInfo as json.
- */
-static void
-jsonifyColumnInfo(StringInfo strInfo, ColumnInfo * colInfo, int len)
-{
-	int			i;
-	bool		is_first = true;
-
-	appendStringInfoChar(strInfo, '[');
-	for (i = 0; i < len; i++)
-	{
-		if (!is_first)
-			appendStringInfoString(strInfo, ", ");
-
-		appendStringInfoChar(strInfo, '{');
-
-		stringInfoAppendStringValue(strInfo, "columnName", colInfo[i].columnName, ',');
-		appendStringInfo(strInfo, "\"notNull\" : %s, ", (colInfo[i].notNull) ? "true" : "false");
-		appendStringInfo(strInfo, "\"columnType\" : %d, ", colInfo[i].columnType);
-		appendStringInfo(strInfo, "\"typemod\" : %d ", colInfo[i].typemod);
-
-		appendStringInfoChar(strInfo, '}');
-
-		is_first = false;
-	}
-	appendStringInfoChar(strInfo, ']');
-}
-
-/*
- * pgspiderPrepareConnectionURLData
- * 		Prepare Conection URL Data before sending data to Function.
- */
-void
-pgspiderPrepareConnectionURLData(ConnectionURLData * connData, Relation rel, DataCompressionTransferOption *dct_option)
-{
-	ForeignDataWrapper *fdw;
-	ForeignServer *fs;
-	UserMapping *user;
-	ListCell   *lc;
-
-	fs = GetForeignServer(dct_option->serverID);
-	fdw = GetForeignDataWrapper(fs->fdwid);
-	user = GetUserMapping(dct_option->userID, dct_option->serverID);
-
-	if (strcmp(fdw->fdwname, POSTGRES_FDW_NAME) == 0)
-		connData->targetDB = POSTGRESDB;
-	else if (strcmp(fdw->fdwname, PGSPIDER_FDW_NAME) == 0)
-		connData->targetDB = PGSPIDERDB;
-	else if (strcmp(fdw->fdwname, MYSQL_FDW_NAME) == 0)
-		connData->targetDB = MYSQLDB;
-	else if (strcmp(fdw->fdwname, GRIDDB_FDW_NAME) == 0)
-		connData->targetDB = GRIDDB;
-	else if (strcmp(fdw->fdwname, ORACLE_FDW_NAME) == 0)
-		connData->targetDB = ORACLEDB;
-	else if (strcmp(fdw->fdwname, INFLUXDB_FDW_NAME) == 0)
-		connData->targetDB = INFLUXDB;
-	else
-		elog(ERROR, "Not support datasource type: %s", fdw->fdwname);
-
-	/*
-	 * oracle_fdw support 'dbserver' options as a connection string and
-	 * 'dbname' same name with 'user' of usermapping. So just use only
-	 * 'dbserver' option as a 'host' for connectionURLData.
-	 */
-	if (connData->targetDB == ORACLEDB)
-	{
-		foreach(lc, user->options)
-		{
-			DefElem    *def = (DefElem *) lfirst(lc);
-
-			if (strcmp(def->defname, "user") == 0)
-			{
-				connData->dbName = defGetString(def);
-				break;
-			}
-		}
-	}
-
-	/* get option */
-	foreach(lc, fs->options)
-	{
-		DefElem    *def = (DefElem *) lfirst(lc);
-
-		if (connData->targetDB == ORACLEDB)
-		{
-			if (strcmp(def->defname, "dbserver") == 0)
-			{
-				connData->host = defGetString(def);
-				break;
-			}
-		}
-		else
-		{
-			if (strcmp(def->defname, "host") == 0)
-			{
-				connData->host = defGetString(def);
-				continue;
-			}
-			else if (strcmp(def->defname, "port") == 0)
-			{
-				(void) parse_int(defGetString(def), &connData->port, 0, NULL);
-				continue;
-			}
-
-			if (connData->targetDB == PGSPIDERDB ||
-				connData->targetDB == POSTGRESDB ||
-				connData->targetDB == INFLUXDB)
-			{
-				if (strcmp(def->defname, "dbname") == 0)
-					connData->dbName = defGetString(def);
-			}
-			else if (connData->targetDB == GRIDDB)
-			{
-				if (strcmp(def->defname, "clustername") == 0)
-					connData->clusterName = defGetString(def);
-				else if (strcmp(def->defname, "database") == 0)
-					connData->dbName = defGetString(def);
-			}
-		}
-	}
-
-	/* database of griddb_fdw, default public */
-	if (connData->dbName == NULL && connData->targetDB == GRIDDB)
-		connData->dbName = "public";
-
-	/*
-	 * database of mysql_fdw. In mysql_fdw, dbname option is an option of
-	 * foreign table.
-	 */
-	if (connData->targetDB == MYSQLDB)
-	{
-		ForeignTable *sourceTable;
-
-		sourceTable = GetForeignTable(RelationGetRelid(rel));
-		foreach(lc, sourceTable->options)
-		{
-			DefElem    *def = (DefElem *) lfirst(lc);
-
-			if (strcmp(def->defname, "dbname") == 0)
-			{
-				connData->dbName = defGetString(def);
-				break;
-			}
-		}
-	}
-
-	/* Save organization name to make connection to InfluxDB */
-	if (connData->targetDB == INFLUXDB)
-		connData->org = dct_option->org;
-}
-
-/*
- * pgspiderPrepareAuthenticationData
- *		Prepare Authentication Data before sending data to Function.
- */
-void
-pgspiderPrepareAuthenticationData(AuthenticationData * authData, DataCompressionTransferOption *dct_option)
-{
-	UserMapping *user;
-	ListCell   *lc;
-
-	user = GetUserMapping(dct_option->userID, dct_option->serverID);
-
-	foreach(lc, user->options)
-	{
-		DefElem    *def = (DefElem *) lfirst(lc);
-
-		if (strcmp(def->defname, "username") == 0 ||
-			strcmp(def->defname, "user") == 0)
-			authData->user = defGetString(def);
-		else if (strcmp(def->defname, "password") == 0)
-			authData->pwd = defGetString(def);
-		else if (strcmp(def->defname, "auth_token") == 0)
-			authData->token = defGetString(def);
-	}
-}
-
-/*
  * pgspiderPrepareDDLData
  *		Prepare DDL Data before sending data to Function.
  */
-void
-pgspiderPrepareDDLData(DDLData * ddldata, Relation rel, bool existFlag, DataCompressionTransferOption * dct_option)
+static void
+pgspiderPrepareDDLData(DDLData * ddldata, Relation rel, bool existFlag)
 {
 	TupleDesc	tupdesc = RelationGetDescr(rel);
 	List	   *target_attrs = NIL;
@@ -1248,11 +982,11 @@ pgspiderPrepareDDLData(DDLData * ddldata, Relation rel, bool existFlag, DataComp
 		target_attrs = lappend_int(target_attrs, i + 1);
 	}
 
-	ddldata->columnInfos = create_column_info_array(rel, target_attrs, NULL);
-	ddldata->tableName = dct_option->table_name;
+	ddldata->columnInfos = create_column_info_array(rel, target_attrs);
 	ddldata->numColumn = list_length(target_attrs);
 	ddldata->existFlag = existFlag;
 }
+
 
 /*
  * pgspiderPrepareDDLRequestData
@@ -1261,37 +995,17 @@ pgspiderPrepareDDLData(DDLData * ddldata, Relation rel, bool existFlag, DataComp
 static void
 pgspiderPrepareDDLRequestData(StringInfo jsonBody,
 							  int mode,
-							  AuthenticationData * authData,
-							  ConnectionURLData * connData,
-							  DDLData * ddlData)
+							  Relation rel,
+							  DataCompressionTransferOption * dct_option,
+							  bool exists_flag,
+							  DataSource *dtSource)
 {
-	appendStringInfoString(jsonBody, "{ ");
+	DDLData ddlData;
 
-	/* DDL_CREATE/DDL_DROP */
-	appendStringInfo(jsonBody, "\"mode\": %d, ", mode);
+	init_DDLData(&ddlData);
+	pgspiderPrepareDDLData(&ddlData, rel, exists_flag);
 
-	/* Append AuthenticationData */
-	stringInfoAppendStringValue(jsonBody, "user", authData->user, ',');
-	stringInfoAppendStringValue(jsonBody, "pass", authData->pwd, ',');
-	stringInfoAppendStringValue(jsonBody, "token", authData->token, ',');
-
-	/* Append ConnectionURLData */
-	appendStringInfo(jsonBody, "\"targetDB\" : %d, ", connData->targetDB);
-	stringInfoAppendStringValue(jsonBody, "host", connData->host, ',');
-	appendStringInfo(jsonBody, "\"port\" : %d, ", connData->port);
-	stringInfoAppendStringValue(jsonBody, "clusterName", connData->clusterName, ',');
-	stringInfoAppendStringValue(jsonBody, "dbName", connData->dbName, ',');
-	stringInfoAppendStringValue(jsonBody, "org", connData->org, ',');
-
-	/* Append DDLData */
-	stringInfoAppendStringValue(jsonBody, "tableName", ddlData->tableName, ',');
-	appendStringInfo(jsonBody, "\"numColumn\" : %d, ", ddlData->numColumn);
-	appendStringInfo(jsonBody, "\"existFlag\" : %s, ", (ddlData->existFlag) ? "true" : "false");
-	appendStringInfoString(jsonBody, "\"columnInfos\"");
-	appendStringInfoChar(jsonBody, ':');
-	jsonifyColumnInfo(jsonBody, ddlData->columnInfos, ddlData->numColumn);	/* last element */
-
-	appendStringInfoString(jsonBody, " }");
+	dtSource->DDLFunc(jsonBody, mode, rel, ddlData, dct_option);
 }
 
 /*
@@ -1300,38 +1014,25 @@ pgspiderPrepareDDLRequestData(StringInfo jsonBody,
  */
 static void
 pgspiderPrepareInsertRequestData(StringInfo jsonBody,
-								 char *socket_host,
-								 int socket_port,
-								 int serverID,
-								 int tableID,
-								 AuthenticationData * authData,
-								 ConnectionURLData * connData)
+								 PGSpiderFdwModifyState * fmstate,
+								 DataCompressionTransferOption * dct_option,
+								 DataSource *dtSource)
 {
-	/* parse all data to json */
-	appendStringInfoString(jsonBody, "{ ");
+	DDLData ddlData;
+	char *socket_host;
+	int socket_port;
 
-	/* BATCH INSERT */
-	appendStringInfo(jsonBody, "\"mode\": %d, ", BATCH_INSERT);
+	init_DDLData(&ddlData);
+	pgspiderPrepareDDLData(&ddlData, fmstate->rel, false);
 
-	stringInfoAppendStringValue(jsonBody, "host_socket", socket_host, ',');
-	appendStringInfo(jsonBody, "\"port_socket\" : %d, ", socket_port);
-	appendStringInfo(jsonBody, "\"serverID\": %d, ", serverID);
-	appendStringInfo(jsonBody, "\"tableID\" : %d, ", tableID);
+	socket_host = pgspiderGetExternalIp(dct_option);
 
-	/* Append AuthenticationData */
-	stringInfoAppendStringValue(jsonBody, "user", authData->user, ',');
-	stringInfoAppendStringValue(jsonBody, "pass", authData->pwd, ',');
-	stringInfoAppendStringValue(jsonBody, "token", authData->token, ',');
+	if (dct_option->public_port)	/* In case manual port is set */
+		socket_port = dct_option->public_port;
+	else
+		socket_port = fmstate->socket_port;
 
-	/* Append ConnectionURLData */
-	appendStringInfo(jsonBody, "\"targetDB\" : %d, ", connData->targetDB);
-	stringInfoAppendStringValue(jsonBody, "host", connData->host, ',');
-	appendStringInfo(jsonBody, "\"port\" : %d, ", connData->port);
-	stringInfoAppendStringValue(jsonBody, "clusterName", connData->clusterName, ',');
-	stringInfoAppendStringValue(jsonBody, "dbName", connData->dbName, ',');
-	stringInfoAppendStringValue(jsonBody, "org", connData->org, '\0');
-
-	appendStringInfoString(jsonBody, " }");
+	dtSource->InsertFunc(jsonBody, fmstate, ddlData.columnInfos, ddlData.numColumn, socket_host, socket_port, dct_option);
 }
 
 /*
@@ -1360,20 +1061,20 @@ pgspider_write_body(void *contents, size_t size, size_t nmemb, void *user_data)
 
 /*
  * pgspider_curl_init
- *		Set HTTP version, proxy, endpoint, and body for a curl request
+ *		Set HTTP version, proxy, http_url, and body for a curl request
  *		return a curl handler which can be used to perform a curl request.
  */
 static void
-pgspider_curl_init(char *proxy, char *endpoint, int function_timeout,
+pgspider_curl_init(char *proxy, char *http_url, int function_timeout,
 				   size_t (*write_body_function) (void *contents, size_t size, size_t nmemb, void *user_data),
-				   void *body, CURL * curl_handle)
+				   void *body, CURL * curl_handle, bool isPost)
 {
 	/* Sepcifies HTTP protocol version to use Use HTTP/1.1 as default */
 	if (curl_easy_setopt(curl_handle, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_NONE) != CURLE_OK)
 		elog(ERROR, "pgspider_fdw: could not set HTTP version for CURLOPT_HTTP_VERSION option");
 
 	/* set URL */
-	if (curl_easy_setopt(curl_handle, CURLOPT_URL, endpoint) != CURLE_OK)
+	if (curl_easy_setopt(curl_handle, CURLOPT_URL, http_url) != CURLE_OK)
 		elog(ERROR, "pgspider_fdw: could not set URL for CURLOPT_URL option");
 
 	if (proxy != NULL)
@@ -1407,10 +1108,12 @@ pgspider_curl_init(char *proxy, char *endpoint, int function_timeout,
 	if (curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, function_timeout) != CURLE_OK)
 		elog(ERROR, "pgspider_fdw: could not set timeout for CURLOPT_TIMEOUT option");
 
-	/* set http method */
-	if (curl_easy_setopt(curl_handle, CURLOPT_CUSTOMREQUEST, PGFDW_HTTP_POST_METHOD) != CURLE_OK)
-		elog(ERROR, "pgspider_fdw: could not set '%s' method for CURLOPT_CUSTOMREQUEST option.", PGFDW_HTTP_POST_METHOD);
-
+	if(isPost)
+	{
+		/* set http method */
+		if (curl_easy_setopt(curl_handle, CURLOPT_CUSTOMREQUEST, PGFDW_HTTP_POST_METHOD) != CURLE_OK)
+			elog(ERROR, "pgspider_fdw: could not set '%s' method for CURLOPT_CUSTOMREQUEST option.", PGFDW_HTTP_POST_METHOD);
+	}
 	if (write_body_function != NULL)
 	{
 		/* Set CURLOPT_WRITEFUNCTION if specified */
@@ -1482,31 +1185,42 @@ void
 PGSpiderRequestFunctionStart(PGSpiderExecuteMode mode,
 							 DataCompressionTransferOption * dct_option,
 							 PGSpiderFdwModifyState * fmstate,
-							 AuthenticationData * authData,
-							 ConnectionURLData * connData,
-							 DDLData * ddlData)
+							 Relation rel,
+							 bool exists_flag)
 {
 	CURL	   *volatile curl_handle = NULL;
 	struct curl_slist *volatile header_list = NULL;
 	struct curl_slist *tmp_list = NULL;
-	char	   *socket_host;
 	StringInfoData jsonBody;
+	ForeignDataWrapper *fdw;
+	ForeignServer *fs;
+	DataSource *dtSource = NULL;
 
 	initStringInfo(&jsonBody);
+
+	fs = GetForeignServer(dct_option->serverID);
+	fdw = GetForeignDataWrapper(fs->fdwid);
+
+	for (int i = 0; dtSources[i].fdw_name != NULL; i ++)
+	{
+		if (strcmp(fdw->fdwname, dtSources[i].fdw_name) == 0)
+		{
+			dtSource = &dtSources[i];
+			break;
+		}
+	}
+
+	if (dtSource == NULL)
+		elog(ERROR, "Not support datasource type: %s", fdw->fdwname);
 
 	switch (mode)
 	{
 		case DDL_CREATE:
 		case DDL_DROP:
-			pgspiderPrepareDDLRequestData(&jsonBody, mode, authData, connData, ddlData);
+			pgspiderPrepareDDLRequestData(&jsonBody, mode, rel, dct_option, exists_flag, dtSource);
 			break;
 		case BATCH_INSERT:
-			socket_host = pgspiderGetExternalIp();
-			pgspiderPrepareInsertRequestData(&jsonBody, socket_host,
-											 fmstate->socket_port,
-											 fmstate->socketThreadInfo.serveroid,
-											 fmstate->socketThreadInfo.tableoid,
-											 authData, connData);
+			pgspiderPrepareInsertRequestData(&jsonBody, fmstate, dct_option, dtSource);
 			break;
 		default:
 			elog(ERROR, "Unsupported execution mode");
@@ -1516,6 +1230,7 @@ PGSpiderRequestFunctionStart(PGSpiderExecuteMode mode,
 	{
 		long		status;		/* HTTP response status code */
 		static char curl_errbuf[CURL_ERROR_SIZE];
+		char *http_url = NULL;
 		CURLcode	res = CURLE_OK;
 		StringInfoData http_header;
 		CURLoption	post_size_opt = 0;
@@ -1530,7 +1245,10 @@ PGSpiderRequestFunctionStart(PGSpiderExecuteMode mode,
 		if (curl_handle == NULL)
 			elog(ERROR, "pgspider_fdw: could not initialize Curl handler.");
 
-		pgspider_curl_init(dct_option->proxy, dct_option->endpoint, dct_option->function_timeout, pgspider_write_body, (void *) &body, curl_handle);
+		/* http_url for targetDB postgres: "http://localhost:1234?targetdb=1" */
+		http_url = psprintf("%s?targetdb=%d", dct_option->endpoint, dtSource->targetDB);
+
+		pgspider_curl_init(dct_option->proxy, http_url, dct_option->function_timeout, pgspider_write_body, (void *) &body, curl_handle, true);
 
 		/* set content-length */
 		initStringInfo(&http_header);
@@ -1843,8 +1561,6 @@ get_data_compression_transfer_option(PGSpiderExecuteMode mode, Relation rel, Dat
 	ListCell   *lc;
 	ForeignServer *server;
 	ForeignTable *table;
-	char	   *schema_name = NULL;
-	char	   *table_option = NULL;
 
 	table = GetForeignTable(RelationGetRelid(rel));
 	server = GetForeignServer(table->serverid);
@@ -1861,30 +1577,9 @@ get_data_compression_transfer_option(PGSpiderExecuteMode mode, Relation rel, Dat
 			dct_option->endpoint = defGetString(def);
 		else if (strcmp(def->defname, "proxy") == 0)
 			dct_option->proxy = defGetString(def);
-		else if (strcmp(def->defname, "schema_name") == 0)
-			schema_name = defGetString(def);
-		else if (strcmp(def->defname, "table_name") == 0)
-			dct_option->table_name = defGetString(def);
-		/* oracle_fdw use `table` instead of `table_name` option */
-		else if (strcmp(def->defname, "table") == 0)
-			table_option = defGetString(def);
 		else if (strcmp(def->defname, "serverid") == 0)
 			(void) parse_int(defGetString(def), &dct_option->serverID, 0, NULL);
 		else if (strcmp(def->defname, "userid") == 0)
 			(void) parse_int(defGetString(def), &dct_option->userID, 0, NULL);
-		else if (strcmp(def->defname, "org") == 0)
-			dct_option->org = defGetString(def);
-		else if (strcmp(def->defname, "tags") == 0)
-			dct_option->tagsList = pgspider_extract_tags_list(defGetString(def));
 	}
-
-	/*
-	 * table name to be sent to Function will contain schema if needed.
-	 *
-	 * Use table option if 'table' or 'table_name' is specified.
-	 */
-	if (table_option != NULL)
-		dct_option->table_name = table_option;
-	else if (schema_name && dct_option->table_name)
-		dct_option->table_name = psprintf("%s\".\"%s", schema_name, dct_option->table_name);
 }

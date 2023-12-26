@@ -3,7 +3,7 @@
  * pg_aggregate.c
  *	  routines to support manipulation of the pg_aggregate relation
  *
- * Portions Copyright (c) 1996-2022, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2023, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
@@ -586,23 +586,23 @@ AggregateCreate(const char *aggName,
 	 */
 	for (i = 0; i < numArgs; i++)
 	{
-		aclresult = pg_type_aclcheck(aggArgTypes[i], GetUserId(), ACL_USAGE);
+		aclresult = object_aclcheck(TypeRelationId, aggArgTypes[i], GetUserId(), ACL_USAGE);
 		if (aclresult != ACLCHECK_OK)
 			aclcheck_error_type(aclresult, aggArgTypes[i]);
 	}
 
-	aclresult = pg_type_aclcheck(aggTransType, GetUserId(), ACL_USAGE);
+	aclresult = object_aclcheck(TypeRelationId, aggTransType, GetUserId(), ACL_USAGE);
 	if (aclresult != ACLCHECK_OK)
 		aclcheck_error_type(aclresult, aggTransType);
 
 	if (OidIsValid(aggmTransType))
 	{
-		aclresult = pg_type_aclcheck(aggmTransType, GetUserId(), ACL_USAGE);
+		aclresult = object_aclcheck(TypeRelationId, aggmTransType, GetUserId(), ACL_USAGE);
 		if (aclresult != ACLCHECK_OK)
 			aclcheck_error_type(aclresult, aggmTransType);
 	}
 
-	aclresult = pg_type_aclcheck(finaltype, GetUserId(), ACL_USAGE);
+	aclresult = object_aclcheck(TypeRelationId, finaltype, GetUserId(), ACL_USAGE);
 	if (aclresult != ACLCHECK_OK)
 		aclcheck_error_type(aclresult, finaltype);
 
@@ -872,8 +872,8 @@ lookup_agg_function(List *fnName,
 
 	/* only valid case is a normal function not returning a set */
 #ifdef PD_STORED
-	if (fdresult != FUNCDETAIL_NORMAL &&
-		(fdresult != FUNCDETAIL_AGGREGATE || !acceptAgg)
+	if ((fdresult != FUNCDETAIL_NORMAL &&
+		(fdresult != FUNCDETAIL_AGGREGATE || !acceptAgg))
 		|| !OidIsValid(fnOid))
 #else
 	if (fdresult != FUNCDETAIL_NORMAL || !OidIsValid(fnOid))
@@ -931,7 +931,7 @@ lookup_agg_function(List *fnName,
 	}
 
 	/* Check aggregate creator has permission to call the function */
-	aclresult = pg_proc_aclcheck(fnOid, GetUserId(), ACL_EXECUTE);
+	aclresult = object_aclcheck(ProcedureRelationId, fnOid, GetUserId(), ACL_EXECUTE);
 	if (aclresult != ACLCHECK_OK)
 		aclcheck_error(aclresult, OBJECT_FUNCTION, get_func_name(fnOid));
 
@@ -1073,7 +1073,6 @@ DistributedFuncCreate(const char *distName,
 	ObjectAddress myself,
 				referenced;
 	AclResult	aclresult;
-	Oid			aggTransTypeParent;
 
 	/* sanity checks (caller should have caught these) */
 	if (!distName)
@@ -1146,12 +1145,12 @@ DistributedFuncCreate(const char *distName,
 	 */
 	for (i = 0; i < numArgs; i++)
 	{
-		aclresult = pg_type_aclcheck(argTypes[i], GetUserId(), ACL_USAGE);
+		aclresult = object_aclcheck(TypeRelationId, argTypes[i], GetUserId(), ACL_USAGE);
 		if (aclresult != ACLCHECK_OK)
 			aclcheck_error_type(aclresult, argTypes[i]);
 	}
 
-	aclresult = pg_type_aclcheck(finaltype, GetUserId(), ACL_USAGE);
+	aclresult = object_aclcheck(TypeRelationId, finaltype, GetUserId(), ACL_USAGE);
 	if (aclresult != ACLCHECK_OK)
 		aclcheck_error_type(aclresult, finaltype);
 

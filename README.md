@@ -113,7 +113,7 @@ CREATE EXTENSION sqlite_fdw;
 ### Create server
 PGSpider (Parent node)
 <pre>
-CREATE SERVER parent FOREIGN DATA WRAPPER pgspider_core_fdw OPTIONS (host '127.0.0.1', port '4813');
+CREATE SERVER parent FOREIGN DATA WRAPPER pgspider_core_fdw;
 </pre>
 
 PostgreSQL, SQLite (Child node)  
@@ -125,13 +125,6 @@ CREATE SERVER sqlite_svr FOREIGN DATA WRAPPER sqlite_fdw OPTIONS(database '/tmp/
 </pre>
 
 ### Create user mapping
-PGSpider (Parent node)
-
-Create user mapping for PGSpider. User and password are for current psql user.
-<pre>
-CREATE USER MAPPING FOR CURRENT_USER SERVER parent OPTIONS(user 'user', password 'pass');
-</pre>
-
 PostgreSQL (Child node)
 <pre>
 CREATE USER MAPPING FOR CURRENT_USER SERVER postgres_svr OPTIONS(user 'user', password 'pass');
@@ -153,7 +146,7 @@ When expanding Multi-Tenant table to data source tables, PGSpider searches child
 PostgreSQL, SQLite (Child node)
 <pre>
 CREATE FOREIGN TABLE t1__postgres_svr__0(i int, t text) SERVER postgres_svr OPTIONS (table_name 't1');
-CREATE FOREIGN TABLE t1__sqlite_svr__0(i int, t text) SERVER sqlite_svr OPTIONS (table 't1');
+CREATE FOREIGN TABLE t1__sqlite_svr__0(i int OPTIONS (key 'true'), t text) SERVER sqlite_svr OPTIONS (table 't1');
 </pre>
 
 ### Access Multi-Tenant table
@@ -183,36 +176,42 @@ SELECT * FROM t1 IN ('/postgres_svr/');
 ### Modify Multi-Tenant table
 <pre>
 SELECT * FROM t1;
-  i |  t  | __spd_url 
+ i  |  t  |   __spd_url
 ----+-----+----------------
   1 | aaa | /sqlite_svr/
+ 10 | a   | /postgres_svr/
+  2 | bbb | /sqlite_svr/
  11 | b   | /postgres_svr/
-(2 rows)
+(4 rows)
 
 INSERT INTO t1 VALUES (4, 'c');
 INSERT 0 1
 
 SELECT * FROM t1;
-  i |  t  | __spd_url 
+ i  |  t  |   __spd_url
 ----+-----+----------------
-  1 | aaa | /sqlite_svr/
-  4 | c   | /sqlite_svr/
+ 10 | a   | /postgres_svr/
  11 | b   | /postgres_svr/
-(3 rows)
+  1 | aaa | /sqlite_svr/
+  2 | bbb | /sqlite_svr/
+  4 | c   | /postgres_svr/
+(5 rows)
 
-UPDATE t1 SET i = 5;
-UPDATE 3
+UPDATE t1 SET t = 'nn';
+UPDATE 5
 
 SELECT * FROM t1;
- i |  t  | __spd_url 
----+-----+----------------
- 5 | aaa | /sqlite_svr/
- 5 | c   | /sqlite_svr/
- 5 | b   | /postgres_svr/
-(3 rows)
+ i  | t  |   __spd_url
+----+----+----------------
+ 10 | nn | /postgres_svr/
+ 11 | nn | /postgres_svr/
+  1 | nn | /sqlite_svr/
+  2 | nn | /sqlite_svr/
+  4 | nn | /postgres_svr/
+(5 rows)
 
 DELETE FROM t1;
-DELETE 3
+DELETE 5
 
 SELECT * FROM t1;
  i | t | __spd_url
@@ -224,6 +223,8 @@ SELECT * FROM t1;
 You can choose modifying node with 'IN' clause after table name.
 
 <pre>
+INSERT INTO t1 VALUES (1, 'aaa'), (11, 'b');
+
 SELECT * FROM t1;
   i |  t  | __spd_url 
 ----+-----+----------------
@@ -241,25 +242,25 @@ SELECT * FROM t1;
  11 | b   | /postgres_svr/
 (3 rows)
 
-UPDATE t1 IN ('/postgres_svr/') SET i = 5;
-UPDATE 1
+UPDATE t1 IN ('/postgres_svr/') SET t = 'xxx';
+UPDATE 2
 
 SELECT * FROM t1;
- i |  t  | __spd_url 
----+-----+----------------
- 1 | aaa | /sqlite_svr/
- 5 | c   | /postgres_svr/
- 5 | b   | /postgres_svr/
+ i  |  t  |   __spd_url
+----+-----+----------------
+ 11 | xxx | /postgres_svr/
+  1 | aaa | /sqlite_svr/
+  4 | xxx | /postgres_svr/
 (3 rows)
 
 DELETE FROM t1 IN ('/sqlite_svr/');
 DELETE 1
 
 SELECT * FROM t1;
- i | t | __spd_url 
----+---+----------------
- 5 | c | /postgres_svr/
- 5 | b | /postgres_svr/
+ i  |  t  |   __spd_url
+----+-----+----------------
+ 11 | xxx | /postgres_svr/
+  4 | xxx | /postgres_svr/
 (2 rows)
 </pre>
 
@@ -284,7 +285,7 @@ CREATE EXTENSION pgspider_fdw;
 ### Create server
 PGSpider (new root node)
 <pre>
-CREATE SERVER new_root FOREIGN DATA WRAPPER pgspider_core_fdw OPTIONS (host '127.0.0.1', port '54813') ;
+CREATE SERVER new_root FOREIGN DATA WRAPPER pgspider_core_fdw;
 </pre>
 
 PGSpider (Parent node)
@@ -294,11 +295,6 @@ CREATE SERVER parent FOREIGN DATA WRAPPER pgspider_svr OPTIONS
 </pre>
 
 ### Create user mapping
-PGSpider (new root node)
-<pre>
-CREATE USER MAPPING FOR CURRENT_USER SERVER new_root OPTIONS(user 'user', password 'pass');
-</pre>
-
 PGSpider (Parent node)
 <pre>
 CREATE USER MAPPING FOR CURRENT_USER SERVER parent OPTIONS(user 'user', password 'pass');
@@ -502,6 +498,7 @@ Limitation with modification and transaction:
 - It is recommended to execute a modify query(INSERT/UPDATE/DELETE) in auto-commit mode. If not, a warning "Modification query is executing in non-autocommit mode. PGSpider might get inconsistent data." is shown.
 - RETURNING, WITH CHECK OPTION and ON CONFLICT are not supported with Modification.
 - COPY and modify (INSERT/UPDATE/DELETE) foreign partition are not supported.
+- "Tree Structure" feature is not tested enough. This feature is in beta. 
 
 ## Contributing
 Opening issues and pull requests are welcome.
